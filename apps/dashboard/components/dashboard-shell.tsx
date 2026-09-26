@@ -12,6 +12,7 @@ interface DashboardShellProps {
   sites: string[];
   dimension: AnalyticsDimension;
   children: ReactNode;
+  settingsMode?: boolean;
 }
 
 export function DashboardShell({
@@ -20,6 +21,7 @@ export function DashboardShell({
   sites,
   dimension,
   children,
+  settingsMode = false,
 }: DashboardShellProps) {
   return (
     <main className="dashboard-shell">
@@ -27,39 +29,69 @@ export function DashboardShell({
         <div>
           <p className="eyebrow">Web Analytics</p>
           <h1>Dashboard</h1>
-          <p>Page view activity for the selected site and UTC date range.</p>
+          <p>
+            {settingsMode
+              ? "Manage site collection and ingestion settings."
+              : "Page view activity for the selected site and UTC date range."}
+          </p>
         </div>
-        <form action="/dashboard" method="get" className="filters">
-          <label>
-            Site
-            <select name="site_id" defaultValue={siteId}>
-              {sites.map((site) => (
-                <option key={site} value={site}>
-                  {site}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            From
-            <input name="from" type="date" defaultValue={dateRange.from} />
-          </label>
-          <label>
-            To
-            <input name="to" type="date" defaultValue={dateRange.to} />
-          </label>
-          <label>
-            Dimension
-            <select name="dimension" defaultValue={dimension}>
-              {ANALYTICS_DIMENSIONS.map((value) => (
-                <option key={value} value={value}>
-                  {value}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button type="submit">Apply</button>
-        </form>
+        <nav className="dashboard-nav" aria-label="Dashboard navigation">
+          <a href={`/dashboard?site_id=${encodeURIComponent(siteId)}`}>Analytics</a>
+          <a
+            href={`/dashboard/settings?site_id=${encodeURIComponent(siteId)}`}
+            aria-current={settingsMode ? "page" : undefined}
+          >
+            Settings
+          </a>
+        </nav>
+        {settingsMode && (
+          <form action="/dashboard/settings" method="get" className="filters">
+            <label>
+              Site
+              <select name="site_id" defaultValue={siteId}>
+                {sites.map((site) => (
+                  <option key={site} value={site}>
+                    {site}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="submit">Select site</button>
+          </form>
+        )}
+        {!settingsMode && (
+          <form action="/dashboard" method="get" className="filters">
+            <label>
+              Site
+              <select name="site_id" defaultValue={siteId}>
+                {sites.map((site) => (
+                  <option key={site} value={site}>
+                    {site}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              From
+              <input name="from" type="date" defaultValue={dateRange.from} />
+            </label>
+            <label>
+              To
+              <input name="to" type="date" defaultValue={dateRange.to} />
+            </label>
+            <label>
+              Dimension
+              <select name="dimension" defaultValue={dimension}>
+                {ANALYTICS_DIMENSIONS.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="submit">Apply</button>
+          </form>
+        )}
       </header>
       {children}
     </main>

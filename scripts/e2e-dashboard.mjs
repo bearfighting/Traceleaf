@@ -1,6 +1,7 @@
 /* global console, fetch, process, setTimeout, window, localStorage, document */
 
 import { execFileSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,6 +13,7 @@ import { seedE2ECapabilityConfigurations } from "./e2e-capabilities.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const composeFiles = ["-f", "compose.yaml", "-f", "compose.backend.yaml", "-f", "compose.e2e.yaml"];
 const project = `web-analytics-dashboard-e2e-${process.pid}`;
+const adminToken = randomBytes(32).toString("base64url");
 const dashboardUrl = `http://127.0.0.1:${process.env.DASHBOARD_PORT ?? "13000"}`;
 const errorDashboardPort = process.env.DASHBOARD_ERROR_E2E_PORT ?? "13001";
 const errorContainer = `${project}-dashboard-error`;
@@ -993,6 +995,59 @@ async function assertPhase6Empty(page) {
   );
 }
 
+async function assertDashboardConfiguration(page) {
+  await page.goto(`${dashboardUrl}/dashboard/settings?site_id=site_playground`);
+  await page.getByRole("heading", { name: "Site capabilities" }).waitFor();
+  const geoToggle = page.getByRole("checkbox", { name: "Enable Geo country" });
+  if (await geoToggle.isChecked()) await geoToggle.uncheck();
+  const capabilitySave = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/admin/sites/site_playground/capabilities") &&
+      response.request().method() === "PUT",
+  );
+  await page.getByRole("button", { name: "Save capabilities" }).click();
+  const capabilityResponse = await capabilitySave;
+  assert(
+    capabilityResponse.ok(),
+    `Capability save failed (${capabilityResponse.status()}): ${await capabilityResponse.text()}`,
+  );
+  await page.getByRole("status").filter({ hasText: "Capabilities saved." }).waitFor();
+  await page.reload();
+  assert(
+    !(await page.getByRole("checkbox", { name: "Enable Geo country" }).isChecked()),
+    "Capability change did not persist after reload",
+  );
+
+  await page.locator("textarea").fill("https://config-e2e.example.test");
+  await page.getByRole("button", { name: "Create environment policy" }).click();
+  await page
+    .getByRole("status")
+    .filter({ hasText: "Origin and rate limit settings saved." })
+    .waitFor();
+  await page.reload();
+  assert(
+    (await page.locator("textarea").inputValue()).includes("https://config-e2e.example.test"),
+    "Origin change did not persist after reload",
+  );
+
+  await page.getByRole("button", { name: "Create Ingest Key" }).click();
+  const displayedKey = page.locator(".one-time-secret code");
+  await displayedKey.waitFor();
+  const plaintext = await displayedKey.textContent();
+  assert(
+    plaintext && /^[A-Za-z0-9_-]{43}$/.test(plaintext),
+    "Created Ingest Key was not displayed once in the expected format",
+  );
+  assert((await page.locator(".key-list li").count()) === 1, "Created key metadata is missing");
+  await page.reload();
+  assert(
+    !(await page.locator("body").innerText()).includes(plaintext),
+    "Ingest Key plaintext was displayed again after reload",
+  );
+  await page.getByRole("button", { name: "Revoke" }).click();
+  await page.getByText("No active ingest keys.").waitFor();
+}
+
 async function assertApiError(browser) {
   runCompose(
     [
@@ -1031,6 +1086,7 @@ async function assertApiError(browser) {
 let browser;
 let browserContext;
 let page;
+let browserTracingActive = false;
 try {
   const artifactDirectory = path.join(root, "artifacts", "dashboard-e2e");
   await rm(artifactDirectory, { recursive: true, force: true });
@@ -1058,6 +1114,9 @@ try {
         NEXT_PUBLIC_ANALYTICS_ENDPOINT: `${collectorUrl}/v1/events`,
         NEXT_PUBLIC_ANALYTICS_INGEST_KEY: keys.site_playground,
         NEXT_PUBLIC_ANALYTICS_SITE_ID: "site_playground",
+        CONFIG_ADMIN_TOKENS: JSON.stringify([adminToken]),
+        DASHBOARD_CONFIG_ADMIN_TOKEN: adminToken,
+        DASHBOARD_DEFAULT_ENVIRONMENT: "config-e2e",
       },
     },
   );
@@ -1070,6 +1129,7 @@ try {
   console.log("PASS real-browser Web Vitals collection and keepalive ingestion");
   browserContext = await browser.newContext();
   await browserContext.tracing.start({ screenshots: true, snapshots: true });
+  browserTracingActive = true;
   page = await browserContext.newPage();
 
   await assertSinglePageView(page);
@@ -1096,6 +1156,10 @@ try {
   console.log("PASS phase6 dashboard");
   await assertPhase6Empty(page);
   console.log("PASS phase6-empty dashboard");
+  await browserContext.tracing.stop();
+  browserTracingActive = false;
+  await assertDashboardConfiguration(page);
+  console.log("PASS dashboard configuration save, refresh, one-time key display, and revocation");
   await assertApiError(browser);
   console.log("PASS api-error dashboard");
   await page.close();
@@ -1105,14 +1169,18 @@ try {
   await mkdir(artifactDirectory, { recursive: true });
   if (page) {
     try {
+      await page.evaluate(() => {
+        document.querySelectorAll(".one-time-secret").forEach((element) => element.remove());
+      });
       await page.screenshot({ path: path.join(artifactDirectory, "failure.png"), fullPage: true });
     } catch (artifactError) {
       console.error(`Dashboard failure screenshot could not be saved: ${artifactError}`);
     }
   }
-  if (browserContext) {
+  if (browserContext && browserTracingActive) {
     try {
       await browserContext.tracing.stop({ path: path.join(artifactDirectory, "trace.zip") });
+      browserTracingActive = false;
     } catch (artifactError) {
       console.error(`Dashboard trace could not be saved: ${artifactError}`);
     }
@@ -1120,7 +1188,17 @@ try {
   try {
     await writeFile(
       path.join(artifactDirectory, "compose-config.txt"),
-      runCompose(["config"], { capture: true, allowFailure: true }),
+      redactAdminToken(
+        runCompose(["config"], {
+          capture: true,
+          allowFailure: true,
+          env: {
+            CONFIG_ADMIN_TOKENS: JSON.stringify([adminToken]),
+            DASHBOARD_CONFIG_ADMIN_TOKEN: adminToken,
+            DASHBOARD_DEFAULT_ENVIRONMENT: "config-e2e",
+          },
+        }),
+      ),
     );
     await writeFile(
       path.join(artifactDirectory, "compose-ps.txt"),
@@ -1156,4 +1234,8 @@ try {
   if (browserContext) await browserContext.close();
   if (browser) await browser.close();
   runCompose(["down", "--volumes", "--remove-orphans"], { allowFailure: true });
+}
+
+function redactAdminToken(value) {
+  return value.split(adminToken).join("[REDACTED]");
 }
