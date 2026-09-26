@@ -281,14 +281,14 @@ ON CONFLICT (site_id, capability_id) DO UPDATE SET enabled_since = EXCLUDED.enab
         "ON_ERROR_STOP=1",
         "-At",
         "-c",
-        `SELECT EXISTS (SELECT 1 FROM configuration_capability_runtime_state WHERE service = 'analytics_api' AND site_id = '${siteId}' AND applied_version = ${version} AND refresh_status = 'current')`,
+        `SELECT COUNT(DISTINCT service) = 2 FROM configuration_capability_runtime_state WHERE service IN ('collector', 'analytics_api') AND site_id = '${siteId}' AND applied_version = ${version} AND refresh_status = 'current' AND last_seen_at >= NOW() - INTERVAL '15 seconds'`,
       ],
       { capture: true },
     ).trim();
     if (applied === "t") return;
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  throw new Error(`Analytics API did not apply capability version ${version} for ${siteId}`);
+  throw new Error(`Collector and Analytics API did not apply capability version ${version} for ${siteId}`);
 }
 
 async function postFixtureEvents(input) {
