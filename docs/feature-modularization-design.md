@@ -1,6 +1,6 @@
 # 观测能力模块化与动态配置设计
 
-> Status: Planned follow-up design
+> Status: Historical design — Phase 8 implementation and acceptance are complete; see [Phase 8 Design](phase-8-design.md) for the authoritative implementation record.
 > Scope: Protocol consolidation 之后的能力模块化、站点配置和 Dashboard 管理
 
 ## 1. 目标

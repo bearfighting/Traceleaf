@@ -10,10 +10,9 @@
 
 项目状态：
 
-- 已完成：Phase 0–6 核心 Analytics workflow；Phase 7 的 Router Adapter、Custom Events、Web Vitals、Conversion/Funnel 和 Geo country 功能及阶段验收；Phase 8 PR0–PR6 的配置契约、持久化、受保护 API、服务运行时配置和 Dashboard 核心配置；
-- 进行中：Phase 8 用户配置。下一步依次完成 PR7 Conversion/Funnel 定义管理和 PR8 配置变更端到端验收；
-- 当前验证：Dashboard 单测（104 项）、全仓 `pnpm check` 和 Dashboard E2E 已通过。
-- 后续：完成 Phase 8 后进入 MVP Release Readiness，重点在实际部署环境完成回归、浏览器矩阵、运行时、数据保留、备份恢复和回滚验证；Geo region/city 延期至 MVP 之后。
+- 已完成：Phase 0–6 核心 Analytics workflow；Phase 7 的 Router Adapter、Custom Events、Web Vitals、Conversion/Funnel 和 Geo country 功能及阶段验收；Phase 8 PR0–PR8 用户配置与能力管理及端到端验收。
+- 下一阶段：MVP Release Readiness。首先量化并完成本地 Docker E2E 缓存优化，然后在目标部署环境完成完整回归、浏览器矩阵、运行时、数据保留、备份恢复和回滚验证；Geo region/city 延期至 MVP 之后。
+- Phase 8 验收记录：`pnpm e2e:configuration`、`pnpm check`、`pnpm test`、`pnpm test:migrations`、`pnpm test:integration`、`pnpm e2e:analytics`、`pnpm e2e:dashboard` 和 `pnpm build` 均通过，详见 [Phase 8 Design](docs/phase-8-design.md)。
 - MVP 发布验证之后可规划项目展示站，集中介绍项目初衷、功能、架构、部署方式、使用指南、Blog 和 Release 进展。
 
 当前已具备：
