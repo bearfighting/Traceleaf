@@ -1049,6 +1049,19 @@ async function assertPhase6Empty(page) {
 async function assertDashboardConfiguration(page) {
   await page.goto(`${dashboardUrl}/dashboard/settings?site_id=site_playground`);
   await page.getByRole("heading", { name: "Site capabilities" }).waitFor();
+  const anonymousVisitorsToggle = page.getByRole("checkbox", {
+    name: "Enable Anonymous Visitors",
+  });
+  await anonymousVisitorsToggle.click();
+  assert(
+    await anonymousVisitorsToggle.isChecked(),
+    "A capability with enabled dependents should remain enabled",
+  );
+  await page
+    .getByRole("alert")
+    .filter({ hasText: "Disable dependent capabilities first" })
+    .waitFor();
+
   const geoToggle = page.getByRole("checkbox", { name: "Enable Geo country" });
   if (await geoToggle.isChecked()) await geoToggle.uncheck();
   const capabilitySave = page.waitForResponse(
@@ -1069,17 +1082,103 @@ async function assertDashboardConfiguration(page) {
     "Capability change did not persist after reload",
   );
 
-  await page.locator("textarea").fill("https://config-e2e.example.test");
+  const origins = page.locator("textarea");
+  await origins.fill("not-an-origin");
+  await page.getByRole("button", { name: "Create environment policy" }).click();
+  await page.getByRole("alert").filter({ hasText: "allowed_origins" }).waitFor();
+  await origins.fill("https://config-e2e.example.test");
   await page.getByRole("button", { name: "Create environment policy" }).click();
   await page
     .getByRole("status")
-    .filter({ hasText: "Origin and rate limit settings saved." })
+    .filter({ hasText: "Website access settings saved. Ingestion is enabled." })
     .waitFor();
   await page.reload();
   assert(
-    (await page.locator("textarea").inputValue()).includes("https://config-e2e.example.test"),
+    (await origins.inputValue()).includes("https://config-e2e.example.test"),
     "Origin change did not persist after reload",
   );
+  const ingestionToggle = page.getByRole("checkbox", { name: "Enable environment ingestion" });
+  assert(await ingestionToggle.isChecked(), "New environment policy should start enabled");
+  await ingestionToggle.uncheck();
+  const disableResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes("/ingest-policy") && response.request().method() === "PUT",
+  );
+  await page.getByRole("button", { name: "Save access settings" }).click();
+  const disabledPolicyResponse = await disableResponse;
+  assert(disabledPolicyResponse.ok(), "Disabling environment ingestion failed");
+  const disabledPolicy = await disabledPolicyResponse.json();
+  assert(disabledPolicy.policy.enabled === false, "Disabled environment policy was not stored");
+  await page
+    .getByRole("status")
+    .filter({ hasText: "Website access settings saved. Ingestion is disabled." })
+    .waitFor();
+  await page.reload();
+  assert(
+    !(await page.getByRole("checkbox", { name: "Enable environment ingestion" }).isChecked()),
+    "Environment ingestion state did not persist after reload",
+  );
+  const websiteAccess = page
+    .locator("section.card")
+    .filter({ has: page.getByRole("heading", { name: "Website access" }) });
+  assert(
+    (await websiteAccess.getByText(/Runtime status: (current|pending|stale)/).count()) === 1,
+    "Environment runtime application status is missing",
+  );
+  assert(
+    (await websiteAccess
+      .getByText(`Stored version ${disabledPolicy.policy.version}`, { exact: true })
+      .count()) === 1,
+    "Environment policy stored version is missing or incorrect after disable",
+  );
+
+  const policyPath = `${analyticsUrl}/v1/admin/sites/site_playground/environments/config-e2e/ingest-policy`;
+  const adminHeaders = { Authorization: `Bearer ${adminToken}` };
+  const currentPolicyResponse = await fetch(policyPath, { headers: adminHeaders });
+  assert(currentPolicyResponse.ok, "Could not read policy for the version-conflict scenario");
+  const currentPolicy = await currentPolicyResponse.json();
+  const editedRateLimit = Number(await page.locator('input[type="number"]').inputValue()) + 10;
+  await page.locator('input[type="number"]').fill(String(editedRateLimit + 10));
+  const competingUpdate = await fetch(policyPath, {
+    method: "PUT",
+    headers: {
+      ...adminHeaders,
+      "Content-Type": "application/json",
+      "If-Match": `"${currentPolicy.policy.version}"`,
+    },
+    body: JSON.stringify({
+      enabled: currentPolicy.policy.enabled,
+      allowed_origins: currentPolicy.policy.allowed_origins,
+      rate_limit_per_minute: editedRateLimit,
+    }),
+  });
+  assert(competingUpdate.ok, "Could not create the competing policy version");
+  await page.getByRole("button", { name: "Save access settings" }).click();
+  await page
+    .getByRole("alert")
+    .filter({ hasText: "Reload to review the latest configuration" })
+    .waitFor();
+  const reloadComplete = page.waitForNavigation();
+  await page.getByRole("button", { name: "Reload latest configuration" }).click();
+  await reloadComplete;
+  assert(
+    Number(await page.locator('input[type="number"]').inputValue()) === editedRateLimit,
+    "Reload did not show the latest configuration after a version conflict",
+  );
+
+  await page.getByRole("checkbox", { name: "Enable environment ingestion" }).check();
+  const enableResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes("/ingest-policy") && response.request().method() === "PUT",
+  );
+  await page.getByRole("button", { name: "Save access settings" }).click();
+  const enabledPolicyResponse = await enableResponse;
+  assert(enabledPolicyResponse.ok(), "Re-enabling environment ingestion failed");
+  await enabledPolicyResponse.json();
+  await page
+    .getByRole("status")
+    .filter({ hasText: "Website access settings saved. Ingestion is enabled." })
+    .waitFor();
 
   await page.getByRole("button", { name: "Create Ingest Key" }).click();
   const displayedKey = page.locator(".one-time-secret code");
@@ -1089,13 +1188,37 @@ async function assertDashboardConfiguration(page) {
     plaintext && /^[A-Za-z0-9_-]{43}$/.test(plaintext),
     "Created Ingest Key was not displayed once in the expected format",
   );
-  assert((await page.locator(".key-list li").count()) === 1, "Created key metadata is missing");
+  const firstKeyRow = page.locator(".key-list li").first();
+  const firstKeyId = await firstKeyRow.locator("code").textContent();
+  assert(firstKeyId, "Created key metadata is missing");
+  await browserContext.grantPermissions(["clipboard-read", "clipboard-write"], {
+    origin: dashboardUrl,
+  });
+  await page.getByRole("button", { name: "Copy key" }).click();
+  assert(
+    (await page.evaluate(() => navigator.clipboard.readText())) === plaintext,
+    "Copy key did not place the one-time secret on the clipboard",
+  );
+  await page.getByRole("button", { name: "Hide key" }).click();
+  assert(
+    (await page.locator(".one-time-secret").count()) === 0,
+    "Hide key should remove the plaintext from the page",
+  );
+  await page.getByRole("button", { name: "Create Ingest Key" }).click();
+  await page.locator(".one-time-secret code").waitFor();
+  assert((await page.locator(".key-list li").count()) === 2, "Replacement key was not created");
   await page.reload();
   assert(
     !(await page.locator("body").innerText()).includes(plaintext),
     "Ingest Key plaintext was displayed again after reload",
   );
-  await page.getByRole("button", { name: "Revoke" }).click();
+  await page
+    .locator(".key-list li")
+    .filter({ has: page.locator("code", { hasText: firstKeyId }) })
+    .getByRole("button", { name: "Revoke" })
+    .click();
+  await expect(page.locator(".key-list li")).toHaveCount(1);
+  await page.locator(".key-list li").getByRole("button", { name: "Revoke" }).click();
   await page.getByText("No active ingest keys.").waitFor();
 }
 
@@ -1320,7 +1443,9 @@ try {
   await browserContext.tracing.stop();
   browserTracingActive = false;
   await assertDashboardConfiguration(page);
-  console.log("PASS dashboard configuration save, refresh, one-time key display, and revocation");
+  console.log(
+    "PASS dashboard configuration, policy enablement, one-time key display, rotation, and revocation",
+  );
   await assertApiError(browser);
   console.log("PASS api-error dashboard");
   await page.close();

@@ -1,6 +1,6 @@
 # Phase 8 Design — MVP 用户配置与能力管理
 
-> Status: In progress — PR0–PR5 已实现；最近的 migration 与 Analytics E2E 修复后 CI 已全部通过（用户确认）；下一步 PR6 Dashboard Core Configuration。
+> Status: In progress — PR0–PR6 已实现；PR6 Dashboard Core Configuration 已完成，下一步 PR7 Conversion/Funnel Definition Management。
 > Scope: capability configuration、站点接入配置、Dashboard 管理和运行时生效语义
 
 ## 1. 阶段目标
@@ -118,7 +118,7 @@ PR0 本轮审查的登记项如下；后续发现的问题追加到本表。`ser
 | 3    | **PR3 — Protected Configuration API**              | 实现部署级管理员授权、配置读取/更新、依赖与 settings 校验、版本冲突、审计。API 仅调用配置存储边界，不向浏览器暴露部署级 admin credential；测试覆盖未授权、无效输入、冲突、审计脱敏和持久化读回。                                                                                                                                                                                                 |
 | 4    | **PR4 — Collector Ingest Policy Runtime**          | 将站点启用状态、Origin allowlist 和 Ingest Key 策略接入 Collector；实现 PR1 规定的刷新、最后有效配置/拒绝策略、轮换重叠窗口与故障行为。验证启动、配置刷新、Collector 重启、密钥轮换/撤销和已有 TOML 配置迁移边界。                                                                                                                                                                               |
 | 5    | **PR5 — Capability Runtime**                       | 让 Collector、Processor 与 Analytics API 按同一份版本化配置处理 capability 开关；运行时不再读取 `analytics_enabled`。关闭时停止相应的新事件接收、事实生成或报告；历史数据按 PR1 规则保留/查询，重新开启不自动 backfill，显式 rebuild 按当前配置执行。三个服务按站点上报版本并参与收敛状态聚合。                                                                                                  |
-| 6    | **PR6 — Dashboard Core Configuration**             | 在服务端配置 API 可用后实现 capability 与 consent 状态、Origin 管理、Ingest Key 创建/轮换/撤销和最后生效状态。覆盖读取、保存、校验错误、版本冲突、加载/空/错误状态；部署级 admin credential 不进入浏览器 bundle，Ingest Key 明文只按 PR1 规则返回。                                                                                                                                              |
+| 6    | **PR6 — Dashboard Core Configuration**             | 在服务端配置 API 可用后实现 capability 与 consent 状态、environment ingestion 启停、Origin 管理、Ingest Key 创建/轮换/撤销和最后生效状态。覆盖读取、保存、校验错误、版本冲突、加载/空/错误状态；部署级 admin credential 不进入浏览器 bundle，Ingest Key 明文只按 PR1 规则返回。                                                                                                                  |
 | 7    | **PR7 — Conversion/Funnel Definition Management**  | 独立实现定义的创建/编辑/停用、版本化、校验与 Dashboard 管理。冻结定义变化对已生成 facts、历史查询和 backfill 的影响；避免将业务定义 CRUD 与基础 capability 开关耦合。                                                                                                                                                                                                                            |
 | 8    | **PR8 — Configuration End-to-end Acceptance**      | 完成配置变更后的端到端 workflow：受保护写入 → 存储/版本递增 → Collector 与 Processor/API 生效 → Dashboard 展示；覆盖刷新、服务故障、回滚、历史边界和站点隔离。同步更新 Getting Started、运维/备份/恢复说明和 Phase 8 验收记录。MVP 最终浏览器矩阵、retention、发布与 clean Release Candidate 仍由 Release Readiness 负责。                                                                       |
 
@@ -309,3 +309,10 @@ Dashboard 不展示 Protocol 版本、schema、generation 或 parser rollout 信
 - Analytics API 使用共享快照门控 capability 管理的报告，并保留 PR1 允许的历史查询语义；overview/Page Views 保持基线。
 - 新增 `20260925001600_add_capability_runtime_state.sql`，按 service/instance/site 存储 applied version、刷新状态和心跳；API 对 15 秒内活跃实例按服务汇总最低版本，stale 优先于 pending，旧实例按日清理。新增启用时间窗口，避免关闭期间的历史事件在重新启用后被增量路径补生成事实。
 - `analytics_feature_flags.analytics_enabled` 及 PR2 映射保留供部署回滚；Collector environment policy 继续使用 PR4 独立状态表和刷新语义。
+
+#### PR6 执行记录（2026-09-27）
+
+- Dashboard 设置页加入 environment ingestion 启停控件；创建和更新 policy 均提交 `enabled`，更新继续使用当前版本 `If-Match`。保存后同步服务端返回的状态并显示启用/停用结果和运行时生效版本。
+- 保留 capability 依赖、必需 consent、隐私说明、Origin/限流和 Key 管理边界；Admin token 仍只由服务端 loader/BFF 使用。
+- Dashboard E2E 覆盖依赖拒绝、Origin 校验错误、policy 创建/停用/恢复与刷新、409 冲突和重载、Key 复制/隐藏/一次性显示/轮换/撤销。Conversion/Funnel 编辑器保持原样，属于 PR7 管理范围。
+- `pnpm --filter @web-analytics/dashboard test`（104 tests）、`pnpm check` 和 `pnpm e2e:dashboard` 均通过。PR6 完成，下一步 PR7。

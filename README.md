@@ -10,9 +10,9 @@
 
 项目状态：
 
-- 已完成：Phase 0–6 核心 Analytics workflow；Phase 7 的 Router Adapter、Custom Events、Web Vitals、Conversion/Funnel 和 Geo country 功能及阶段验收；Phase 8 PR0–PR5 的配置契约、持久化、受保护 API 和服务运行时配置；
-- 进行中：Phase 8 用户配置。下一步依次完成 PR6 Dashboard 配置界面、PR7 Conversion/Funnel 定义管理和 PR8 配置变更端到端验收；
-- 当前 CI：用户确认最近的 migration 与 Analytics E2E 修复后，CI 全部通过。
+- 已完成：Phase 0–6 核心 Analytics workflow；Phase 7 的 Router Adapter、Custom Events、Web Vitals、Conversion/Funnel 和 Geo country 功能及阶段验收；Phase 8 PR0–PR6 的配置契约、持久化、受保护 API、服务运行时配置和 Dashboard 核心配置；
+- 进行中：Phase 8 用户配置。下一步依次完成 PR7 Conversion/Funnel 定义管理和 PR8 配置变更端到端验收；
+- 当前验证：Dashboard 单测（104 项）、全仓 `pnpm check` 和 Dashboard E2E 已通过。
 - 后续：MVP Release Readiness，包括完整发布回归、浏览器矩阵、部署与回滚、数据保留及发布验证。
 
 当前已具备：

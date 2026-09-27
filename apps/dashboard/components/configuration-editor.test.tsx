@@ -53,6 +53,42 @@ describe("ConfigurationEditor", () => {
     expect(markup).toContain("Create Ingest Key");
   });
 
+  it("renders environment ingestion state from the stored policy", () => {
+    const markup = renderToStaticMarkup(
+      <ConfigurationEditor
+        siteId="site-one"
+        environment="production"
+        result={{
+          ...result,
+          policy: {
+            policy: {
+              site_id: "site-one",
+              environment: "production",
+              version: 4,
+              enabled: false,
+              allowed_origins: ["https://example.test"],
+              keys: [],
+              rate_limit_per_minute: 600,
+            },
+            effective_state: {
+              status: "pending",
+              stored_version: 4,
+              applied_versions: { collector: null, processor: null, analytics_api: null },
+            },
+          },
+        }}
+      />,
+    );
+
+    expect(markup).toContain('aria-label="Enable environment ingestion"');
+    expect(markup).toContain("When disabled, the Collector rejects events.");
+    const policyToggle = markup.match(
+      /<input type="checkbox" disabled="" aria-label="Enable environment ingestion"[^>]*\/>/,
+    )?.[0];
+    expect(policyToggle).toBeDefined();
+    expect(policyToggle).not.toContain('checked=""');
+  });
+
   it("renders a reload action with version-conflict feedback", () => {
     const markup = renderToStaticMarkup(
       <ConfigurationErrorFeedback

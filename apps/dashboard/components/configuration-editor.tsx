@@ -61,6 +61,7 @@ function Editor({
 }) {
   const [capabilities, setCapabilities] = useState(initialCapabilities);
   const [policy, setPolicy] = useState(initialPolicy);
+  const [policyEnabled, setPolicyEnabled] = useState(initialPolicy?.policy.enabled ?? true);
   const [origins, setOrigins] = useState(initialPolicy?.policy.allowed_origins.join("\n") ?? "");
   const [rateLimit, setRateLimit] = useState(initialPolicy?.policy.rate_limit_per_minute ?? 600);
   const [createdKey, setCreatedKey] = useState<CreatedIngestKey | null>(null);
@@ -153,7 +154,7 @@ function Editor({
   async function savePolicy() {
     await perform(async () => {
       const body = {
-        enabled: policy?.policy.enabled ?? true,
+        enabled: policyEnabled,
         allowed_origins: origins
           .split("\n")
           .map((item) => item.trim())
@@ -168,9 +169,12 @@ function Editor({
         policy?.policy.version,
       )) as IngestPolicyResponse;
       setPolicy(value);
+      setPolicyEnabled(value.policy.enabled);
       setOrigins(value.policy.allowed_origins.join("\n"));
       setRateLimit(value.policy.rate_limit_per_minute);
-      setMessage("Origin and rate limit settings saved.");
+      setMessage(
+        `Website access settings saved. Ingestion is ${value.policy.enabled ? "enabled" : "disabled"}.`,
+      );
     });
   }
 
@@ -254,8 +258,36 @@ function Editor({
         {policy ? (
           <EffectiveStateView state={policy.effective_state} />
         ) : (
-          <p>Ingestion stays closed until an environment policy and key are created.</p>
+          <p>
+            No environment policy exists yet, so ingestion is currently closed. The initial policy
+            and an active Ingest Key are required before events can be accepted.
+          </p>
         )}
+        <label className="configuration-toggle">
+          <span>
+            <strong>
+              {policy
+                ? "Environment ingestion"
+                : "Enable environment ingestion when policy is created"}
+            </strong>
+            <small>
+              {policy
+                ? "When disabled, the Collector rejects events. When enabled, events still require an allowed Origin and active Ingest Key."
+                : "This sets the new policy's enabled flag; it does not open ingestion until an allowed Origin and active Ingest Key are configured."}
+            </small>
+          </span>
+          <input
+            type="checkbox"
+            checked={policyEnabled}
+            disabled={busy || !hydrated}
+            onChange={(event) => setPolicyEnabled(event.target.checked)}
+            aria-label={
+              policy
+                ? "Enable environment ingestion"
+                : "Enable environment ingestion when policy is created"
+            }
+          />
+        </label>
         <label className="configuration-field">
           Allowed Origins <small>One origin per line, such as https://www.example.com</small>
           <textarea
