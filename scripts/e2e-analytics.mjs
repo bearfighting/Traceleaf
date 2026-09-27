@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { seedE2ECapabilityConfigurations } from "./e2e-capabilities.mjs";
+import { prepareE2ECaches } from "./e2e-cache.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const composeFiles = ["-f", "compose.yaml", "-f", "compose.backend.yaml", "-f", "compose.e2e.yaml"];
@@ -49,6 +50,7 @@ const composeBaseArgs = [
 let processorOutput = "";
 
 try {
+  prepareE2ECaches(root, "analytics");
   await runCompose(["up", "-d", "--build", "--wait", "postgres"]);
   runCompose(["run", "--rm", "--build", "db-migrate"]);
   seedE2ECapabilityConfigurations(runCompose);

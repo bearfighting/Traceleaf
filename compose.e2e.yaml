@@ -34,6 +34,7 @@ services:
     volumes: !override
       - .:/workspace
       - collector_target:/workspace/target
+      - e2e_cargo_home:/usr/local/cargo
       - ./tests/fixtures/geo/GeoLite2-Country-Test.mmdb:/workspace/data/GeoLite2-Country.mmdb:ro
     ports: !override
       - "${E2E_COLLECTOR_PORT:-14001}:4001"
@@ -46,3 +47,43 @@ services:
   analytics-api:
     ports: !override
       - "${E2E_ANALYTICS_API_PORT:-14002}:4002"
+    volumes: !override
+      - .:/workspace
+      - analytics_api_target:/workspace/target
+      - e2e_cargo_home:/usr/local/cargo
+
+  processor:
+    volumes: !override
+      - .:/workspace
+      - processor_target:/workspace/target
+      - e2e_cargo_home:/usr/local/cargo
+
+  dashboard:
+    volumes: !override
+      - .:/workspace
+      - root_node_modules:/workspace/node_modules
+      - dashboard_node_modules:/workspace/apps/dashboard/node_modules
+      - dashboard_next:/workspace/apps/dashboard/.next
+
+volumes:
+  collector_target:
+    external: true
+    name: "${E2E_CACHE_PREFIX:-web-analytics-e2e}_collector_target"
+  processor_target:
+    external: true
+    name: "${E2E_CACHE_PREFIX:-web-analytics-e2e}_processor_target"
+  analytics_api_target:
+    external: true
+    name: "${E2E_CACHE_PREFIX:-web-analytics-e2e}_analytics_api_target"
+  e2e_cargo_home:
+    external: true
+    name: "${E2E_CACHE_PREFIX:-web-analytics-e2e}_cargo_home"
+  root_node_modules:
+    external: true
+    name: "${E2E_CACHE_PREFIX:-web-analytics-e2e}_root_node_modules"
+  dashboard_node_modules:
+    external: true
+    name: "${E2E_CACHE_PREFIX:-web-analytics-e2e}_dashboard_node_modules"
+  dashboard_next:
+    external: true
+    name: "${E2E_CACHE_PREFIX:-web-analytics-e2e}_${E2E_CACHE_SCOPE:-default}_dashboard_next"

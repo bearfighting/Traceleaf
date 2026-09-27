@@ -1,6 +1,6 @@
 # MVP Release Readiness Design
 
-> Status: Planned
+> Status: In progress — local E2E cache reuse is implemented and verified; cold/warm timing records and the CI cache decision remain open.
 > Scope: MVP 功能完成后的完整测试、稳定性、部署、迁移和发布验证
 
 ## 1. 阶段定位
@@ -12,7 +12,8 @@ Release Readiness 是 MVP 的最后阶段。它不新增产品功能，负责把
 ## 2. 执行顺序
 
 ```text
-Protocol validation
+Docker build/cache baseline and optimization
+  → Protocol validation
   → migration regression
   → integration test
   → Analytics E2E
@@ -25,7 +26,21 @@ Protocol validation
   → clean-environment RC checklist
 ```
 
-## 3. CI 基线
+## 3. Docker 构建与缓存（首先完成）
+
+先减少本地重复 Compose 工作，再开始完整回归矩阵。当前本地 E2E 使用独立持久卷复用 Cargo target、Cargo registry、pnpm 安装结果和 Dashboard `.next`；PostgreSQL 测试数据、migration 和 fixture 仍在每次运行中重建。构建分层按依赖清单、依赖下载、服务编译、运行镜像和测试数据分别缓存或重建：
+
+- Cargo 和 pnpm 依赖层由 lockfile 与 manifest 驱动；依赖未变时不得重复大规模下载。
+- Cargo 编译产物、Dashboard `.next` 和容器内 `node_modules` 使用按 workspace/依赖版本隔离的可复用缓存；Dashboard `.next` 还按 E2E 套件隔离，避免并行写缓存。E2E 清理不得删除这些构建缓存。
+- 服务镜像使用 Docker/BuildKit layer cache；源码变化后由 Cargo/Next.js 在持久缓存上增量重编译。
+- PostgreSQL 测试 volume、migration 和测试 fixture 每次仍从干净状态创建，以保持验收隔离。
+- 验证记录：`pnpm check` 通过；Configuration E2E 冷、热运行均通过，热运行的镜像依赖层命中 Docker cache；Analytics E2E（10 个 fixture）和 Dashboard E2E 均通过。当前没有保存各次运行的实际耗时和下载量，故性能收益尚未量化。
+- 完成条件：记录 Analytics、Dashboard、Configuration E2E 的冷启动与热启动耗时及关键构建日志，确认热启动没有重复大规模下载或完整重编译；补记缓存卷清理后测试数据仍干净。
+- CI E2E 使用托管临时 runner，跨 job/run 缓存不会自动保留。完成冷启动耗时和下载量记录后，再决定是否配置持久化 BuildKit cache；如实施，cache key 必须受 lockfile、toolchain 和 Dockerfile 变化约束。
+
+本项完成后再执行下方的完整 CI、migration、integration、E2E 和部署验证。当前本地缓存实现已落地，但在性能记录完成前，本项仍保持进行中。
+
+## 4. CI 基线
 
 `validate` job 必须执行：
 
@@ -69,7 +84,7 @@ pnpm e2e:dashboard
 pnpm --filter @web-analytics/analytics-browser pack --dry-run
 ```
 
-## 4. PostgreSQL 和 migration
+## 5. PostgreSQL 和 migration
 
 使用 PostgreSQL 18.6 验证：
 
@@ -88,9 +103,9 @@ pnpm test:migrations
 pnpm test:integration
 ```
 
-## 5. E2E 和浏览器矩阵
+## 6. E2E 和浏览器矩阵
 
-Analytics E2E 和 Dashboard E2E 使用独立 Compose project、端口和测试 volume，不删除开发数据库 volume。
+Analytics E2E、Dashboard E2E 和 Configuration E2E 使用独立 Compose project、端口和测试数据 volume，不删除开发数据库 volume。Cargo target、Cargo registry、Node modules 和 Dashboard 构建缓存使用独立、持久的 cache volume；清理测试项目时保留这些缓存。Dashboard `.next` 缓存按 E2E 套件隔离.
 
 失败时保留：
 
@@ -116,7 +131,7 @@ pnpm exec playwright install --with-deps chromium firefox webkit
 
 现有仅安装 Chromium 的 `pnpm playwright:install` 只适用于当前 Dashboard smoke test，不代表完整浏览器矩阵。
 
-## 6. Collector 和运行时 hardening
+## 7. Collector 和运行时 hardening
 
 必须验证：
 
@@ -128,7 +143,7 @@ pnpm exec playwright install --with-deps chromium firefox webkit
 - generic client error 和内部日志脱敏；
 - 重复事件、失败响应和限流行为。
 
-## 7. 数据生命周期
+## 8. 数据生命周期
 
 上线前必须完成 retention policy：
 
@@ -141,7 +156,7 @@ pnpm exec playwright install --with-deps chromium firefox webkit
 
 如果策略尚未批准，Release Candidate 只能包含 dry-run 和一致性检查。
 
-## 8. 部署和发布
+## 9. 部署和发布
 
 部署顺序固定为：
 
@@ -164,7 +179,7 @@ migration job
 - 版本、变更记录、tag 和发布权限；
 - 安装后的 smoke test。
 
-## 9. Release Candidate 退出条件
+## 10. Release Candidate 退出条件
 
 - Phase 7 和 Phase 8 的 capability 与配置验收完成；
 - Geo region/city 已明确延期至 MVP 之后；country Geo 的部署验收完成并记录结果；

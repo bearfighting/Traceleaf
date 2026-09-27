@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
 
 import { seedE2ECapabilityConfigurations } from "./e2e-capabilities.mjs";
+import { prepareE2ECaches } from "./e2e-cache.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const importedDefinitionVersion = JSON.parse(
@@ -1609,6 +1610,7 @@ let browserTracingActive = false;
 try {
   const artifactDirectory = path.join(root, "artifacts", "dashboard-e2e");
   await rm(artifactDirectory, { recursive: true, force: true });
+  prepareE2ECaches(root, "dashboard");
   assertDashboardIsolation();
   await runCompose(["up", "-d", "--build", "--wait", "postgres"]);
   runCompose(["run", "--rm", "--build", "db-migrate"]);

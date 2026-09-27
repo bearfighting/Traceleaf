@@ -10,6 +10,7 @@ import { chromium, expect } from "@playwright/test";
 import { ulid } from "ulid";
 
 import { seedE2ECapabilityConfigurations } from "./e2e-capabilities.mjs";
+import { prepareE2ECaches } from "./e2e-cache.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const composeFiles = ["-f", "compose.yaml", "-f", "compose.backend.yaml", "-f", "compose.e2e.yaml"];
@@ -469,6 +470,7 @@ async function assertStorageOutageRecovery() {
 }
 
 async function main() {
+  prepareE2ECaches(root, "configuration");
   runCompose(["up", "--build", "-d", "--wait"]);
   seedE2ECapabilityConfigurations(runCompose);
   await waitFor("Analytics API", `${apiUrl}/health`);
