@@ -25,6 +25,7 @@ pub(crate) enum RequestError {
     InvalidLimit,
     InvalidDimension,
     InvalidEventName,
+    InvalidDefinitionVersion,
 }
 
 impl IntoResponse for RequestError {
@@ -40,6 +41,10 @@ impl IntoResponse for RequestError {
             Self::InvalidEventName => (
                 "invalid_event_name",
                 "event_name must match the custom event name format",
+            ),
+            Self::InvalidDefinitionVersion => (
+                "invalid_definition_version",
+                "definition_version must identify a stored site revision",
             ),
         };
         (

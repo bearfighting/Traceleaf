@@ -2,11 +2,13 @@ import React from "react";
 
 import { ConfigurationEditor } from "../../../components/configuration-editor";
 import { DashboardShell } from "../../../components/dashboard-shell";
+import { DefinitionEditor } from "../../../components/definition-editor";
 import { ErrorState } from "../../../components/states/error-state";
 import { getDashboardSiteConfig } from "../../../config/sites";
 import {
   getConfigurationEnvironment,
   loadSiteConfiguration,
+  loadSiteDefinitions,
 } from "../../../lib/configuration-api/server";
 
 export const dynamic = "force-dynamic";
@@ -48,11 +50,14 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
           <ErrorState message="DASHBOARD_DEFAULT_ENVIRONMENT is not configured on the Dashboard server." />
         </section>
       ) : (
-        <ConfigurationEditor
-          environment={environment}
-          siteId={siteId}
-          result={await loadSiteConfiguration(siteId, environment)}
-        />
+        <>
+          <ConfigurationEditor
+            environment={environment}
+            siteId={siteId}
+            result={await loadSiteConfiguration(siteId, environment)}
+          />
+          <DefinitionEditor siteId={siteId} result={await loadSiteDefinitions(siteId)} />
+        </>
       )}
     </DashboardShell>
   );

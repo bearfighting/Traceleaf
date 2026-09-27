@@ -9,6 +9,7 @@ export interface DashboardQueryParams {
   siteId: string;
   dateRange: DashboardDateRange;
   dimension: AnalyticsDimension;
+  definitionVersion?: string;
 }
 
 export type DashboardQueryErrorCode =
@@ -73,6 +74,16 @@ export function parseDashboardQuery(
   const from = firstValue(searchParams.from);
   const to = firstValue(searchParams.to);
   const dimension = firstValue(searchParams.dimension) || "browser";
+  const definitionVersion = firstValue(searchParams.definition_version);
+  if (
+    definitionVersion &&
+    (definitionVersion.length > 64 ||
+      definitionVersion.trim() !== definitionVersion ||
+      /\s/.test(definitionVersion))
+  )
+    return {
+      error: { code: "invalid_dimension", message: "The selected definition revision is invalid." },
+    };
 
   if (!allowedSites.includes(siteId)) {
     return {
@@ -98,6 +109,7 @@ export function parseDashboardQuery(
         siteId,
         dateRange: defaultDashboardDateRange(now),
         dimension: dimension as AnalyticsDimension,
+        ...(definitionVersion ? { definitionVersion } : {}),
       },
     };
   }
@@ -137,6 +149,7 @@ export function parseDashboardQuery(
       siteId,
       dateRange: { from, to },
       dimension: dimension as AnalyticsDimension,
+      ...(definitionVersion ? { definitionVersion } : {}),
     },
   };
 }

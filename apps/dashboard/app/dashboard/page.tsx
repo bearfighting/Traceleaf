@@ -4,6 +4,7 @@ import { DashboardSections } from "../../components/dashboard-sections";
 import { DashboardShell } from "../../components/dashboard-shell";
 import { ErrorState } from "../../components/states/error-state";
 import { getDashboardSiteConfig } from "../../config/sites";
+import { loadDefinitionRevisions } from "../../lib/dashboard-page-data";
 import {
   defaultDashboardDateRange,
   parseDashboardQuery,
@@ -73,8 +74,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     );
   }
 
+  const definitionVersions = await loadDefinitionRevisions(query.params.siteId);
+
   return (
     <DashboardShell
+      definitionVersions={definitionVersions}
+      definitionVersion={query.params.definitionVersion}
       dateRange={query.params.dateRange}
       siteId={query.params.siteId}
       sites={siteConfig.config.sites}
@@ -85,6 +90,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         siteId={query.params.siteId}
         to={query.params.dateRange.to}
         dimension={query.params.dimension}
+        definitionVersion={query.params.definitionVersion}
       />
     </DashboardShell>
   );

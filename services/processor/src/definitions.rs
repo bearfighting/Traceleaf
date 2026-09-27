@@ -24,6 +24,8 @@ pub struct SiteDefinitions {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConversionDefinition {
+    #[serde(default = "default_active")]
+    pub active: bool,
     pub id: String,
     pub name: String,
     pub event_name: String,
@@ -34,6 +36,8 @@ pub struct ConversionDefinition {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FunnelDefinition {
+    #[serde(default = "default_active")]
+    pub active: bool,
     pub id: String,
     pub name: String,
     pub steps: Vec<FunnelStepDefinition>,
@@ -45,6 +49,10 @@ pub struct FunnelStepDefinition {
     pub event_name: String,
     #[serde(default)]
     pub properties: Map<String, Value>,
+}
+
+fn default_active() -> bool {
+    true
 }
 
 impl AnalyticsDefinitions {
@@ -92,7 +100,6 @@ impl AnalyticsDefinitions {
                 validate_event_name(&definition.event_name)?;
                 validate_properties(&definition.properties)?;
             }
-            ids.clear();
             for definition in &site.funnels {
                 validate_id(&definition.id)?;
                 anyhow::ensure!(

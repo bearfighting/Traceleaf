@@ -186,6 +186,38 @@ describe("Analytics API queries", () => {
     expect(fetchMock.mock.calls[0]?.[0]).toContain("/pages?limit=100");
   });
 
+  it("selects a historical definition version for conversion and funnel reports", async () => {
+    const report = {
+      site_id: "site_playground",
+      from: "2026-09-18",
+      to: "2026-09-19",
+      total: 0,
+      definition_version: "r2-abc",
+      items: [],
+      data_as_of: null,
+      freshness_status: "current",
+      aggregation_version: 1,
+    };
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse(report))
+      .mockResolvedValueOnce(jsonResponse(report));
+    const client = createAnalyticsApiClient({ baseUrl, fetch: fetchMock });
+    await client.conversions?.(
+      "site_playground",
+      "2026-09-18",
+      "2026-09-19",
+      20,
+      undefined,
+      "r2-abc",
+    );
+    await client.funnels?.("site_playground", "2026-09-18", "2026-09-19", 20, undefined, "r2-abc");
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      `${baseUrl}/v1/sites/site_playground/reports/2026-09-18/2026-09-19/conversions?limit=20&definition_version=r2-abc`,
+      `${baseUrl}/v1/sites/site_playground/reports/2026-09-18/2026-09-19/funnels?limit=20&definition_version=r2-abc`,
+    ]);
+  });
+
   it("builds Phase 6 report URLs and validates freshness metadata", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()

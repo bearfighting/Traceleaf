@@ -61,4 +61,19 @@ describe("dashboard query params", () => {
       },
     });
   });
+
+  it("preserves an optional historical definition version", () => {
+    const result = parseDashboardQuery(
+      { site_id: "site_playground", definition_version: "r2-abc" },
+      "site_playground",
+      ["site_playground"],
+      new Date("2026-09-19T00:00:00Z"),
+    );
+    expect(result.params?.definitionVersion).toBe("r2-abc");
+    expect(
+      parseDashboardQuery({ definition_version: "two versions" }, "site_playground", [
+        "site_playground",
+      ]).error,
+    ).toBeDefined();
+  });
 });

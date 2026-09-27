@@ -11,6 +11,7 @@ export interface DashboardOverviewContext {
   siteId: string;
   dateRange: DashboardDateRange;
   dimension?: import("./analytics-api/types").AnalyticsDimension;
+  definitionVersion?: string;
 }
 
 export interface DashboardOverviewData {

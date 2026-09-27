@@ -66,6 +66,7 @@ export interface AnalyticsApiClient {
     to: string,
     limit?: number,
     definitionId?: string,
+    definitionVersion?: string,
   ): Promise<ConversionReportResponse>;
   funnels?(
     siteId: string,
@@ -73,6 +74,7 @@ export interface AnalyticsApiClient {
     to: string,
     limit?: number,
     definitionId?: string,
+    definitionVersion?: string,
   ): Promise<FunnelReportResponse>;
   webVitals?(
     siteId: string,
@@ -114,15 +116,15 @@ export function createAnalyticsApiClient(options: AnalyticsApiClientOptions): An
         (value): value is EventsResponse =>
           isEventsResponse(value) && matchesRange(value, siteId, from, to),
       ),
-    conversions: (siteId, from, to, limit = 20, definitionId) =>
+    conversions: (siteId, from, to, limit = 20, definitionId, definitionVersion) =>
       requestJson(
-        `${baseUrl}${conversionsPath(siteId, from, to, limit, definitionId)}`,
+        `${baseUrl}${conversionsPath(siteId, from, to, limit, definitionId, definitionVersion)}`,
         (v): v is ConversionReportResponse =>
           isConversionReportResponse(v) && matchesRange(v, siteId, from, to),
       ),
-    funnels: (siteId, from, to, limit = 20, definitionId) =>
+    funnels: (siteId, from, to, limit = 20, definitionId, definitionVersion) =>
       requestJson(
-        `${baseUrl}${funnelsPath(siteId, from, to, limit, definitionId)}`,
+        `${baseUrl}${funnelsPath(siteId, from, to, limit, definitionId, definitionVersion)}`,
         (v): v is FunnelReportResponse =>
           isFunnelReportResponse(v) && matchesRange(v, siteId, from, to),
       ),

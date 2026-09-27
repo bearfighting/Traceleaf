@@ -22,6 +22,7 @@ type DimensionDailyCounts = (i64, HashSet<String>, HashSet<String>);
 pub struct Processor {
     pool: PgPool,
     definitions: crate::definitions::AnalyticsDefinitions,
+    database_definitions: bool,
     capabilities: crate::CapabilityRuntime,
 }
 
@@ -45,14 +46,16 @@ pub struct RebuildSummary {
 
 impl Processor {
     pub async fn connect(database_url: &str) -> Result<Self, ProcessorError> {
-        Self::connect_with_definitions(
+        let mut processor = Self::connect_with_definitions(
             database_url,
             crate::definitions::AnalyticsDefinitions {
                 version: "1".to_owned(),
                 sites: Vec::new(),
             },
         )
-        .await
+        .await?;
+        processor.database_definitions = true;
+        Ok(processor)
     }
 
     pub async fn connect_with_definitions(
@@ -74,8 +77,87 @@ impl Processor {
         Ok(Self {
             pool,
             definitions,
+            database_definitions: false,
             capabilities,
         })
+    }
+
+    pub async fn import_definitions_if_empty(
+        &self,
+        definitions: &serde_json::Value,
+    ) -> Result<u64, ProcessorError> {
+        let version = definitions
+            .get("version")
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| ProcessorError::InvalidDefinitions("missing version".to_owned()))?;
+        let mut imported = 0;
+        for site in definitions
+            .get("sites")
+            .and_then(serde_json::Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            let site_id = site
+                .get("site_id")
+                .and_then(serde_json::Value::as_str)
+                .ok_or_else(|| ProcessorError::InvalidDefinitions("missing site_id".to_owned()))?;
+            let mut tx = self.pool.begin().await?;
+            lock_site(&mut tx, site_id).await?;
+            let exists = sqlx::query_scalar::<_, bool>(
+                "SELECT EXISTS(SELECT 1 FROM site_definition_revisions WHERE site_id=$1)",
+            )
+            .bind(site_id)
+            .fetch_one(&mut *tx)
+            .await?;
+            if exists {
+                tx.rollback().await?;
+                continue;
+            }
+            let mut conversions = site
+                .get("conversions")
+                .and_then(serde_json::Value::as_array)
+                .cloned()
+                .unwrap_or_default();
+            for conversion in &mut conversions {
+                if conversion.get("active").is_none() {
+                    conversion["active"] = serde_json::Value::Bool(true);
+                }
+            }
+            let mut funnels = site
+                .get("funnels")
+                .and_then(serde_json::Value::as_array)
+                .cloned()
+                .unwrap_or_default();
+            for funnel in &mut funnels {
+                if funnel.get("active").is_none() {
+                    funnel["active"] = serde_json::Value::Bool(true);
+                }
+            }
+            let document = serde_json::json!({"schema_version":1,"site_id":site_id,"revision":1,"definition_version":version,"updated_at":Utc::now(),"effective_at":null,"conversions":conversions,"funnels":funnels});
+            sqlx::query("INSERT INTO site_definition_revisions(site_id,revision,definition_version,effective_at,created_at,document) VALUES($1,1,$2,NULL,NOW(),$3)").bind(site_id).bind(version).bind(document).execute(&mut *tx).await?;
+            sqlx::query("INSERT INTO configuration_audit(actor_kind,resource,version,operation,changed_fields,created_at,expires_at) VALUES('deployment_admin',$1,1,'created',ARRAY['definitions.conversions','definitions.funnels'],NOW(),NOW()+INTERVAL '1 year')")
+                .bind(serde_json::json!({"kind":"conversion_funnel_definitions","site_id":site_id}))
+                .execute(&mut *tx).await?;
+            tx.commit().await?;
+            imported += 1;
+        }
+        Ok(imported)
+    }
+
+    pub async fn rebuild_conversion_funnel_facts_for_version(
+        &self,
+        site_id: &str,
+        version: &str,
+    ) -> Result<u64, ProcessorError> {
+        let document = sqlx::query_scalar::<_, serde_json::Value>("SELECT document FROM site_definition_revisions WHERE site_id=$1 AND definition_version=$2").bind(site_id).bind(version).fetch_optional(&self.pool).await?.ok_or_else(|| ProcessorError::InvalidDefinitions(format!("definition version {version} does not exist for site {site_id}")))?;
+        let site = serde_json::json!({"site_id":site_id,"conversions":document.get("conversions").cloned().unwrap_or_else(|| serde_json::json!([])),"funnels":document.get("funnels").cloned().unwrap_or_else(|| serde_json::json!([]))});
+        let definitions =
+            serde_json::from_value(serde_json::json!({"version":version,"sites":[site]}))
+                .map_err(|error| ProcessorError::InvalidDefinitions(error.to_string()))?;
+        let mut processor = self.clone();
+        processor.definitions = definitions;
+        processor.database_definitions = false;
+        processor.rebuild_conversion_funnel_facts(site_id).await
     }
 
     pub async fn rebuild_custom_event_facts(&self, site_id: &str) -> Result<u64, ProcessorError> {
@@ -112,7 +194,9 @@ impl Processor {
         .execute(&mut *transaction)
         .await?;
         transaction.commit().await?;
-        self.rebuild_conversion_funnel_facts(site_id).await?;
+        if !self.database_definitions {
+            self.rebuild_conversion_funnel_facts(site_id).await?;
+        }
         Ok(result.rows_affected())
     }
 
@@ -275,7 +359,12 @@ impl Processor {
                 return Err(error);
             }
         };
-        process_event(&mut transaction, &event, &self.definitions, &capabilities).await?;
+        let definitions = if self.database_definitions {
+            load_definition_revision(&mut transaction, &event.site_id, event.received_at).await?
+        } else {
+            self.definitions.clone()
+        };
+        process_event(&mut transaction, &event, &definitions, &capabilities).await?;
         transaction.commit().await?;
         Ok(true)
     }
@@ -360,8 +449,10 @@ impl Processor {
         let rebuilt_site_id = request.site_id.clone();
         match self.rebuild(request).await {
             Ok(()) => {
-                self.rebuild_conversion_funnel_facts_with_mode(&rebuilt_site_id, false)
-                    .await?;
+                if !self.database_definitions {
+                    self.rebuild_conversion_funnel_facts_with_mode(&rebuilt_site_id, false)
+                        .await?;
+                }
                 Ok(true)
             }
             Err(ProcessorError::RebuildQueueAlreadyHandled(_)) => Ok(true),
@@ -469,7 +560,9 @@ impl Processor {
             rebuild_reason: reason.to_owned(),
         })
         .await?;
-        self.rebuild_conversion_funnel_facts(site_id).await?;
+        if !self.database_definitions {
+            self.rebuild_conversion_funnel_facts(site_id).await?;
+        }
         Ok(summary)
     }
 
@@ -1046,6 +1139,9 @@ async fn record_conversion_and_funnel_facts(
         && (explicit_backfill || !event_is_before_activation(event, capabilities, "conversions"))
     {
         for conversion in &site.conversions {
+            if !conversion.active {
+                continue;
+            }
             if crate::definitions::matches(
                 event_name,
                 &properties,
@@ -1066,6 +1162,9 @@ async fn record_conversion_and_funnel_facts(
         return Ok(());
     };
     for funnel in &site.funnels {
+        if !funnel.active {
+            continue;
+        }
         if explicit_backfill {
             sqlx::query("DELETE FROM funnel_step_facts WHERE site_id=$1 AND definition_id=$2 AND definition_version=$3 AND session_id=$4::uuid")
                 .bind(&event.site_id).bind(&funnel.id).bind(&definitions.version).bind(&session_id).execute(&mut **transaction).await?;
@@ -1075,8 +1174,8 @@ async fn record_conversion_and_funnel_facts(
         } else {
             capabilities.enabled_since("funnels")
         };
-        let session_events = sqlx::query_as::<_, (String, DateTime<Utc>, String, serde_json::Value)>("SELECT f.event_id,f.occurred_at,f.event_name,COALESCE(r.payload->'properties','{}'::jsonb) FROM custom_event_facts f JOIN raw_events r ON r.id=f.raw_event_id WHERE f.site_id=$1 AND f.session_id=$2::uuid AND ($3::timestamptz IS NULL OR r.received_at >= $3) ORDER BY f.occurred_at,f.event_id")
-            .bind(&event.site_id).bind(&session_id).bind(funnel_enabled_since).fetch_all(&mut **transaction).await?;
+        let session_events = sqlx::query_as::<_, (String, DateTime<Utc>, String, serde_json::Value)>("SELECT f.event_id,f.occurred_at,f.event_name,COALESCE(r.payload->'properties','{}'::jsonb) FROM custom_event_facts f JOIN raw_events r ON r.id=f.raw_event_id WHERE f.site_id=$1 AND f.session_id=$2::uuid AND ($3::timestamptz IS NULL OR r.received_at >= $3) AND ($4::boolean OR (r.received_at >= COALESCE((SELECT effective_at FROM site_definition_revisions WHERE site_id=$1 AND definition_version=$5), '-infinity'::timestamptz) AND r.received_at < COALESCE((SELECT MIN(next.effective_at) FROM site_definition_revisions current JOIN site_definition_revisions next ON next.site_id=current.site_id AND next.revision>current.revision WHERE current.site_id=$1 AND current.definition_version=$5), 'infinity'::timestamptz))) ORDER BY f.occurred_at,f.event_id")
+            .bind(&event.site_id).bind(&session_id).bind(funnel_enabled_since).bind(explicit_backfill).bind(&definitions.version).fetch_all(&mut **transaction).await?;
         let mut next_index = 0_usize;
         let mut previous_at = None;
         let mut cohort_day = None;
@@ -1166,6 +1265,8 @@ async fn advance_definition_watermarks(
         .bind(replace_definition_version)
         .execute(&mut **transaction)
         .await?;
+        sqlx::query("WITH revision AS (SELECT effective_at, (SELECT MIN(next.effective_at) FROM site_definition_revisions next WHERE next.site_id=rev.site_id AND next.revision>rev.revision) AS next_effective_at FROM site_definition_revisions rev WHERE site_id=$1 AND definition_version=$2), processed AS (SELECT MAX(r.received_at) AS max_received FROM raw_events r, revision v WHERE r.site_id=$1 AND r.event_type='custom_event' AND r.processed_at IS NOT NULL AND r.received_at >= COALESCE(v.effective_at,'-infinity'::timestamptz) AND r.received_at < COALESCE(v.next_effective_at,'infinity'::timestamptz)), pending AS (SELECT MIN(r.received_at) AS first_pending FROM raw_events r, revision v, processed p WHERE r.site_id=$1 AND r.event_type='custom_event' AND r.processed_at IS NULL AND r.received_at <= p.max_received AND r.received_at >= COALESCE(v.effective_at,'-infinity'::timestamptz) AND r.received_at < COALESCE(v.next_effective_at,'infinity'::timestamptz)) INSERT INTO definition_revision_watermarks(site_id,definition_version,source_name,processed_received_watermark) SELECT $1,$2,$3,CASE WHEN q.first_pending IS NULL THEN p.max_received ELSE q.first_pending-INTERVAL '1 microsecond' END FROM processed p CROSS JOIN pending q WHERE EXISTS(SELECT 1 FROM site_definition_revisions WHERE site_id=$1 AND definition_version=$2) ON CONFLICT(site_id,definition_version,source_name) DO UPDATE SET processed_received_watermark=EXCLUDED.processed_received_watermark,updated_at=NOW()")
+            .bind(site_id).bind(definition_version).bind(source).execute(&mut **transaction).await?;
     }
     Ok(())
 }
@@ -1634,4 +1735,28 @@ fn new_generation_id(site_id: &str, parser_version: &str) -> String {
         bytes[14],
         bytes[15]
     )
+}
+
+async fn load_definition_revision(
+    transaction: &mut Transaction<'_, Postgres>,
+    site_id: &str,
+    received_at: DateTime<Utc>,
+) -> Result<crate::definitions::AnalyticsDefinitions, ProcessorError> {
+    let document = sqlx::query_scalar::<_, serde_json::Value>("SELECT document FROM site_definition_revisions WHERE site_id=$1 AND (effective_at IS NULL OR effective_at <= $2) ORDER BY effective_at DESC NULLS LAST, revision DESC LIMIT 1")
+        .bind(site_id).bind(received_at).fetch_optional(&mut **transaction).await?;
+    let Some(document) = document else {
+        return Ok(crate::definitions::AnalyticsDefinitions {
+            version: "none".to_owned(),
+            sites: Vec::new(),
+        });
+    };
+    let version = document
+        .get("definition_version")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("none");
+    let site = serde_json::json!({"site_id":site_id,"conversions":document.get("conversions").cloned().unwrap_or_else(|| serde_json::json!([])),"funnels":document.get("funnels").cloned().unwrap_or_else(|| serde_json::json!([]))});
+    let definitions: crate::definitions::AnalyticsDefinitions =
+        serde_json::from_value(serde_json::json!({"version":version,"sites":[site]}))
+            .map_err(|error| ProcessorError::InvalidDefinitions(error.to_string()))?;
+    Ok(definitions)
 }

@@ -72,9 +72,11 @@ export function conversionsPath(
   to: string,
   limit = 20,
   definitionId?: string,
+  definitionVersion?: string,
 ): string {
   const q = new URLSearchParams({ limit: String(limit) });
   if (definitionId !== undefined) q.set("definition_id", definitionId);
+  if (definitionVersion !== undefined) q.set("definition_version", definitionVersion);
 
   return `/v1/sites/${encodeURIComponent(siteId)}/reports/${from}/${to}/conversions?${q.toString()}`;
 }
@@ -85,9 +87,11 @@ export function funnelsPath(
   to: string,
   limit = 20,
   definitionId?: string,
+  definitionVersion?: string,
 ): string {
   const q = new URLSearchParams({ limit: String(limit) });
   if (definitionId !== undefined) q.set("definition_id", definitionId);
+  if (definitionVersion !== undefined) q.set("definition_version", definitionVersion);
 
   return `/v1/sites/${encodeURIComponent(siteId)}/reports/${from}/${to}/funnels?${q.toString()}`;
 }

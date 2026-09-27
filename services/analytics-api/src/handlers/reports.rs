@@ -185,11 +185,21 @@ pub(crate) async fn conversions(
     RawQuery(raw_query): RawQuery,
 ) -> Result<Response, HandlerError> {
     let range = validation::parse_range(&from, &to)?;
-    let (limit, definition_id) = validation::parse_definition_query(raw_query.as_deref())?;
+    let (limit, definition_id, requested_version) =
+        validation::parse_definition_query(raw_query.as_deref())?;
+    let definition_version = resolve_definition_version(
+        &state.pool,
+        &site_id,
+        requested_version.as_deref(),
+        &state.definition_version,
+    )
+    .await
+    .map_err(ApiError::database)?
+    .ok_or(crate::errors::RequestError::InvalidDefinitionVersion)?;
     let rows = queries::conversion_rows(
         &state.pool,
         &site_id,
-        &state.definition_version,
+        &definition_version,
         range,
         definition_id.as_deref(),
         limit,
@@ -199,7 +209,7 @@ pub(crate) async fn conversions(
     let total = queries::conversion_total(
         &state.pool,
         &site_id,
-        &state.definition_version,
+        &definition_version,
         range,
         definition_id.as_deref(),
     )
@@ -220,23 +230,24 @@ pub(crate) async fn conversions(
             },
         })
         .collect();
-    let data_as_of = queries::definition_watermark(&state.pool, &site_id, "conversions")
-        .await
-        .map_err(ApiError::database)?;
-    let freshness_status = queries::definition_freshness(
+    let data_as_of = queries::definition_revision_watermark(
         &state.pool,
         &site_id,
         "conversions",
-        &state.definition_version,
+        &definition_version,
     )
     .await
     .map_err(ApiError::database)?;
+    let freshness_status =
+        queries::definition_freshness(&state.pool, &site_id, "conversions", &definition_version)
+            .await
+            .map_err(ApiError::database)?;
     Ok(Json(ConversionReportResponse {
         site_id,
         from,
         to,
         total,
-        definition_version: state.definition_version,
+        definition_version,
         items,
         data_as_of,
         freshness_status,
@@ -251,11 +262,21 @@ pub(crate) async fn funnels(
     RawQuery(raw_query): RawQuery,
 ) -> Result<Response, HandlerError> {
     let range = validation::parse_range(&from, &to)?;
-    let (limit, definition_id) = validation::parse_definition_query(raw_query.as_deref())?;
+    let (limit, definition_id, requested_version) =
+        validation::parse_definition_query(raw_query.as_deref())?;
+    let definition_version = resolve_definition_version(
+        &state.pool,
+        &site_id,
+        requested_version.as_deref(),
+        &state.definition_version,
+    )
+    .await
+    .map_err(ApiError::database)?
+    .ok_or(crate::errors::RequestError::InvalidDefinitionVersion)?;
     let rows = queries::funnel_rows(
         &state.pool,
         &site_id,
-        &state.definition_version,
+        &definition_version,
         range,
         definition_id.as_deref(),
         limit,
@@ -265,7 +286,7 @@ pub(crate) async fn funnels(
     let total = queries::funnel_total(
         &state.pool,
         &site_id,
-        &state.definition_version,
+        &definition_version,
         range,
         definition_id.as_deref(),
     )
@@ -285,11 +306,16 @@ pub(crate) async fn funnels(
             },
         })
         .collect();
-    let data_as_of = queries::definition_watermark(&state.pool, &site_id, "funnels")
-        .await
-        .map_err(ApiError::database)?;
+    let data_as_of = queries::definition_revision_watermark(
+        &state.pool,
+        &site_id,
+        "funnels",
+        &definition_version,
+    )
+    .await
+    .map_err(ApiError::database)?;
     let freshness_status =
-        queries::definition_freshness(&state.pool, &site_id, "funnels", &state.definition_version)
+        queries::definition_freshness(&state.pool, &site_id, "funnels", &definition_version)
             .await
             .map_err(ApiError::database)?;
     Ok(Json(FunnelReportResponse {
@@ -297,11 +323,25 @@ pub(crate) async fn funnels(
         from,
         to,
         total,
-        definition_version: state.definition_version,
+        definition_version,
         items,
         data_as_of,
         freshness_status,
         aggregation_version: 1,
     })
     .into_response())
+}
+
+async fn resolve_definition_version(
+    pool: &sqlx::PgPool,
+    site_id: &str,
+    requested: Option<&str>,
+    fallback: &str,
+) -> Result<Option<String>, sqlx::Error> {
+    if let Some(version) = requested {
+        return sqlx::query_scalar::<_, String>("SELECT definition_version FROM site_definition_revisions WHERE site_id=$1 AND definition_version=$2")
+            .bind(site_id).bind(version).fetch_optional(pool).await;
+    }
+    Ok(Some(sqlx::query_scalar::<_, String>("SELECT definition_version FROM site_definition_revisions WHERE site_id=$1 ORDER BY revision DESC LIMIT 1")
+        .bind(site_id).fetch_optional(pool).await?.unwrap_or_else(|| fallback.to_owned())))
 }

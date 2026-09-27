@@ -524,12 +524,14 @@ pub(crate) async fn funnel_total(
         .bind(site_id).bind(version).bind(range.from).bind(range.to).bind(definition_id).fetch_one(pool).await
 }
 
-pub(crate) async fn definition_watermark(
+pub(crate) async fn definition_revision_watermark(
     pool: &PgPool,
     site_id: &str,
     source: &str,
+    definition_version: &str,
 ) -> Result<Option<chrono::DateTime<chrono::Utc>>, sqlx::Error> {
-    sqlx::query_scalar::<_,Option<chrono::DateTime<chrono::Utc>>>("SELECT processed_received_watermark FROM analytics_watermarks WHERE site_id=$1 AND generation_id IS NULL AND source_name=$2").bind(site_id).bind(source).fetch_optional(pool).await.map(Option::flatten)
+    sqlx::query_scalar("SELECT processed_received_watermark FROM definition_revision_watermarks WHERE site_id=$1 AND source_name=$2 AND definition_version=$3")
+        .bind(site_id).bind(source).bind(definition_version).fetch_optional(pool).await
 }
 
 pub(crate) async fn definition_freshness(
@@ -542,6 +544,23 @@ pub(crate) async fn definition_freshness(
     if let Some(status) = rebuild_freshness_status(&mut transaction, site_id).await? {
         transaction.rollback().await?;
         return Ok(status);
+    }
+
+    let revision_exists = sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM site_definition_revisions WHERE site_id=$1 AND definition_version=$2)")
+        .bind(site_id).bind(definition_version).fetch_one(&mut *transaction).await?;
+    if revision_exists {
+        let pending = sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM raw_events r WHERE r.site_id=$1 AND r.event_type='custom_event' AND r.processed_at IS NULL AND r.received_at >= COALESCE((SELECT effective_at FROM site_definition_revisions WHERE site_id=$1 AND definition_version=$2),'-infinity'::timestamptz) AND r.received_at < COALESCE((SELECT MIN(next.effective_at) FROM site_definition_revisions current JOIN site_definition_revisions next ON next.site_id=current.site_id AND next.revision>current.revision WHERE current.site_id=$1 AND current.definition_version=$2),'infinity'::timestamptz))")
+            .bind(site_id).bind(definition_version).fetch_one(&mut *transaction).await?;
+        let has_processed = sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM raw_events r WHERE r.site_id=$1 AND r.event_type='custom_event' AND r.processed_at IS NOT NULL AND r.received_at >= COALESCE((SELECT effective_at FROM site_definition_revisions WHERE site_id=$1 AND definition_version=$2),'-infinity'::timestamptz) AND r.received_at < COALESCE((SELECT MIN(next.effective_at) FROM site_definition_revisions current JOIN site_definition_revisions next ON next.site_id=current.site_id AND next.revision>current.revision WHERE current.site_id=$1 AND current.definition_version=$2),'infinity'::timestamptz))")
+            .bind(site_id).bind(definition_version).fetch_one(&mut *transaction).await?;
+        let watermark_exists = sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM definition_revision_watermarks WHERE site_id=$1 AND definition_version=$2 AND source_name=$3)")
+            .bind(site_id).bind(definition_version).bind(source).fetch_one(&mut *transaction).await?;
+        transaction.rollback().await?;
+        return Ok(if pending || (has_processed && !watermark_exists) {
+            "stale".to_owned()
+        } else {
+            "current".to_owned()
+        });
     }
 
     let pending_custom_events = sqlx::query_scalar::<_, bool>(

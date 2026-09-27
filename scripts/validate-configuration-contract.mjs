@@ -85,6 +85,7 @@ for (const kind of [
   "environment-policy",
   "capability-update",
   "environment-policy-update",
+  "conversion-funnel-definition-set-update",
   "audit",
 ]) {
   const directory = path.join(contractRoot, "fixtures", kind);
@@ -93,6 +94,7 @@ for (const kind of [
     "environment-policy": validatePolicy,
     "capability-update": validateCapabilityUpdate,
     "environment-policy-update": validatePolicyUpdate,
+    "conversion-funnel-definition-set-update": makeValidator(await readJson(path.join(contractRoot, "conversion-funnel-definition-set-update.schema.json"))),
     audit: validateAudit,
   }[kind];
   for (const validity of ["valid", "invalid"]) {
@@ -105,6 +107,13 @@ for (const kind of [
       let semanticErrors = [];
       if (kind === "capabilities") semanticErrors = dependencyErrors(fixture);
       if (kind === "capability-update") semanticErrors = dependencyErrors(fixture);
+      if (kind === "conversion-funnel-definition-set-update") {
+        const ids = new Set();
+        for (const definition of [...(fixture.conversions ?? []), ...(fixture.funnels ?? [])]) {
+          if (ids.has(definition.id)) semanticErrors.push("definition IDs must be unique within the site definition set");
+          ids.add(definition.id);
+        }
+      }
       if (kind === "audit") {
         const { resource } = fixture;
         if (resource.kind === "site_capabilities" && (resource.environment || resource.key_id)) {
@@ -205,6 +214,8 @@ for (const testCase of migrationCases.cases) {
 
 const requiredPaths = {
   "/v1/admin/sites/{site_id}/capabilities": ["get", "put"],
+  "/v1/admin/sites/{site_id}/conversion-funnel-definitions": ["get", "post", "put"],
+  "/v1/sites/{site_id}/definition-revisions": ["get"],
   "/v1/admin/sites/{site_id}/environments/{environment}/ingest-policy": ["get", "post", "put"],
   "/v1/admin/sites/{site_id}/environments/{environment}/ingest-keys": ["post"],
   "/v1/admin/sites/{site_id}/environments/{environment}/ingest-keys/{key_id}": ["delete"],
@@ -246,7 +257,8 @@ for (const [route, methods] of Object.entries(openapi.paths)) {
     );
     const creatingEnvironmentPolicy =
       method === "post" &&
-      route === "/v1/admin/sites/{site_id}/environments/{environment}/ingest-policy";
+      route === "/v1/admin/sites/{site_id}/environments/{environment}/ingest-policy" ||
+      (method === "post" && route === "/v1/admin/sites/{site_id}/conversion-funnel-definitions");
     const requiredHeader = creatingEnvironmentPolicy ? "If-None-Match" : "If-Match";
     if (!parameters.some((parameter) => parameter?.name === requiredHeader && parameter.required)) {
       fail(`${method.toUpperCase()} ${route} must require ${requiredHeader}`);
@@ -262,7 +274,8 @@ if (
     "application/json"
   ].schema.$ref !== "capability-update.schema.json" ||
   openapi.paths["/v1/admin/sites/{site_id}/environments/{environment}/ingest-policy"].put
-    .requestBody.content["application/json"].schema.$ref !== "environment-policy-update.schema.json"
+    .requestBody.content["application/json"].schema.$ref !== "environment-policy-update.schema.json" ||
+  openapi.paths["/v1/admin/sites/{site_id}/conversion-funnel-definitions"].put.requestBody.content["application/json"].schema.$ref !== "conversion-funnel-definition-set-update.schema.json"
 ) {
   fail("PUT operations must use their dedicated client update schemas");
 }

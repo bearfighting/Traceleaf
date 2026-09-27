@@ -22,10 +22,17 @@ interface DashboardSectionsProps {
   from: string;
   to: string;
   dimension: AnalyticsDimension;
+  definitionVersion?: string;
 }
 
-export function DashboardSections({ siteId, from, to, dimension }: DashboardSectionsProps) {
-  const context = { siteId, dateRange: { from, to }, dimension };
+export function DashboardSections({
+  siteId,
+  from,
+  to,
+  dimension,
+  definitionVersion,
+}: DashboardSectionsProps) {
+  const context = { siteId, dateRange: { from, to }, dimension, definitionVersion };
   let client: AnalyticsApiClient;
 
   try {

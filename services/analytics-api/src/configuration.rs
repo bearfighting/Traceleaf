@@ -198,6 +198,11 @@ fn map_store_error(error: StoreError) -> ConfigurationApiError {
     match error {
         StoreError::NotFound => ConfigurationApiError::NotFound,
         StoreError::Conflict | StoreError::AlreadyExists => ConfigurationApiError::Conflict,
+        StoreError::DefinitionRemoval => ConfigurationApiError::validation(
+            "/definitions",
+            "definition_id_immutable",
+            "Definitions must be soft-deactivated instead of removed.",
+        ),
         StoreError::OriginConflict => ConfigurationApiError::validation(
             "/allowed_origins",
             "origin_already_assigned",
@@ -526,4 +531,176 @@ pub(crate) async fn revoke_ingest_key(
         row.version,
         policy_response(&state.pool, &row).await,
     ))
+}
+
+const DEFINITION_SET_UPDATE_SCHEMA: &str = include_str!(
+    "../../../protocol/contracts/configuration/current/conversion-funnel-definition-set-update.schema.json"
+);
+
+fn validate_definition_set(definitions: &Value) -> Result<(), ConfigurationApiError> {
+    const FORBIDDEN: [&str; 21] = [
+        "email",
+        "emailaddress",
+        "useremail",
+        "phone",
+        "phonenumber",
+        "name",
+        "firstname",
+        "lastname",
+        "fullname",
+        "address",
+        "homeaddress",
+        "streetaddress",
+        "ip",
+        "ipaddress",
+        "useragent",
+        "cookie",
+        "password",
+        "passwd",
+        "token",
+        "userid",
+        "useridentifier",
+    ];
+    let mut ids = std::collections::HashSet::new();
+    for category in ["conversions", "funnels"] {
+        for (index, definition) in definitions[category]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .enumerate()
+        {
+            let id = definition["id"].as_str().unwrap_or_default();
+            if !ids.insert(id) {
+                return Err(ConfigurationApiError::validation(
+                    format!("/{category}/{index}/id"),
+                    "duplicate_definition_id",
+                    "Definition IDs must be unique within the site definition set.",
+                ));
+            }
+            let properties = if category == "conversions" {
+                vec![&definition["properties"]]
+            } else {
+                definition["steps"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .map(|step| &step["properties"])
+                    .collect()
+            };
+            for property_set in properties {
+                if let Some(object) = property_set.as_object() {
+                    for key in object.keys() {
+                        let normalized: String = key
+                            .to_ascii_lowercase()
+                            .chars()
+                            .filter(|character| !matches!(character, '_' | '.' | '-'))
+                            .collect();
+                        if FORBIDDEN.contains(&normalized.as_str()) {
+                            return Err(ConfigurationApiError::validation(
+                                "/properties",
+                                "sensitive_property_forbidden",
+                                "Sensitive personal data cannot be used in definition property matching.",
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+pub(crate) async fn get_definition_set(
+    _auth: AdminAuth,
+    State(state): State<AppState>,
+    Path(site_id): Path<String>,
+) -> Result<Response, ConfigurationApiError> {
+    validate_identity(&site_id, None)?;
+    let row = config_store::get_current_definition_set(&state.pool, &site_id)
+        .await
+        .map_err(map_store_error)?
+        .ok_or(ConfigurationApiError::NotFound)?;
+    Ok(response_with_etag(
+        StatusCode::OK,
+        row.version,
+        row.document,
+    ))
+}
+
+pub(crate) async fn create_definition_set(
+    _auth: AdminAuth,
+    State(state): State<AppState>,
+    Path(site_id): Path<String>,
+    headers: HeaderMap,
+    request: Result<Json<Value>, JsonRejection>,
+) -> Result<Response, ConfigurationApiError> {
+    validate_identity(&site_id, None)?;
+    require_if_none_match(&headers)?;
+    let Json(request) = request.map_err(ConfigurationApiError::from)?;
+    validate_schema(DEFINITION_SET_UPDATE_SCHEMA, &request, "")?;
+    validate_definition_set(&request)?;
+    let row = config_store::create_definition_set(&state.pool, &site_id, None, request, None)
+        .await
+        .map_err(map_store_error)?;
+    Ok(response_with_etag(
+        StatusCode::CREATED,
+        row.version,
+        row.document,
+    ))
+}
+
+pub(crate) async fn put_definition_set(
+    _auth: AdminAuth,
+    State(state): State<AppState>,
+    Path(site_id): Path<String>,
+    headers: HeaderMap,
+    request: Result<Json<Value>, JsonRejection>,
+) -> Result<Response, ConfigurationApiError> {
+    validate_identity(&site_id, None)?;
+    let revision = parse_if_match(&headers)?;
+    let Json(request) = request.map_err(ConfigurationApiError::from)?;
+    validate_schema(DEFINITION_SET_UPDATE_SCHEMA, &request, "")?;
+    validate_definition_set(&request)?;
+    let row = config_store::update_definition_set(&state.pool, &site_id, revision, request)
+        .await
+        .map_err(map_store_error)?;
+    Ok(response_with_etag(
+        StatusCode::OK,
+        row.version,
+        row.document,
+    ))
+}
+
+pub(crate) async fn get_definition_revisions(
+    State(state): State<AppState>,
+    Path(site_id): Path<String>,
+) -> Result<Response, ConfigurationApiError> {
+    validate_identity(&site_id, None)?;
+    let revisions = sqlx::query_as::<_, (i64, String, Option<chrono::DateTime<Utc>>)>(
+        "SELECT revision, definition_version, effective_at FROM site_definition_revisions WHERE site_id = $1 ORDER BY revision DESC",
+    )
+    .bind(&site_id)
+    .fetch_all(&state.pool)
+    .await
+    .map_err(|error| {
+        tracing::error!(%error, "definition revision query failed");
+        ConfigurationApiError::Unavailable
+    })?;
+    let current_definition_version = revisions.first().map(|(_, version, _)| version.clone());
+    let values = revisions
+        .into_iter()
+        .map(|(revision, definition_version, effective_at)| {
+            json!({
+                "revision": revision,
+                "definition_version": definition_version,
+                "effective_at": effective_at.map(|time| time.to_rfc3339_opts(SecondsFormat::Micros, true)),
+            })
+        })
+        .collect::<Vec<_>>();
+    Ok(Json(json!({
+        "site_id": site_id,
+        "current_definition_version": current_definition_version,
+        "revisions": values,
+    }))
+    .into_response())
 }

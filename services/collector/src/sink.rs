@@ -100,6 +100,21 @@ impl PostgresSink {
 impl EventSink for PostgresSink {
     async fn accept(&self, events: Vec<StoredEvent>) -> Result<(), SinkError> {
         let mut transaction = self.pool.begin().await?;
+        let site_ids = events
+            .iter()
+            .map(|stored| stored.event.site_id().to_owned())
+            .collect::<std::collections::BTreeSet<_>>();
+        for site_id in site_ids {
+            sqlx::query(
+                "SELECT pg_advisory_xact_lock(hashtextextended('definition-revision:' || $1, 0))",
+            )
+            .bind(site_id)
+            .execute(&mut *transaction)
+            .await?;
+        }
+        let received_at = sqlx::query_scalar::<_, DateTime<Utc>>("SELECT clock_timestamp()")
+            .fetch_one(&mut *transaction)
+            .await?;
 
         let mut web_vital_links = Vec::new();
         for stored in events {
@@ -130,7 +145,7 @@ impl EventSink for PostgresSink {
             .bind(i32::from(stored.event.schema_version()))
             .bind(event_type)
             .bind(occurred_at)
-            .bind(stored.received_at)
+            .bind(received_at)
             .bind(stored.event.path())
             .bind(stored.event.url())
             .bind(stored.event.title())

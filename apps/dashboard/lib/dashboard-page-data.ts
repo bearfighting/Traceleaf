@@ -63,3 +63,27 @@ function toAnalyticsApiClientError(cause: unknown): AnalyticsApiClientError {
     cause,
   });
 }
+
+export async function loadDefinitionRevisions(
+  siteId: string,
+): Promise<Array<{ version: string; revision: number }>> {
+  try {
+    const response = await fetch(
+      `${getAnalyticsApiUrl()}/v1/sites/${encodeURIComponent(siteId)}/definition-revisions`,
+      { cache: "no-store" },
+    );
+    if (!response.ok) return [];
+    const body = (await response.json()) as {
+      revisions?: Array<{ definition_version?: string; revision?: number }>;
+    };
+
+    return (body.revisions ?? [])
+      .filter(
+        (item): item is { definition_version: string; revision: number } =>
+          typeof item.definition_version === "string" && typeof item.revision === "number",
+      )
+      .map((item) => ({ version: item.definition_version, revision: item.revision }));
+  } catch {
+    return [];
+  }
+}

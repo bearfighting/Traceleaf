@@ -1589,3 +1589,112 @@ async fn capability_effective_state_aggregates_services_and_versions() {
     assert_eq!(stale["effective_state"]["status"], "stale");
     assert_eq!(stale["effective_state"]["applied_versions"]["collector"], 2);
 }
+
+#[tokio::test]
+#[ignore = "requires DATABASE_URL and migrated PostgreSQL"]
+async fn definition_sets_append_immutable_revisions_with_etags_and_reject_removal() {
+    let pool = pool().await;
+    let site_id = "definition_revision_api_test";
+    clear_configuration_site(&pool, site_id).await;
+    seed_capabilities(&pool, site_id).await;
+    let token = URL_SAFE_NO_PAD.encode([17_u8; 32]);
+    let app = admin_app(pool.clone(), &token);
+    let path = format!("/v1/admin/sites/{site_id}/conversion-funnel-definitions");
+    let definitions = serde_json::json!({
+        "conversions":[{"id":"purchase","name":"Purchase","event_name":"purchase","active":true,"properties":{}}],
+        "funnels":[{"id":"checkout","name":"Checkout","active":true,"steps":[{"event_name":"cart","properties":{}},{"event_name":"purchase","properties":{}}]}]
+    });
+    let unauthorized = app
+        .clone()
+        .oneshot(Request::get(&path).body(axum::body::Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(unauthorized.status(), StatusCode::UNAUTHORIZED);
+    let created = app
+        .clone()
+        .oneshot(
+            Request::post(&path)
+                .header("authorization", format!("Bearer {token}"))
+                .header("if-none-match", "*")
+                .header("content-type", "application/json")
+                .body(axum::body::Body::from(definitions.to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(created.status(), StatusCode::CREATED);
+    assert_eq!(created.headers().get("etag").unwrap(), "\"1\"");
+    let created = body(created).await;
+    let version = created["definition_version"].as_str().unwrap().to_owned();
+    assert!(created["effective_at"].is_string());
+    let update = serde_json::json!({
+        "conversions":[{"id":"purchase","name":"Purchase v2","event_name":"purchase","active":false,"properties":{}}],
+        "funnels":[{"id":"checkout","name":"Checkout","active":true,"steps":[{"event_name":"cart","properties":{}},{"event_name":"purchase","properties":{}}]}]
+    });
+    let stale = app
+        .clone()
+        .oneshot(
+            Request::put(&path)
+                .header("authorization", format!("Bearer {token}"))
+                .header("if-match", "\"9\"")
+                .header("content-type", "application/json")
+                .body(axum::body::Body::from(update.to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(stale.status(), StatusCode::CONFLICT);
+    let updated = app
+        .clone()
+        .oneshot(
+            Request::put(&path)
+                .header("authorization", format!("Bearer {token}"))
+                .header("if-match", "\"1\"")
+                .header("content-type", "application/json")
+                .body(axum::body::Body::from(update.to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(updated.status(), StatusCode::OK);
+    let updated = body(updated).await;
+    assert_eq!(updated["revision"], 2);
+    assert_eq!(updated["conversions"][0]["active"], false);
+    assert_ne!(updated["definition_version"], version);
+    let current_report = app
+        .clone()
+        .oneshot(
+            Request::get(format!(
+                "/v1/sites/{site_id}/reports/2026-09-01/2026-09-02/conversions"
+            ))
+            .body(axum::body::Body::empty())
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        body(current_report).await["definition_version"],
+        updated["definition_version"]
+    );
+    let historical_report = app.clone().oneshot(Request::get(format!("/v1/sites/{site_id}/reports/2026-09-01/2026-09-02/conversions?definition_version={version}")).body(axum::body::Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(body(historical_report).await["definition_version"], version);
+    let unknown_revision = app.clone().oneshot(Request::get(format!("/v1/sites/{site_id}/reports/2026-09-01/2026-09-02/conversions?definition_version=unknown")).body(axum::body::Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(unknown_revision.status(), StatusCode::BAD_REQUEST);
+    let removed = serde_json::json!({"conversions":[],"funnels":[]});
+    let rejected = app
+        .clone()
+        .oneshot(
+            Request::put(&path)
+                .header("authorization", format!("Bearer {token}"))
+                .header("if-match", "\"2\"")
+                .header("content-type", "application/json")
+                .body(axum::body::Body::from(removed.to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(rejected.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let audit_count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM configuration_audit WHERE resource->>'site_id'=$1 AND resource->>'kind'='conversion_funnel_definitions'").bind(site_id).fetch_one(&pool).await.unwrap();
+    assert_eq!(audit_count, 2);
+    clear_configuration_site(&pool, site_id).await;
+}

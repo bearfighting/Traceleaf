@@ -151,7 +151,6 @@ services:
       dockerfile: docker/analytics-api.Dockerfile
     environment:
       DATABASE_URL: ${COLLECTOR_DATABASE_URL:-postgres://analytics:analytics@postgres:5432/analytics}
-      ANALYTICS_DEFINITIONS_FILE: ${ANALYTICS_DEFINITIONS_FILE:-/workspace/config/analytics-definitions.json}
       CONFIG_ADMIN_TOKENS: ${CONFIG_ADMIN_TOKENS:-}
       RUST_LOG: analytics_api=info
     ports:

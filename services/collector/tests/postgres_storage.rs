@@ -50,6 +50,57 @@ async fn setup() -> (PostgresSink, PgPool) {
 
 #[tokio::test]
 #[ignore = "requires PostgreSQL; run pnpm test:integration"]
+async fn received_at_is_ordered_after_a_committed_definition_revision() {
+    let (sink, pool) = setup().await;
+    let site_id = "site_boundary";
+    let mut definition_tx = pool
+        .begin()
+        .await
+        .expect("definition transaction should start");
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended('definition-revision:' || $1, 0))")
+        .bind(site_id)
+        .execute(&mut *definition_tx)
+        .await
+        .expect("definition transaction should lock the site");
+    let effective_at = sqlx::query_scalar::<_, chrono::DateTime<Utc>>("SELECT clock_timestamp()")
+        .fetch_one(&mut *definition_tx)
+        .await
+        .expect("effective timestamp should be available");
+
+    let mut event = stored_event(
+        site_id,
+        "01J00000000000000000000098",
+        json!({"event_id":"01J00000000000000000000098","site_id":site_id}),
+    );
+    event.received_at = effective_at - chrono::Duration::seconds(1);
+    let sink_task = tokio::spawn(async move { sink.accept(vec![event]).await });
+    tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+
+    definition_tx
+        .commit()
+        .await
+        .expect("definition transaction should commit");
+    sink_task
+        .await
+        .expect("event sink task should complete")
+        .expect("event should be accepted");
+
+    let received_at = sqlx::query_scalar::<_, chrono::DateTime<Utc>>(
+        "SELECT received_at FROM raw_events WHERE site_id=$1 AND event_id=$2",
+    )
+    .bind(site_id)
+    .bind("01J00000000000000000000098")
+    .fetch_one(&pool)
+    .await
+    .expect("accepted event should be queryable");
+    assert!(
+        received_at >= effective_at,
+        "event received_at must follow the committed revision boundary"
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires PostgreSQL; run pnpm test:integration"]
 async fn stores_unified_metadata_without_protocol_feature_flags() {
     let (sink, pool) = setup().await;
     let visitor_id = "550e8400-e29b-41d4-a716-446655440000";

@@ -10,6 +10,16 @@ pub(crate) fn router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(handlers::health::health))
         .route(
+            "/v1/admin/sites/{site_id}/conversion-funnel-definitions",
+            get(crate::configuration::get_definition_set)
+                .post(crate::configuration::create_definition_set)
+                .put(crate::configuration::put_definition_set),
+        )
+        .route(
+            "/v1/sites/{site_id}/definition-revisions",
+            get(crate::configuration::get_definition_revisions),
+        )
+        .route(
             "/v1/admin/sites/{site_id}/capabilities",
             get(crate::configuration::get_capabilities).put(crate::configuration::put_capabilities),
         )

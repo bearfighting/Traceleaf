@@ -63,3 +63,27 @@ export const CAPABILITY_LABELS: Record<string, string> = {
   funnels: "Funnels",
   geo: "Geo country",
 };
+
+export interface DefinitionSetResponse {
+  schema_version: 1;
+  site_id: string;
+  revision: number;
+  definition_version: string;
+  effective_at: string | null;
+  conversions: Array<{
+    id: string;
+    name: string;
+    event_name: string;
+    active: boolean;
+    properties: Record<string, string | number | boolean | null>;
+  }>;
+  funnels: Array<{
+    id: string;
+    name: string;
+    active: boolean;
+    steps: Array<{
+      event_name: string;
+      properties: Record<string, string | number | boolean | null>;
+    }>;
+  }>;
+}

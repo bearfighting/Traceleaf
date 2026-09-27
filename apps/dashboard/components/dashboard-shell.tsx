@@ -13,6 +13,8 @@ interface DashboardShellProps {
   dimension: AnalyticsDimension;
   children: ReactNode;
   settingsMode?: boolean;
+  definitionVersion?: string;
+  definitionVersions?: Array<{ version: string; revision: number }>;
 }
 
 export function DashboardShell({
@@ -22,6 +24,8 @@ export function DashboardShell({
   dimension,
   children,
   settingsMode = false,
+  definitionVersion,
+  definitionVersions = [],
 }: DashboardShellProps) {
   return (
     <main className="dashboard-shell">
@@ -78,6 +82,17 @@ export function DashboardShell({
             <label>
               To
               <input name="to" type="date" defaultValue={dateRange.to} />
+            </label>
+            <label>
+              Definition revision
+              <select name="definition_version" defaultValue={definitionVersion ?? ""}>
+                <option value="">Current</option>
+                {definitionVersions.map((item) => (
+                  <option key={item.version} value={item.version}>
+                    r{item.revision} · {item.version}
+                  </option>
+                ))}
+              </select>
             </label>
             <label>
               Dimension

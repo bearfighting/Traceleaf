@@ -14,7 +14,7 @@ struct Cli {
     rebuild_custom_events: bool,
     #[arg(long, conflicts_with_all = ["rebuild", "backfill", "reparse", "once", "rebuild_custom_events", "rebuild_conversion_funnels"], requires = "site_id")]
     rebuild_web_vitals: bool,
-    #[arg(long, conflicts_with_all = ["rebuild", "backfill", "reparse", "once", "rebuild_custom_events", "rebuild_web_vitals"], requires = "site_id")]
+    #[arg(long, conflicts_with_all = ["rebuild", "backfill", "reparse", "once", "rebuild_custom_events", "rebuild_web_vitals", "import_definitions_if_empty"], requires_all = ["site_id", "definition_version"])]
     rebuild_conversion_funnels: bool,
     #[arg(long, conflicts_with_all = ["rebuild", "backfill", "reparse", "once", "rebuild_custom_events", "rebuild_web_vitals", "rebuild_conversion_funnels"], requires = "site_id")]
     rebuild_geo_country: bool,
@@ -40,6 +40,10 @@ struct Cli {
     parser_version: Option<String>,
     #[arg(long, requires = "site_id")]
     dry_run: bool,
+    #[arg(long, conflicts_with_all = ["once", "rebuild", "backfill", "reparse", "rebuild_conversion_funnels", "rebuild_custom_events", "rebuild_web_vitals", "rebuild_geo_country"])]
+    import_definitions_if_empty: bool,
+    #[arg(long, requires = "rebuild_conversion_funnels")]
+    definition_version: Option<String>,
 }
 
 #[tokio::main]
@@ -51,10 +55,22 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     let database_url = std::env::var("DATABASE_URL")
         .map_err(|_| anyhow::anyhow!("DATABASE_URL must be configured"))?;
-    let definitions_path = std::env::var("ANALYTICS_DEFINITIONS_FILE")
-        .unwrap_or_else(|_| "config/analytics-definitions.json".to_owned());
-    let definitions = processor::definitions::AnalyticsDefinitions::load(&definitions_path)?;
-    let processor = Processor::connect_with_definitions(&database_url, definitions).await?;
+    let processor = Processor::connect(&database_url).await?;
+
+    if cli.import_definitions_if_empty {
+        let definitions_path = std::env::var("ANALYTICS_DEFINITIONS_FILE")
+            .unwrap_or_else(|_| "config/analytics-definitions.json".to_owned());
+        let definitions = processor::definitions::AnalyticsDefinitions::load(&definitions_path)?;
+        let document: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&definitions_path)?)?;
+        let imported = processor.import_definitions_if_empty(&document).await?;
+        info!(
+            imported,
+            source_version = definitions.version,
+            "empty-site definition import complete"
+        );
+        return Ok(());
+    }
 
     if cli.rebuild_custom_events {
         let site_id = cli.site_id.as_deref().expect("clap requires --site-id");
@@ -65,7 +81,13 @@ async fn main() -> anyhow::Result<()> {
 
     if cli.rebuild_conversion_funnels {
         let site_id = cli.site_id.as_deref().expect("clap requires --site-id");
-        let count = processor.rebuild_conversion_funnel_facts(site_id).await?;
+        let version = cli
+            .definition_version
+            .as_deref()
+            .expect("clap requires --definition-version");
+        let count = processor
+            .rebuild_conversion_funnel_facts_for_version(site_id, version)
+            .await?;
         info!(
             site_id,
             facts = count,
@@ -183,6 +205,38 @@ mod tests {
         ])
         .expect("Geo rebuild arguments should parse");
         assert!(cli.rebuild_geo_country);
+    }
+
+    #[test]
+    fn conversion_funnel_backfill_requires_site_and_definition_version() {
+        assert!(
+            Cli::try_parse_from([
+                "processor",
+                "--rebuild-conversion-funnels",
+                "--site-id",
+                "site_a"
+            ])
+            .is_err()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "processor",
+                "--rebuild-conversion-funnels",
+                "--definition-version",
+                "r2-x"
+            ])
+            .is_err()
+        );
+        let cli = Cli::try_parse_from([
+            "processor",
+            "--rebuild-conversion-funnels",
+            "--site-id",
+            "site_a",
+            "--definition-version",
+            "r2-x",
+        ])
+        .unwrap();
+        assert!(cli.rebuild_conversion_funnels);
     }
 
     #[test]

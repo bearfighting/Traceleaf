@@ -1067,3 +1067,83 @@ async fn disabled_custom_event_capability_marks_input_processed_without_creating
     assert!(processed.is_some());
     assert_eq!(facts, 0);
 }
+
+#[tokio::test]
+#[ignore = "requires DATABASE_URL and migrated PostgreSQL"]
+async fn imports_definitions_once_and_processes_events_by_received_at_revision() {
+    let (processor, pool) = setup().await;
+    let site_id = "site_definition_revision_processor";
+    seed_capabilities(&pool, site_id, true).await;
+    let legacy = json!({
+        "version":"legacy-rules-2026-09",
+        "sites":[{"site_id":site_id,"conversions":[{"id":"purchase","name":"Purchase","event_name":"purchase"}],"funnels":[]}]
+    });
+    assert_eq!(
+        processor
+            .import_definitions_if_empty(&legacy)
+            .await
+            .unwrap(),
+        1
+    );
+    let replacement = json!({
+        "version":"replacement-must-not-overwrite",
+        "sites":[{"site_id":site_id,"conversions":[{"id":"purchase","name":"Changed","event_name":"other"}],"funnels":[]}]
+    });
+    assert_eq!(
+        processor
+            .import_definitions_if_empty(&replacement)
+            .await
+            .unwrap(),
+        0
+    );
+    let stored: serde_json::Value = sqlx::query_scalar(
+        "SELECT document FROM site_definition_revisions WHERE site_id=$1 AND revision=1",
+    )
+    .bind(site_id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(stored["definition_version"], "legacy-rules-2026-09");
+    assert_eq!(stored["conversions"][0]["active"], true);
+
+    let boundary = Utc::now() - chrono::Duration::seconds(5);
+    let boundary_text = boundary.to_rfc3339_opts(chrono::SecondsFormat::Micros, true);
+    let next = json!({
+        "schema_version":1,"site_id":site_id,"revision":2,"definition_version":"r2-boundary-test",
+        "updated_at":boundary_text,"effective_at":boundary_text,
+        "conversions":[{"id":"purchase","name":"Purchase v2","event_name":"purchase_v2","active":true,"properties":{}}],"funnels":[]
+    });
+    sqlx::query("INSERT INTO site_definition_revisions(site_id,revision,definition_version,effective_at,created_at,document) VALUES($1,2,'r2-boundary-test',$2,$2,$3)")
+        .bind(site_id).bind(boundary).bind(next).execute(&pool).await.unwrap();
+    for (event_id, event_name, received_at) in [
+        (
+            "01J00000000000000000000701",
+            "purchase",
+            boundary - chrono::Duration::seconds(1),
+        ),
+        (
+            "01J00000000000000000000702",
+            "purchase_v2",
+            boundary + chrono::Duration::seconds(1),
+        ),
+    ] {
+        sqlx::query("INSERT INTO raw_events(site_id,event_id,schema_version,event_type,occurred_at,received_at,path,payload) VALUES($1,$2,1,'custom_event',$3,$3,'/',jsonb_build_object('schema_version',1,'event_id',$2,'type','custom_event','site_id',$1,'occurred_at',($3::text),'event_name',$4,'properties','{}'::jsonb))")
+            .bind(site_id).bind(event_id).bind(received_at).bind(event_name).execute(&pool).await.unwrap();
+    }
+    assert_eq!(processor.process_all_once().await.unwrap(), 2);
+    let facts: Vec<(String, String)> = sqlx::query_as("SELECT event_id,definition_version FROM conversion_facts WHERE site_id=$1 ORDER BY event_id")
+        .bind(site_id).fetch_all(&pool).await.unwrap();
+    assert_eq!(
+        facts,
+        vec![
+            (
+                "01J00000000000000000000701".to_owned(),
+                "legacy-rules-2026-09".to_owned()
+            ),
+            (
+                "01J00000000000000000000702".to_owned(),
+                "r2-boundary-test".to_owned()
+            ),
+        ]
+    );
+}

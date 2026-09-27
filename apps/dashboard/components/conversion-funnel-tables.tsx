@@ -19,6 +19,9 @@ export function ConversionFunnelTables({
     <>
       <section className="card" aria-labelledby="conversions-heading">
         <h2 id="conversions-heading">Conversions</h2>
+        {conversions.status === "success" && (
+          <p>Definition revision: {conversions.data.definition_version}</p>
+        )}
         {conversions.status === "error" ? (
           <ErrorState context={context} message={conversions.error.message} />
         ) : conversions.status === "disabled" ? (
@@ -63,6 +66,9 @@ export function ConversionFunnelTables({
       </section>
       <section className="card" aria-labelledby="funnels-heading">
         <h2 id="funnels-heading">Funnels</h2>
+        {funnels.status === "success" && (
+          <p>Definition revision: {funnels.data.definition_version}</p>
+        )}
         {funnels.status === "error" ? (
           <ErrorState context={context} message={funnels.error.message} />
         ) : funnels.status === "disabled" ? (

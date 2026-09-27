@@ -11,6 +11,9 @@ import { chromium, expect } from "@playwright/test";
 import { seedE2ECapabilityConfigurations } from "./e2e-capabilities.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const importedDefinitionVersion = JSON.parse(
+  await readFile(path.join(root, "config/analytics-definitions.json"), "utf8"),
+).version;
 const composeFiles = ["-f", "compose.yaml", "-f", "compose.backend.yaml", "-f", "compose.e2e.yaml"];
 const project = `web-analytics-dashboard-e2e-${process.pid}`;
 const adminToken = randomBytes(32).toString("base64url");
@@ -288,7 +291,9 @@ ON CONFLICT (site_id, capability_id) DO UPDATE SET enabled_since = EXCLUDED.enab
     if (applied === "t") return;
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  throw new Error(`Collector and Analytics API did not apply capability version ${version} for ${siteId}`);
+  throw new Error(
+    `Collector and Analytics API did not apply capability version ${version} for ${siteId}`,
+  );
 }
 
 async function postFixtureEvents(input) {
@@ -337,6 +342,26 @@ async function postDimensionFixtureEvents(input) {
   }
 }
 
+function importDefinitionsIfEmpty() {
+  runCompose(
+    [
+      "run",
+      "--rm",
+      "--no-deps",
+      "--build",
+      "--entrypoint",
+      "cargo",
+      "processor",
+      "run",
+      "-p",
+      "processor",
+      "--",
+      "--import-definitions-if-empty",
+    ],
+    { capture: true },
+  );
+}
+
 function runProcessorOnce() {
   runCompose(
     [
@@ -352,6 +377,30 @@ function runProcessorOnce() {
       "processor",
       "--",
       "--once",
+    ],
+    { capture: true },
+  );
+}
+
+function runProcessorRebuildConversionFunnels(siteId, definitionVersion) {
+  runCompose(
+    [
+      "run",
+      "--rm",
+      "--no-deps",
+      "--build",
+      "--entrypoint",
+      "cargo",
+      "processor",
+      "run",
+      "-p",
+      "processor",
+      "--",
+      "--rebuild-conversion-funnels",
+      "--site-id",
+      siteId,
+      "--definition-version",
+      definitionVersion,
     ],
     { capture: true },
   );
@@ -750,6 +799,7 @@ async function assertBackfilledConversionFunnels(page) {
   await prepareFixture(data);
   await enablePhase6("site_playground");
   runProcessorBackfill("2026-09-20", "2026-09-21");
+  runProcessorRebuildConversionFunnels("site_playground", importedDefinitionVersion);
   await page.goto(rangeUrl("site_playground", "2026-09-20", "2026-09-21"));
   await expectReportRows(page, "Conversions", ["purchase_completed 2026-09-20 1 100.0%"]);
   await expectReportRows(page, "Funnels", [
@@ -778,6 +828,7 @@ async function assertBackfilledConversionFunnels(page) {
   );
 
   runProcessorRebuildCustomEvents("site_playground");
+  runProcessorRebuildConversionFunnels("site_playground", importedDefinitionVersion);
   for (const report of ["conversions", "funnels"]) {
     const response = await fetch(
       `${analyticsUrl}/v1/sites/site_playground/reports/2026-09-20/2026-09-21/${report}`,
@@ -811,7 +862,7 @@ async function assertBackfilledConversionFunnels(page) {
     "-v",
     "ON_ERROR_STOP=1",
     "-c",
-    "UPDATE analytics_watermarks SET definition_version = 'previous' WHERE site_id = 'site_playground' AND source_name IN ('conversions', 'funnels')",
+    `DELETE FROM definition_revision_watermarks WHERE site_id = 'site_playground' AND definition_version = '${importedDefinitionVersion}'`,
   ]);
   for (const report of ["conversions", "funnels"]) {
     const response = await fetch(
@@ -1048,6 +1099,110 @@ async function assertDashboardConfiguration(page) {
   await page.getByText("No active ingest keys.").waitFor();
 }
 
+async function assertDefinitionManagement(page) {
+  const originalFacts = Number(
+    runCompose(
+      [
+        "exec",
+        "-T",
+        "postgres",
+        "psql",
+        "-U",
+        "analytics",
+        "-d",
+        "analytics",
+        "-At",
+        "-c",
+        `SELECT COUNT(*) FROM conversion_facts WHERE site_id='site_playground' AND definition_version='${importedDefinitionVersion}'`,
+      ],
+      { capture: true },
+    ).trim(),
+  );
+  assert(originalFacts > 0, "Expected historical conversion facts before definition editing");
+
+  await page.goto(`${dashboardUrl}/dashboard/settings?site_id=site_playground`);
+  const editor = page.locator('section[aria-label="Conversion and funnel definitions"]');
+  const conversion = editor.locator("fieldset.card").nth(0);
+  const funnel = editor.locator("fieldset.card").nth(1);
+  await conversion.getByLabel("Name", { exact: true }).fill("Purchase completed managed");
+  await funnel.getByLabel("Name", { exact: true }).fill("Checkout managed");
+  const saveResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/admin/sites/site_playground/conversion-funnel-definitions") &&
+      response.request().method() === "PUT",
+  );
+  await editor.getByRole("button", { name: "Save new revision" }).click();
+  const savedResponse = await saveResponse;
+  assert(savedResponse.ok(), `Definition revision save failed (${savedResponse.status()})`);
+  const saved = await savedResponse.json();
+  assert(saved.revision === 2, "Definition edit did not append revision 2");
+  assert(
+    saved.definition_version !== importedDefinitionVersion,
+    "New revision reused the import version label",
+  );
+  await editor
+    .getByRole("status")
+    .filter({ hasText: `Saved revision ${saved.definition_version}` })
+    .waitFor();
+  await page.reload();
+  assert(
+    (await editor.innerText()).includes("Purchase completed managed"),
+    "Conversion edit did not persist after reload",
+  );
+  assert(
+    (await editor.innerText()).includes("Checkout managed"),
+    "Funnel edit did not persist after reload",
+  );
+
+  const factCounts = runCompose(
+    [
+      "exec",
+      "-T",
+      "postgres",
+      "psql",
+      "-U",
+      "analytics",
+      "-d",
+      "analytics",
+      "-At",
+      "-c",
+      `SELECT definition_version || ':' || COUNT(*) FROM conversion_facts WHERE site_id='site_playground' GROUP BY definition_version ORDER BY definition_version`,
+    ],
+    { capture: true },
+  )
+    .trim()
+    .split("\n");
+  assert(
+    factCounts.includes(`${importedDefinitionVersion}:${originalFacts}`),
+    "Editing removed historical facts",
+  );
+  assert(
+    !factCounts.some((line) => line.startsWith(`${saved.definition_version}:`)),
+    "Definition edit triggered automatic backfill",
+  );
+
+  const reportPath = `${analyticsUrl}/v1/sites/site_playground/reports/2026-09-20/2026-09-21/conversions`;
+  const current = await (await fetch(reportPath)).json();
+  const historical = await (
+    await fetch(`${reportPath}?definition_version=${encodeURIComponent(importedDefinitionVersion)}`)
+  ).json();
+  assert(
+    current.definition_version === saved.definition_version && current.total === 0,
+    "Current report should use the new revision without an automatic backfill",
+  );
+  assert(
+    historical.definition_version === importedDefinitionVersion && historical.total > 0,
+    "Historical report did not retain the imported revision's facts",
+  );
+  await page.goto(
+    `${dashboardUrl}/dashboard?site_id=site_playground&from=2026-09-20&to=2026-09-21&definition_version=${encodeURIComponent(importedDefinitionVersion)}`,
+  );
+  await page
+    .getByText(`Definition revision: ${importedDefinitionVersion}`, { exact: true })
+    .first()
+    .waitFor();
+}
+
 async function assertApiError(browser) {
   runCompose(
     [
@@ -1071,9 +1226,10 @@ async function assertApiError(browser) {
     await waitFor("Dashboard error instance", `${errorUrl}/dashboard`);
     const page = await browser.newPage();
     await page.goto(`${errorUrl}/dashboard?site_id=site_playground&from=2026-09-18&to=2026-09-18`);
-    await page.getByRole("alert").first().waitFor();
+    const overviewError = page.locator("[aria-label=\"Overview\"]").getByRole("alert");
+    await overviewError.waitFor();
     assert(
-      (await page.getByRole("alert").first().textContent()).includes("Analytics API"),
+      (await overviewError.textContent()).includes("Analytics API"),
       "Missing API error state",
     );
     await page.getByText("Site: site_playground · 2026-09-18 to 2026-09-18 UTC").first().waitFor();
@@ -1094,6 +1250,7 @@ try {
   await runCompose(["up", "-d", "--build", "--wait", "postgres"]);
   runCompose(["run", "--rm", "--build", "db-migrate"]);
   seedE2ECapabilityConfigurations(runCompose);
+  importDefinitionsIfEmpty();
   const composeOutput = runCompose(
     [
       "up",
@@ -1140,6 +1297,10 @@ try {
   console.log("PASS custom-events dashboard");
   await assertBackfilledConversionFunnels(page);
   console.log("PASS backfilled conversion and funnel dashboard");
+  await assertDefinitionManagement(page);
+  console.log(
+    "PASS versioned Conversion/Funnel editing, history retention, and no automatic backfill",
+  );
   await assertWebVitals(page);
   console.log("PASS web-vitals dashboard");
   await assertMultiPageNavigation(page);

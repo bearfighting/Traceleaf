@@ -1,0 +1,22 @@
+{
+  "conversions": [
+    {
+      "id": "purchase",
+      "name": "Purchase",
+      "event_name": "purchase",
+      "active": true,
+      "properties": { "currency": "CAD" }
+    }
+  ],
+  "funnels": [
+    {
+      "id": "checkout",
+      "name": "Checkout",
+      "active": true,
+      "steps": [
+        { "event_name": "cart", "properties": {} },
+        { "event_name": "purchase", "properties": {} }
+      ]
+    }
+  ]
+}

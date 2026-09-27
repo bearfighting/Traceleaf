@@ -68,3 +68,35 @@ async function readApiError(response: Response): Promise<string> {
     return `Configuration API returned HTTP ${response.status}.`;
   }
 }
+
+export type DefinitionLoadResult =
+  | { kind: "ready"; definitions: import("./types").DefinitionSetResponse | null }
+  | { kind: "unconfigured"; message: string }
+  | { kind: "error"; message: string };
+
+export async function loadSiteDefinitions(siteId: string): Promise<DefinitionLoadResult> {
+  const token = process.env.DASHBOARD_CONFIG_ADMIN_TOKEN;
+  if (!token)
+    return {
+      kind: "unconfigured",
+      message: "DASHBOARD_CONFIG_ADMIN_TOKEN is not configured for the Dashboard server.",
+    };
+  try {
+    const response = await fetch(
+      `${getAnalyticsApiUrl()}/v1/admin/sites/${encodeURIComponent(siteId)}/conversion-funnel-definitions`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      },
+    );
+    if (response.status === 404) return { kind: "ready", definitions: null };
+    if (!response.ok) return { kind: "error", message: await readApiError(response) };
+
+    return {
+      kind: "ready",
+      definitions: (await response.json()) as import("./types").DefinitionSetResponse,
+    };
+  } catch {
+    return { kind: "error", message: "Configuration service is unavailable. Try again later." };
+  }
+}

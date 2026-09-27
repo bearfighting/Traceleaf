@@ -211,7 +211,14 @@ function loadConversions(
   context: DashboardOverviewContext,
 ): Promise<ConversionReportResponse> {
   return client.conversions
-    ? client.conversions(context.siteId, context.dateRange.from, context.dateRange.to)
+    ? client.conversions(
+        context.siteId,
+        context.dateRange.from,
+        context.dateRange.to,
+        20,
+        undefined,
+        context.definitionVersion,
+      )
     : Promise.resolve({
         site_id: context.siteId,
         from: context.dateRange.from,
@@ -230,7 +237,14 @@ function loadFunnels(
   context: DashboardOverviewContext,
 ): Promise<FunnelReportResponse> {
   return client.funnels
-    ? client.funnels(context.siteId, context.dateRange.from, context.dateRange.to)
+    ? client.funnels(
+        context.siteId,
+        context.dateRange.from,
+        context.dateRange.to,
+        20,
+        undefined,
+        context.definitionVersion,
+      )
     : Promise.resolve({
         site_id: context.siteId,
         from: context.dateRange.from,

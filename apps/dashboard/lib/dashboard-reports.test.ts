@@ -120,8 +120,22 @@ describe("loadDashboardReports", () => {
     expect(client.timeline).toHaveBeenCalledWith("site_playground", "2026-09-18", "2026-09-18");
     expect(client.pages).toHaveBeenCalledWith("site_playground", "2026-09-18", "2026-09-18");
     expect(client.geoCountries).toHaveBeenCalledWith("site_playground", "2026-09-18", "2026-09-18");
-    expect(client.conversions).toHaveBeenCalledWith("site_playground", "2026-09-18", "2026-09-18");
-    expect(client.funnels).toHaveBeenCalledWith("site_playground", "2026-09-18", "2026-09-18");
+    expect(client.conversions).toHaveBeenCalledWith(
+      "site_playground",
+      "2026-09-18",
+      "2026-09-18",
+      20,
+      undefined,
+      undefined,
+    );
+    expect(client.funnels).toHaveBeenCalledWith(
+      "site_playground",
+      "2026-09-18",
+      "2026-09-18",
+      20,
+      undefined,
+      undefined,
+    );
 
     const result = await resultPromise;
 

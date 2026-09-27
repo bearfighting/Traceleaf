@@ -1,0 +1,7 @@
+{
+  "conversions": [
+    { "id": "shared", "name": "One", "event_name": "one", "active": true },
+    { "id": "shared", "name": "Two", "event_name": "two", "active": true }
+  ],
+  "funnels": []
+}

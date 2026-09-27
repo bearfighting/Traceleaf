@@ -151,9 +151,10 @@ pub(crate) fn parse_web_vitals_query(
 
 pub(crate) fn parse_definition_query(
     query: Option<&str>,
-) -> Result<(i64, Option<String>), RequestError> {
+) -> Result<(i64, Option<String>, Option<String>), RequestError> {
     let mut limit = None;
     let mut definition_id = None;
+    let mut definition_version = None;
     for (key, value) in form_urlencoded::parse(query.unwrap_or_default().as_bytes()) {
         match key.as_ref() {
             "limit" => {
@@ -168,10 +169,21 @@ pub(crate) fn parse_definition_query(
                 }
                 definition_id = Some(value.into_owned());
             }
+            "definition_version" => {
+                if definition_version.is_some() {
+                    return Err(RequestError::InvalidDefinitionVersion);
+                }
+                definition_version = Some(value.into_owned());
+            }
             _ => {}
         }
     }
     let limit = parse_limit(limit.as_deref())?;
+    if definition_version.as_deref().is_some_and(|v| {
+        v.is_empty() || v.len() > 64 || v.trim() != v || v.chars().any(char::is_whitespace)
+    }) {
+        return Err(RequestError::InvalidDefinitionVersion);
+    }
     if definition_id.as_deref().is_some_and(|id| {
         id.is_empty()
             || id.len() > 64
@@ -181,7 +193,7 @@ pub(crate) fn parse_definition_query(
     }) {
         return Err(RequestError::InvalidEventName);
     }
-    Ok((limit, definition_id))
+    Ok((limit, definition_id, definition_version))
 }
 
 #[cfg(test)]
@@ -219,13 +231,19 @@ mod tests {
 
     #[test]
     fn validates_definition_filter_and_limit() {
-        assert_eq!(parse_definition_query(None).unwrap(), (20, None));
+        assert_eq!(parse_definition_query(None).unwrap(), (20, None, None));
         assert_eq!(
             parse_definition_query(Some("definition_id=checkout&limit=100")).unwrap(),
-            (100, Some("checkout".to_owned()))
+            (100, Some("checkout".to_owned()), None)
         );
         assert!(parse_definition_query(Some("definition_id=bad%20id")).is_err());
         assert!(parse_definition_query(Some("definition_id=a&definition_id=b")).is_err());
+        assert_eq!(
+            parse_definition_query(Some("definition_version=r2-abc123")).unwrap(),
+            (20, None, Some("r2-abc123".to_owned()))
+        );
+        assert!(parse_definition_query(Some("definition_version=bad%20version")).is_err());
+        assert!(parse_definition_query(Some("definition_version=a&definition_version=b")).is_err());
         assert!(parse_definition_query(Some("limit=101")).is_err());
     }
 

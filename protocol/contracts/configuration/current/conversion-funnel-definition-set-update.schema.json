@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["conversions", "funnels"],
+  "additionalProperties": false,
+  "properties": {
+    "conversions": { "type": "array", "items": { "$ref": "#/$defs/conversion" } },
+    "funnels": { "type": "array", "items": { "$ref": "#/$defs/funnel" } }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9_.-]{1,64}$" },
+    "properties": {
+      "type": "object",
+      "additionalProperties": { "anyOf": [{"type":"string"}, {"type":"number"}, {"type":"boolean"}, {"type":"null"}] },
+      "propertyNames": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$" },
+      "maxProperties": 32
+    },
+    "conversion": {
+      "type": "object",
+      "required": ["id", "name", "event_name", "active"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S" },
+        "event_name": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$" },
+        "properties": { "$ref": "#/$defs/properties" },
+        "active": { "type": "boolean" }
+      }
+    },
+    "step": {
+      "type": "object",
+      "required": ["event_name"],
+      "additionalProperties": false,
+      "properties": {
+        "event_name": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$" },
+        "properties": { "$ref": "#/$defs/properties" }
+      }
+    },
+    "funnel": {
+      "type": "object",
+      "required": ["id", "name", "steps", "active"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S" },
+        "steps": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/step" } },
+        "active": { "type": "boolean" }
+      }
+    }
+  }
+}

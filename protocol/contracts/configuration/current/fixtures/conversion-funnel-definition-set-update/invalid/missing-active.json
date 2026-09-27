@@ -1,0 +1,6 @@
+{
+  "conversions": [
+    { "id": "purchase", "name": "Purchase", "event_name": "purchase" }
+  ],
+  "funnels": []
+}
