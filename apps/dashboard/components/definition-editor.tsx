@@ -59,11 +59,16 @@ function Editor({ siteId, initial }: { siteId: string; initial: DefinitionSetRes
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [versionConflict, setVersionConflict] = useState(false);
+  const hasUnsavedChanges =
+    JSON.stringify({ conversions, funnels }) !==
+    JSON.stringify({ conversions: baseline?.conversions ?? [], funnels: baseline?.funnels ?? [] });
 
   async function save() {
     setBusy(true);
     setError("");
     setMessage("");
+    setVersionConflict(false);
     try {
       const response = await fetch(
         `/api/admin/sites/${encodeURIComponent(siteId)}/conversion-funnel-definitions`,
@@ -80,7 +85,11 @@ function Editor({ siteId, initial }: { siteId: string; initial: DefinitionSetRes
         },
       );
       const body: unknown = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(configurationRequestError(response.status, body));
+      if (!response.ok) {
+        if (response.status === 409) setVersionConflict(true);
+
+        throw new Error(configurationRequestError(response.status, body));
+      }
       const saved = body as DefinitionSetResponse;
       setConversions(saved.conversions);
       setFunnels(saved.funnels);
@@ -97,6 +106,38 @@ function Editor({ siteId, initial }: { siteId: string; initial: DefinitionSetRes
     }
   }
 
+  async function reloadLatest() {
+    if (
+      hasUnsavedChanges &&
+      !window.confirm("Reload the latest definitions and discard your unsaved changes?")
+    )
+      return;
+
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch(
+        `/api/admin/sites/${encodeURIComponent(siteId)}/conversion-funnel-definitions`,
+        { method: "GET", cache: "no-store" },
+      );
+      const body: unknown = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(configurationRequestError(response.status, body));
+      const latest = body as DefinitionSetResponse;
+      setConversions(latest.conversions);
+      setFunnels(latest.funnels);
+      setRevision(latest.revision);
+      setDefinitionVersion(latest.definition_version);
+      setBaseline(latest);
+      setVersionConflict(false);
+      setMessage(`Loaded latest definitions at revision ${latest.definition_version}.`);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not reload definitions.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <section className="card" aria-label="Conversion and funnel definitions">
       <h2>Conversions and funnels</h2>
@@ -104,131 +145,161 @@ function Editor({ siteId, initial }: { siteId: string; initial: DefinitionSetRes
         Each save creates an immutable site revision. Deactivate definitions to preserve their IDs
         and historical facts.
       </p>
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <div role="alert">
+          <p>{error}</p>
+          {versionConflict && (
+            <button type="button" disabled={busy} onClick={() => void reloadLatest()}>
+              {busy ? "Loading latest definitions…" : "Reload latest definitions"}
+            </button>
+          )}
+        </div>
+      )}
       {message && <p role="status">{message}</p>}
       {revision !== undefined && (
         <p>
           Stored revision: {revision} · {definitionVersion}
         </p>
       )}
-      <h3>Conversions</h3>
-      {conversions.map((item, index) => (
-        <fieldset key={item.id} className="card">
-          <legend>{item.name || item.id || "Conversion"}</legend>
-          <label>
-            ID{" "}
-            <input
-              value={item.id}
-              disabled={index < (baseline?.conversions.length ?? 0)}
-              onChange={(event) =>
+      <fieldset disabled={busy}>
+        <h3>Conversions</h3>
+        {conversions.map((item, index) => (
+          <fieldset key={item.id} className="card">
+            <legend>{item.name || item.id || "Conversion"}</legend>
+            <label>
+              ID{" "}
+              <input
+                value={item.id}
+                disabled={index < (baseline?.conversions.length ?? 0)}
+                onChange={(event) =>
+                  setConversions(
+                    conversions.map((row, i) =>
+                      i === index ? { ...row, id: event.target.value } : row,
+                    ),
+                  )
+                }
+              />
+            </label>
+            <label>
+              Name{" "}
+              <input
+                value={item.name}
+                onChange={(event) =>
+                  setConversions(
+                    conversions.map((row, i) =>
+                      i === index ? { ...row, name: event.target.value } : row,
+                    ),
+                  )
+                }
+              />
+            </label>
+            <label>
+              Event name{" "}
+              <input
+                value={item.event_name}
+                onChange={(event) =>
+                  setConversions(
+                    conversions.map((row, i) =>
+                      i === index ? { ...row, event_name: event.target.value } : row,
+                    ),
+                  )
+                }
+              />
+            </label>
+            <PropertyConditions
+              value={item.properties}
+              onChange={(properties) =>
                 setConversions(
-                  conversions.map((row, i) =>
-                    i === index ? { ...row, id: event.target.value } : row,
-                  ),
+                  conversions.map((row, i) => (i === index ? { ...row, properties } : row)),
                 )
               }
             />
-          </label>
-          <label>
-            Name{" "}
-            <input
-              value={item.name}
-              onChange={(event) =>
-                setConversions(
-                  conversions.map((row, i) =>
-                    i === index ? { ...row, name: event.target.value } : row,
-                  ),
-                )
-              }
-            />
-          </label>
-          <label>
-            Event name{" "}
-            <input
-              value={item.event_name}
-              onChange={(event) =>
-                setConversions(
-                  conversions.map((row, i) =>
-                    i === index ? { ...row, event_name: event.target.value } : row,
-                  ),
-                )
-              }
-            />
-          </label>
-          <PropertyConditions
-            value={item.properties}
-            onChange={(properties) =>
-              setConversions(
-                conversions.map((row, i) => (i === index ? { ...row, properties } : row)),
-              )
-            }
-          />
-          <label>
-            <input
-              type="checkbox"
-              checked={item.active}
-              onChange={(event) =>
-                setConversions(
-                  conversions.map((row, i) =>
-                    i === index ? { ...row, active: event.target.checked } : row,
-                  ),
-                )
-              }
-            />{" "}
-            Active
-          </label>
-        </fieldset>
-      ))}
-      <button type="button" onClick={() => setConversions([...conversions, blankConversion()])}>
-        Add conversion
-      </button>
-      <h3>Funnels</h3>
-      {funnels.map((item, index) => (
-        <fieldset key={`${item.id}:${index}`} className="card">
-          <legend>{item.name || item.id || "Funnel"}</legend>
-          <label>
-            ID{" "}
-            <input
-              value={item.id}
-              disabled={index < (baseline?.funnels.length ?? 0)}
-              onChange={(event) =>
-                setFunnels(
-                  funnels.map((row, i) => (i === index ? { ...row, id: event.target.value } : row)),
-                )
-              }
-            />
-          </label>
-          <label>
-            Name{" "}
-            <input
-              value={item.name}
-              onChange={(event) =>
-                setFunnels(
-                  funnels.map((row, i) =>
-                    i === index ? { ...row, name: event.target.value } : row,
-                  ),
-                )
-              }
-            />
-          </label>
-          <h4>Ordered steps</h4>
-          {item.steps.map((step, stepIndex) => (
-            <fieldset key={`step-${stepIndex}`}>
-              <legend>Step {stepIndex + 1}</legend>
-              <label>
-                Event name{" "}
-                <input
-                  value={step.event_name}
-                  onChange={(event) =>
+            <label>
+              <input
+                type="checkbox"
+                checked={item.active}
+                onChange={(event) =>
+                  setConversions(
+                    conversions.map((row, i) =>
+                      i === index ? { ...row, active: event.target.checked } : row,
+                    ),
+                  )
+                }
+              />{" "}
+              Active
+            </label>
+          </fieldset>
+        ))}
+        <button type="button" onClick={() => setConversions([...conversions, blankConversion()])}>
+          Add conversion
+        </button>
+        <h3>Funnels</h3>
+        {funnels.map((item, index) => (
+          <fieldset key={`${item.id}:${index}`} className="card">
+            <legend>{item.name || item.id || "Funnel"}</legend>
+            <label>
+              ID{" "}
+              <input
+                value={item.id}
+                disabled={index < (baseline?.funnels.length ?? 0)}
+                onChange={(event) =>
+                  setFunnels(
+                    funnels.map((row, i) =>
+                      i === index ? { ...row, id: event.target.value } : row,
+                    ),
+                  )
+                }
+              />
+            </label>
+            <label>
+              Name{" "}
+              <input
+                value={item.name}
+                onChange={(event) =>
+                  setFunnels(
+                    funnels.map((row, i) =>
+                      i === index ? { ...row, name: event.target.value } : row,
+                    ),
+                  )
+                }
+              />
+            </label>
+            <h4>Ordered steps</h4>
+            {item.steps.map((step, stepIndex) => (
+              <fieldset key={`step-${stepIndex}`}>
+                <legend>Step {stepIndex + 1}</legend>
+                <label>
+                  Event name{" "}
+                  <input
+                    value={step.event_name}
+                    onChange={(event) =>
+                      setFunnels(
+                        funnels.map((row, i) =>
+                          i === index
+                            ? {
+                                ...row,
+                                steps: row.steps.map((value, j) =>
+                                  j === stepIndex
+                                    ? { ...value, event_name: event.target.value }
+                                    : value,
+                                ),
+                              }
+                            : row,
+                        ),
+                      )
+                    }
+                  />
+                </label>
+                <PropertyConditions
+                  value={step.properties}
+                  onChange={(properties) =>
                     setFunnels(
                       funnels.map((row, i) =>
                         i === index
                           ? {
                               ...row,
                               steps: row.steps.map((value, j) =>
-                                j === stepIndex
-                                  ? { ...value, event_name: event.target.value }
-                                  : value,
+                                j === stepIndex ? { ...value, properties } : value,
                               ),
                             }
                           : row,
@@ -236,75 +307,58 @@ function Editor({ siteId, initial }: { siteId: string; initial: DefinitionSetRes
                     )
                   }
                 />
-              </label>
-              <PropertyConditions
-                value={step.properties}
-                onChange={(properties) =>
-                  setFunnels(
-                    funnels.map((row, i) =>
-                      i === index
-                        ? {
-                            ...row,
-                            steps: row.steps.map((value, j) =>
-                              j === stepIndex ? { ...value, properties } : value,
-                            ),
-                          }
-                        : row,
-                    ),
-                  )
-                }
-              />
-              {item.steps.length > 2 && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setFunnels(
-                      funnels.map((row, i) =>
-                        i === index
-                          ? { ...row, steps: row.steps.filter((_, j) => j !== stepIndex) }
-                          : row,
-                      ),
-                    )
-                  }
-                >
-                  Remove step
-                </button>
-              )}
-            </fieldset>
-          ))}
-          <button
-            type="button"
-            onClick={() =>
-              setFunnels(
-                funnels.map((row, i) =>
-                  i === index
-                    ? { ...row, steps: [...row.steps, { event_name: "", properties: {} }] }
-                    : row,
-                ),
-              )
-            }
-          >
-            Add step
-          </button>
-          <label>
-            <input
-              type="checkbox"
-              checked={item.active}
-              onChange={(event) =>
+                {item.steps.length > 2 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFunnels(
+                        funnels.map((row, i) =>
+                          i === index
+                            ? { ...row, steps: row.steps.filter((_, j) => j !== stepIndex) }
+                            : row,
+                        ),
+                      )
+                    }
+                  >
+                    Remove step
+                  </button>
+                )}
+              </fieldset>
+            ))}
+            <button
+              type="button"
+              onClick={() =>
                 setFunnels(
                   funnels.map((row, i) =>
-                    i === index ? { ...row, active: event.target.checked } : row,
+                    i === index
+                      ? { ...row, steps: [...row.steps, { event_name: "", properties: {} }] }
+                      : row,
                   ),
                 )
               }
-            />{" "}
-            Active
-          </label>
-        </fieldset>
-      ))}
-      <button type="button" onClick={() => setFunnels([...funnels, blankFunnel()])}>
-        Add funnel
-      </button>
+            >
+              Add step
+            </button>
+            <label>
+              <input
+                type="checkbox"
+                checked={item.active}
+                onChange={(event) =>
+                  setFunnels(
+                    funnels.map((row, i) =>
+                      i === index ? { ...row, active: event.target.checked } : row,
+                    ),
+                  )
+                }
+              />{" "}
+              Active
+            </label>
+          </fieldset>
+        ))}
+        <button type="button" onClick={() => setFunnels([...funnels, blankFunnel()])}>
+          Add funnel
+        </button>
+      </fieldset>
       <button type="button" disabled={busy} onClick={() => void save()}>
         {busy ? "Saving…" : "Save new revision"}
       </button>

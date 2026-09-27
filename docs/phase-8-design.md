@@ -1,6 +1,6 @@
 # Phase 8 Design — MVP 用户配置与能力管理
 
-> Status: In progress — PR0–PR6 已实现；PR6 Dashboard Core Configuration 已完成，下一步 PR7 Conversion/Funnel Definition Management。
+> Status: In progress — PR0–PR7 已实现；PR7 Conversion/Funnel Definition Management 已完成，下一步 PR8 Configuration End-to-end Acceptance。
 > Scope: capability configuration、站点接入配置、Dashboard 管理和运行时生效语义
 
 ## 1. 阶段目标
@@ -316,3 +316,11 @@ Dashboard 不展示 Protocol 版本、schema、generation 或 parser rollout 信
 - 保留 capability 依赖、必需 consent、隐私说明、Origin/限流和 Key 管理边界；Admin token 仍只由服务端 loader/BFF 使用。
 - Dashboard E2E 覆盖依赖拒绝、Origin 校验错误、policy 创建/停用/恢复与刷新、409 冲突和重载、Key 复制/隐藏/一次性显示/轮换/撤销。Conversion/Funnel 编辑器保持原样，属于 PR7 管理范围。
 - `pnpm --filter @web-analytics/dashboard test`（104 tests）、`pnpm check` 和 `pnpm e2e:dashboard` 均通过。PR6 完成，下一步 PR7。
+
+#### PR7 执行记录（2026-09-27）
+
+- 完善现有 Dashboard 定义编辑器：保留 Conversion/Funnel 创建、编辑和停用流程；保存期间锁定定义表单，避免在请求期间修改草稿。
+- 对 409 版本冲突显示服务端错误和“Reload latest definitions”操作；存在未保存改动时确认后才经 BFF 读取并应用服务器最新版，取消则保留草稿。服务端校验错误继续展示在编辑器中。
+- Dashboard E2E 覆盖非法定义拒绝、保存期间控件锁定、Conversion/Funnel 创建与刷新持久化、新 revision 保存、并发更新冲突与草稿确认/保留、停用和历史事实保留；定义变更不触发自动 backfill，显式历史 Conversion/Funnel 版本查询均返回原结果。
+- 验收结果：`pnpm --filter @web-analytics/dashboard test`（108 tests；包含保存锁定、服务端校验错误和冲突恢复组件交互测试）、Dashboard lint/typecheck、`pnpm e2e:dashboard`、`pnpm check` 和 `pnpm build` 均通过。
+- 不新增 API、schema 或 migration，不提供旧版恢复功能。PR8 仍需完成跨层配置生效、刷新/故障/回滚、历史边界和站点隔离验收，并更新 Getting Started 与运维/备份/恢复说明。

@@ -213,7 +213,7 @@ Country / IP 不属于本阶段必须内容。
 
 目标：让用户通过 Dashboard 配置功能能力、Origin、Ingest Key、隐私和必要的业务设置，不暴露 Protocol、schema、generation 或 parser version。
 
-执行顺序（严格串行；PR0、PR0.5a–e、PR1 contract、PR2 配置持久化、PR3 受保护配置 API、PR4 Collector Ingest Policy Runtime、PR5 Capability Runtime 和 PR6 Dashboard Core Configuration 已完成；下一步为 PR7 Conversion/Funnel Definition Management。出口条件和记录见 [Phase 8 Design](phase-8-design.md#26-phase-8-顺序执行计划)）：
+执行顺序（严格串行；PR0、PR0.5a–e、PR1 contract、PR2 配置持久化、PR3 受保护配置 API、PR4 Collector Ingest Policy Runtime、PR5 Capability Runtime、PR6 Dashboard Core Configuration 和 PR7 Conversion/Funnel Definition Management 已完成；下一步为 PR8 Configuration End-to-end Acceptance。出口条件和记录见 [Phase 8 Design](phase-8-design.md#26-phase-8-顺序执行计划)）：
 
 ```text
 PR0 Pre-configuration Hardening

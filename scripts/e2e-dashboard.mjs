@@ -1241,7 +1241,26 @@ async function assertDefinitionManagement(page) {
       { capture: true },
     ).trim(),
   );
+  const originalFunnelFacts = Number(
+    runCompose(
+      [
+        "exec",
+        "-T",
+        "postgres",
+        "psql",
+        "-U",
+        "analytics",
+        "-d",
+        "analytics",
+        "-At",
+        "-c",
+        `SELECT COUNT(*) FROM funnel_step_facts WHERE site_id='site_playground' AND definition_version='${importedDefinitionVersion}'`,
+      ],
+      { capture: true },
+    ).trim(),
+  );
   assert(originalFacts > 0, "Expected historical conversion facts before definition editing");
+  assert(originalFunnelFacts > 0, "Expected historical funnel facts before definition editing");
 
   await page.goto(`${dashboardUrl}/dashboard/settings?site_id=site_playground`);
   const editor = page.locator('section[aria-label="Conversion and funnel definitions"]');
@@ -1249,12 +1268,43 @@ async function assertDefinitionManagement(page) {
   const funnel = editor.locator("fieldset.card").nth(1);
   await conversion.getByLabel("Name", { exact: true }).fill("Purchase completed managed");
   await funnel.getByLabel("Name", { exact: true }).fill("Checkout managed");
+
+  const eventName = conversion.getByLabel("Event name", { exact: true });
+  const validEventName = await eventName.inputValue();
+  await eventName.fill("invalid event name");
+  const validationResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/admin/sites/site_playground/conversion-funnel-definitions") &&
+      response.request().method() === "PUT",
+  );
+  await editor.getByRole("button", { name: "Save new revision" }).click();
+  assert(
+    (await (await validationResponse).status()) === 422,
+    "Invalid definitions must be rejected",
+  );
+  await editor.getByRole("alert").waitFor();
+  await eventName.fill(validEventName);
+
+  await page.evaluate(() => {
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = async (...args) => {
+      if (
+        String(args[0]).includes("/api/admin/sites/site_playground/conversion-funnel-definitions")
+      )
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      return originalFetch(...args);
+    };
+  });
   const saveResponse = page.waitForResponse(
     (response) =>
       response.url().includes("/api/admin/sites/site_playground/conversion-funnel-definitions") &&
       response.request().method() === "PUT",
   );
   await editor.getByRole("button", { name: "Save new revision" }).click();
+  assert(
+    await conversion.getByLabel("Name", { exact: true }).isDisabled(),
+    "Editor remained editable while saving",
+  );
   const savedResponse = await saveResponse;
   assert(savedResponse.ok(), `Definition revision save failed (${savedResponse.status()})`);
   const saved = await savedResponse.json();
@@ -1277,7 +1327,167 @@ async function assertDefinitionManagement(page) {
     "Funnel edit did not persist after reload",
   );
 
-  const factCounts = runCompose(
+  // Simulate another administrator saving after this editor loaded revision 2.
+  const definitionsPath = `${analyticsUrl}/v1/admin/sites/site_playground/conversion-funnel-definitions`;
+  const adminHeaders = { Authorization: `Bearer ${adminToken}` };
+  const latestResponse = await fetch(definitionsPath, { headers: adminHeaders });
+  assert(latestResponse.ok, "Could not read definitions for the conflict scenario");
+  const latest = await latestResponse.json();
+  const competingUpdate = await fetch(definitionsPath, {
+    method: "PUT",
+    headers: {
+      ...adminHeaders,
+      "Content-Type": "application/json",
+      "If-Match": `"${latest.revision}"`,
+    },
+    body: JSON.stringify({
+      conversions: latest.conversions,
+      funnels: latest.funnels.map((item) => ({ ...item, name: "Checkout concurrent" })),
+    }),
+  });
+  assert(competingUpdate.ok, "Competing definition update failed");
+  const concurrent = await competingUpdate.json();
+
+  const conflictEditor = page.locator('section[aria-label="Conversion and funnel definitions"]');
+  const conflictConversion = conflictEditor.locator("fieldset.card").nth(0);
+  await conflictConversion.getByLabel("Name", { exact: true }).fill("Unsaved local draft");
+  const conflictResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/admin/sites/site_playground/conversion-funnel-definitions") &&
+      response.request().method() === "PUT",
+  );
+  await conflictEditor.getByRole("button", { name: "Save new revision" }).click();
+  assert((await (await conflictResponse).status()) === 409, "Stale revision must return HTTP 409");
+  await conflictEditor
+    .getByRole("alert")
+    .getByRole("button", { name: "Reload latest definitions" })
+    .waitFor();
+  await page.evaluate(() => {
+    window.confirm = (message) => {
+      document.body.dataset.definitionReloadConfirmation = message;
+      return false;
+    };
+  });
+  await conflictEditor.getByRole("button", { name: "Reload latest definitions" }).click();
+  assert(
+    (await conflictConversion.getByLabel("Name", { exact: true }).inputValue()) ===
+      "Unsaved local draft",
+    "Declining conflict reload should preserve the local draft",
+  );
+  assert(
+    (await page.locator("body").getAttribute("data-definition-reload-confirmation"))?.includes(
+      "discard your unsaved changes",
+    ),
+    "Conflict reload did not explain that the local draft will be discarded",
+  );
+  await page.evaluate(() => {
+    window.confirm = () => true;
+  });
+  let latestReload;
+  const captureLatestReload = (response) => {
+    if (
+      response.url().includes("/api/admin/sites/site_playground/conversion-funnel-definitions") &&
+      response.request().method() === "GET"
+    )
+      latestReload = response;
+  };
+  page.on("response", captureLatestReload);
+  await conflictEditor.getByRole("button", { name: "Reload latest definitions" }).click();
+  await conflictEditor
+    .getByRole("status")
+    .filter({ hasText: "Loaded latest definitions" })
+    .waitFor();
+  page.off("response", captureLatestReload);
+  assert(latestReload?.ok(), "Conflict reload did not read the latest definitions");
+  await page.getByText("Checkout concurrent", { exact: true }).waitFor();
+  const reloadedEditor = page.locator('section[aria-label="Conversion and funnel definitions"]');
+  assert(
+    (await reloadedEditor.innerText()).includes("Checkout concurrent"),
+    "Conflict reload did not display the latest server definition",
+  );
+  assert(
+    !(await reloadedEditor.innerText()).includes("Unsaved local draft"),
+    "Conflict reload retained a draft the user confirmed discarding",
+  );
+
+  const reloadedConversion = reloadedEditor.locator("fieldset.card").nth(0);
+  const reloadedFunnel = reloadedEditor.locator("fieldset.card").nth(1);
+  await reloadedConversion.getByRole("checkbox").uncheck();
+  await reloadedFunnel.getByRole("checkbox").uncheck();
+  const deactivationResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/admin/sites/site_playground/conversion-funnel-definitions") &&
+      response.request().method() === "PUT",
+  );
+  await reloadedEditor.getByRole("button", { name: "Save new revision" }).click();
+  const deactivated = await (await deactivationResponse).json();
+  assert(
+    deactivated.revision === concurrent.revision + 1,
+    "Deactivation did not append a revision",
+  );
+  assert(
+    deactivated.conversions[0].active === false && deactivated.funnels[0].active === false,
+    "Deactivation did not preserve definitions with inactive status",
+  );
+  await page.reload();
+  const persistedEditor = page.locator('section[aria-label="Conversion and funnel definitions"]');
+  assert(
+    !(await persistedEditor.locator("fieldset.card").nth(0).getByRole("checkbox").isChecked()),
+    "Conversion deactivation did not persist after reload",
+  );
+  assert(
+    !(await persistedEditor.locator("fieldset.card").nth(1).getByRole("checkbox").isChecked()),
+    "Funnel deactivation did not persist after reload",
+  );
+
+  await persistedEditor.getByRole("button", { name: "Add conversion" }).click();
+  const newConversion = persistedEditor.locator("fieldset.card").nth(1);
+  await newConversion.getByLabel("ID", { exact: true }).fill("managed_signup");
+  await newConversion.getByLabel("Name", { exact: true }).fill("Managed signup");
+  await newConversion.getByLabel("Event name", { exact: true }).fill("newsletter_signup");
+
+  await persistedEditor.getByRole("button", { name: "Add funnel" }).click();
+  const newFunnel = persistedEditor.locator("fieldset.card").nth(3);
+  await newFunnel.getByLabel("ID", { exact: true }).fill("managed_onboarding");
+  await newFunnel.getByLabel("Name", { exact: true }).fill("Managed onboarding");
+  await newFunnel.getByLabel("Event name", { exact: true }).nth(0).fill("signup");
+  await newFunnel.getByLabel("Event name", { exact: true }).nth(1).fill("onboarding_complete");
+
+  const creationResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/admin/sites/site_playground/conversion-funnel-definitions") &&
+      response.request().method() === "PUT",
+  );
+  await persistedEditor.getByRole("button", { name: "Save new revision" }).click();
+  const created = await creationResponse;
+  assert(created.ok(), `Creating definitions failed (${created.status()})`);
+  const createdDefinitions = await created.json();
+  assert(
+    createdDefinitions.revision === deactivated.revision + 1 &&
+      createdDefinitions.conversions.some((item) => item.id === "managed_signup") &&
+      createdDefinitions.funnels.some((item) => item.id === "managed_onboarding"),
+    "Creating Conversion and Funnel definitions did not append and save both definitions",
+  );
+  await page.reload();
+  const createdEditor = page.locator('section[aria-label="Conversion and funnel definitions"]');
+  assert(
+    (await createdEditor
+      .locator("fieldset.card")
+      .nth(1)
+      .getByLabel("ID", { exact: true })
+      .inputValue()) === "managed_signup",
+    "Created Conversion did not persist after reload",
+  );
+  assert(
+    (await createdEditor
+      .locator("fieldset.card")
+      .nth(3)
+      .getByLabel("ID", { exact: true })
+      .inputValue()) === "managed_onboarding",
+    "Created Funnel did not persist after reload",
+  );
+
+  const conversionFactCounts = runCompose(
     [
       "exec",
       "-T",
@@ -1295,13 +1505,33 @@ async function assertDefinitionManagement(page) {
   )
     .trim()
     .split("\n");
+  const funnelFactCounts = runCompose(
+    [
+      "exec",
+      "-T",
+      "postgres",
+      "psql",
+      "-U",
+      "analytics",
+      "-d",
+      "analytics",
+      "-At",
+      "-c",
+      `SELECT definition_version || ':' || COUNT(*) FROM funnel_step_facts WHERE site_id='site_playground' GROUP BY definition_version ORDER BY definition_version`,
+    ],
+    { capture: true },
+  )
+    .trim()
+    .split("\n");
   assert(
-    factCounts.includes(`${importedDefinitionVersion}:${originalFacts}`),
-    "Editing removed historical facts",
+    conversionFactCounts.length === 1 &&
+      conversionFactCounts[0] === `${importedDefinitionVersion}:${originalFacts}`,
+    "Definition edits or deactivation changed conversion history or triggered automatic backfill",
   );
   assert(
-    !factCounts.some((line) => line.startsWith(`${saved.definition_version}:`)),
-    "Definition edit triggered automatic backfill",
+    funnelFactCounts.length === 1 &&
+      funnelFactCounts[0] === `${importedDefinitionVersion}:${originalFunnelFacts}`,
+    "Definition edits or deactivation changed funnel history or triggered automatic backfill",
   );
 
   const reportPath = `${analyticsUrl}/v1/sites/site_playground/reports/2026-09-20/2026-09-21/conversions`;
@@ -1309,13 +1539,23 @@ async function assertDefinitionManagement(page) {
   const historical = await (
     await fetch(`${reportPath}?definition_version=${encodeURIComponent(importedDefinitionVersion)}`)
   ).json();
+  const historicalFunnels = await (
+    await fetch(
+      `${analyticsUrl}/v1/sites/site_playground/reports/2026-09-20/2026-09-21/funnels?definition_version=${encodeURIComponent(importedDefinitionVersion)}`,
+    )
+  ).json();
   assert(
-    current.definition_version === saved.definition_version && current.total === 0,
-    "Current report should use the new revision without an automatic backfill",
+    current.definition_version === createdDefinitions.definition_version && current.total === 0,
+    "Current report should use the latest revision without an automatic backfill",
   );
   assert(
     historical.definition_version === importedDefinitionVersion && historical.total > 0,
     "Historical report did not retain the imported revision's facts",
+  );
+  assert(
+    historicalFunnels.definition_version === importedDefinitionVersion &&
+      historicalFunnels.total > 0,
+    "Historical funnel report did not retain the imported revision's facts",
   );
   await page.goto(
     `${dashboardUrl}/dashboard?site_id=site_playground&from=2026-09-20&to=2026-09-21&definition_version=${encodeURIComponent(importedDefinitionVersion)}`,
