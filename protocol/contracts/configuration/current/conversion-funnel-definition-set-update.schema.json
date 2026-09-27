@@ -11,7 +11,14 @@
     "id": { "type": "string", "pattern": "^[A-Za-z0-9_.-]{1,64}$" },
     "properties": {
       "type": "object",
-      "additionalProperties": { "anyOf": [{"type":"string"}, {"type":"number"}, {"type":"boolean"}, {"type":"null"}] },
+      "additionalProperties": {
+        "anyOf": [
+          { "type": "string" },
+          { "type": "number" },
+          { "type": "boolean" },
+          { "type": "null" }
+        ]
+      },
       "propertyNames": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$" },
       "maxProperties": 32
     },

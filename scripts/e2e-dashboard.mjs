@@ -1226,7 +1226,7 @@ async function assertApiError(browser) {
     await waitFor("Dashboard error instance", `${errorUrl}/dashboard`);
     const page = await browser.newPage();
     await page.goto(`${errorUrl}/dashboard?site_id=site_playground&from=2026-09-18&to=2026-09-18`);
-    const overviewError = page.locator("[aria-label=\"Overview\"]").getByRole("alert");
+    const overviewError = page.locator('[aria-label="Overview"]').getByRole("alert");
     await overviewError.waitFor();
     assert(
       (await overviewError.textContent()).includes("Analytics API"),

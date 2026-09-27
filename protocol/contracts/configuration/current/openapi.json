@@ -534,11 +534,7 @@
         "type": "object",
         "properties": {
           "status": {
-            "enum": [
-              "pending",
-              "current",
-              "stale"
-            ],
+            "enum": ["pending", "current", "stale"],
             "description": "Overall status precedence is stale > pending > current. Report stale if any affected service is using a last-known snapshot because configuration storage is unavailable. Otherwise report pending until all affected services have applied stored_version; report current when all have applied it."
           },
           "stored_version": {
@@ -549,40 +545,23 @@
             "type": "object",
             "properties": {
               "collector": {
-                "type": [
-                  "integer",
-                  "null"
-                ],
+                "type": ["integer", "null"],
                 "minimum": 1
               },
               "processor": {
-                "type": [
-                  "integer",
-                  "null"
-                ],
+                "type": ["integer", "null"],
                 "minimum": 1
               },
               "analytics_api": {
-                "type": [
-                  "integer",
-                  "null"
-                ],
+                "type": ["integer", "null"],
                 "minimum": 1
               }
             },
-            "required": [
-              "collector",
-              "processor",
-              "analytics_api"
-            ],
+            "required": ["collector", "processor", "analytics_api"],
             "additionalProperties": false
           }
         },
-        "required": [
-          "status",
-          "stored_version",
-          "applied_versions"
-        ],
+        "required": ["status", "stored_version", "applied_versions"],
         "additionalProperties": false
       },
       "CapabilityConfigurationResponse": {
@@ -595,10 +574,7 @@
             "$ref": "#/components/schemas/EffectiveState"
           }
         },
-        "required": [
-          "configuration",
-          "effective_state"
-        ],
+        "required": ["configuration", "effective_state"],
         "additionalProperties": false
       },
       "KeyMetadata": {
@@ -612,10 +588,7 @@
             "format": "date-time"
           }
         },
-        "required": [
-          "key_id",
-          "created_at"
-        ],
+        "required": ["key_id", "created_at"],
         "additionalProperties": false
       },
       "CreatedIngestKey": {
@@ -632,11 +605,7 @@
             "$ref": "#/components/schemas/EffectiveState"
           }
         },
-        "required": [
-          "key",
-          "metadata",
-          "effective_state"
-        ],
+        "required": ["key", "metadata", "effective_state"],
         "additionalProperties": false
       },
       "IngestPolicyResponse": {
@@ -690,10 +659,7 @@
             "$ref": "#/components/schemas/EffectiveState"
           }
         },
-        "required": [
-          "policy",
-          "effective_state"
-        ],
+        "required": ["policy", "effective_state"],
         "additionalProperties": false
       },
       "Error": {
@@ -730,25 +696,16 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "path",
-                    "code",
-                    "message"
-                  ],
+                  "required": ["path", "code", "message"],
                   "additionalProperties": false
                 }
               }
             },
-            "required": [
-              "code",
-              "message"
-            ],
+            "required": ["code", "message"],
             "additionalProperties": false
           }
         },
-        "required": [
-          "error"
-        ],
+        "required": ["error"],
         "additionalProperties": false
       },
       "UnauthorizedError": {
