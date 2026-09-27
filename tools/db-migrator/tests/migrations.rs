@@ -82,6 +82,11 @@ const EXPECTED_MIGRATIONS: &[(i64, &str, &str)] = &[
         "add capability runtime state",
         "23b5fbb21d8bff00865e55bd3e0e6e3012285e60491dc6cbe96012c52034871a4e8fdb709eb8b1e2a226225fc489cb33",
     ),
+    (
+        20260926001700,
+        "create definition revisions",
+        "839b94316e4f515bedf89e7031df1c36ad6f0f47ad56f0f33fb5ed38084451edc23624aa43b424a108b3562d1ef44996",
+    ),
 ];
 
 #[tokio::test]
