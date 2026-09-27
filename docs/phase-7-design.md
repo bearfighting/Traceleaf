@@ -354,7 +354,7 @@ PR1 implementation contract:
 - retention 和重新解析策略；
 - 不把精确位置作为默认展示或身份标识。
 
-Geo PR2 可以延期而不阻塞其他 MVP capability。是否纳入本次 MVP release 必须在 MVP scope 和 RC checklist 中明确记录。
+Geo PR2（region/city）已决定延期至 MVP 之后，不阻塞其他 MVP capability；Release Readiness 只验证 country Geo 的部署和运行边界。
 
 ## 12. 测试策略
 
@@ -394,7 +394,7 @@ PR7 汇总 Phase 7 的功能验收，不新增产品能力。必须验证：
 - 所有可配置的 MVP Analytics capability 有明确 enabled、disabled、invalid 和 empty 语义；
 - 所有 MVP Router Adapter 有明确 observer contract、导航行为和最小 E2E；
 - Analytics API 和 Dashboard 能展示已承诺的 MVP 功能；
-- Geo PR2 是否纳入本次 MVP release 已记录决定；
+- Geo PR2（region/city）已明确延期至 MVP 之后；
 - Phase 8 的配置模型可以基于这些稳定 capability contract 开始设计；
 - 未把发布基础设施或内部协议细节暴露给最终用户。
 

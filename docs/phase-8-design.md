@@ -208,7 +208,7 @@ configuration_audit
 
 - Page Views、Browser Context、Visitors、Sessions、Dimensions、Custom Events、Web Vitals、Conversions、Funnels 和 Geo country 的启用状态；当前配置 contract 暂不接受 capability-specific settings；
 - Conversion 和 Funnel 定义；这些定义依赖 Phase 7 已冻结的事件 contract，但由 Phase 8 提供用户管理入口；
-- Geo country 的启用状态；region/city 只有在 Geo PR2 纳入本次 MVP release 后才允许配置精度级别；
+- Geo country 的启用状态；region/city 不属于当前 MVP，精度级别配置留待后续 Geo 扩展单独设计；
 - Origin allowlist；
 - Ingest Key 的创建、轮换和撤销；
 - consent 与隐私策略说明。Consent 是强制边界，站点不能关闭或绕过。

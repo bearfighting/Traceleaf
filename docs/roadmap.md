@@ -244,7 +244,7 @@ PR0 Pre-configuration Hardening
 
 详细执行方案见：[release-readiness-design.md](release-readiness-design.md)。
 
-这是 MVP 的最后阶段，集中完成：
+这是 MVP 的最后阶段，重点是在目标部署环境中验证 MVP 是否可重复部署和稳定运行，集中完成：
 
 - CI、migration regression 和 integration test；
 - Analytics E2E 和 Dashboard E2E；
@@ -261,6 +261,7 @@ Phase 9 只保留需要独立隐私和产品设计的后续能力：
 - Replay。
 - Heatmap。
 - 高级 Geo：例如 geospatial polygon、ISP/ASN、VPN/proxy detection 等。
+- Geo region/city：在真实部署验证 country Geo 的覆盖率、数据质量和运维流程后，再单独评估并设计。
 
 Replay 和 Heatmap 不属于 MVP。除非出现明确需求，否则不提前创建对应的 Protocol、migration、package 或服务。
 
@@ -296,6 +297,18 @@ db-migrate
 PostgreSQL Edition 继续支持独立运维。该专项不属于当前 MVP，开始实施前新增独立设计文档，并重新评估 SQLite/PostgreSQL 的功能矩阵、升级路径和数据迁移方案。
 
 ## 后续方向
+
+### 项目展示站与项目文档
+
+MVP 完成生产环境部署验证后，可以规划独立的项目展示站，面向潜在使用者和贡献者介绍项目并承载持续更新。建议包含：
+
+- 项目初衷、目标用户和核心功能；
+- 架构和数据流说明；
+- 安装、部署、配置和使用指南；
+- Blog、开发进展和 Release 记录；
+- 路线图、已知限制和未来发展方向。
+
+展示站负责项目介绍、文档导航和发布信息；产品 Dashboard 继续负责用户自己的分析数据和站点配置。实施时再决定文档是否从仓库现有 Markdown 自动生成，避免维护两份互相漂移的指南。
 
 只有出现真实需求后再考虑：
 

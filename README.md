@@ -13,7 +13,8 @@
 - 已完成：Phase 0–6 核心 Analytics workflow；Phase 7 的 Router Adapter、Custom Events、Web Vitals、Conversion/Funnel 和 Geo country 功能及阶段验收；Phase 8 PR0–PR6 的配置契约、持久化、受保护 API、服务运行时配置和 Dashboard 核心配置；
 - 进行中：Phase 8 用户配置。下一步依次完成 PR7 Conversion/Funnel 定义管理和 PR8 配置变更端到端验收；
 - 当前验证：Dashboard 单测（104 项）、全仓 `pnpm check` 和 Dashboard E2E 已通过。
-- 后续：MVP Release Readiness，包括完整发布回归、浏览器矩阵、部署与回滚、数据保留及发布验证。
+- 后续：完成 Phase 8 后进入 MVP Release Readiness，重点在实际部署环境完成回归、浏览器矩阵、运行时、数据保留、备份恢复和回滚验证；Geo region/city 延期至 MVP 之后。
+- MVP 发布验证之后可规划项目展示站，集中介绍项目初衷、功能、架构、部署方式、使用指南、Blog 和 Release 进展。
 
 当前已具备：
 
@@ -67,7 +68,7 @@ MVP 的权威范围、阶段依赖和退出条件见 [MVP Scope](docs/mvp-scope.
 - capability 配置、Origin、Ingest Key 和隐私设置；
 - PostgreSQL Edition、Analytics API、Dashboard 和完整发布验证。
 
-Replay、Heatmap、复杂 Geo、单机版部署和其他未来扩展不属于当前 MVP。
+Replay、Heatmap、Geo region/city、复杂 Geo、单机版部署和其他未来扩展不属于当前 MVP。
 
 ## 开发顺序
 
@@ -82,6 +83,7 @@ Phase 6  Browser 和 Analytics Dimensions
 Phase 7  MVP 功能完善
 Phase 8  MVP 用户配置与能力管理
 Release Readiness  测试、稳定性、部署和发布
+Post-MVP         实际使用反馈、Geo region/city 评估、项目展示站与文档入口
 ```
 
 ## 文档

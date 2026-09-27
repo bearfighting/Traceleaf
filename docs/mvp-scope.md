@@ -50,7 +50,7 @@ MVP 必须覆盖从事件产生到用户查询的完整纵向链路，而不是�
 - Geo country；
 - 以上能力在 API 和 Dashboard 中的展示、筛选、空数据和错误状态。
 
-Geo region/city 是可选的 MVP 增强项，不作为 MVP 发布阻塞项。只有在隐私、数据质量和部署边界通过评估后，才加入本次 MVP release；否则记录为后续 Geo 扩展。
+Geo region/city 不纳入当前 MVP，作为后续 Geo 扩展。当前 MVP 提供 country 级别 Geo；region/city 需要单独评估精度、数据质量、隐私和部署边界后再规划。
 
 ### 2.3 MVP 用户配置
 
@@ -72,6 +72,7 @@ MVP 配置只支持单部署管理员边界。可以使用部署级 secret 或�
 - Replay；
 - Heatmap；
 - 高级 Geo enrichment；
+- Geo region/city；
 - 多组织；
 - 复杂权限模型；
 - Kafka、ClickHouse 或其他专用基础设施；
@@ -129,7 +130,7 @@ MVP 只有在以下条件全部满足后才算完成：
 - 所有 MVP 功能已完成并通过功能验收；
 - Protocol consolidation 已完成；
 - 配置 API 和 Dashboard 配置语义已稳定；
-- Geo region/city 是否纳入本次 release 已明确记录；
+- Geo region/city 已明确延期至 MVP 之后；
 - migration 首次执行、重复执行和升级路径通过；
 - PostgreSQL integration、Analytics E2E 和 Dashboard E2E 通过；
 - 声明的浏览器矩阵通过；

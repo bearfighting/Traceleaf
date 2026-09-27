@@ -167,7 +167,7 @@ migration job
 ## 9. Release Candidate 退出条件
 
 - Phase 7 和 Phase 8 的 capability 与配置验收完成；
-- Geo PR2 是否纳入本次 MVP release 已记录；
+- Geo region/city 已明确延期至 MVP 之后；country Geo 的部署验收完成并记录结果；
 - CI、migration、integration、Analytics E2E 和 Dashboard E2E 全部通过；
 - 浏览器矩阵通过；
 - SDK bundle size 和 package smoke test 通过；
