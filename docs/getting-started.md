@@ -138,8 +138,9 @@ docker compose \
 Dashboard 默认访问 `http://localhost:13000/dashboard`。它在容器内使用 `http://analytics-api:4002`，不需要数据库环境变量。
 
 Protocol Consolidation 后，事件协议不需要额外的 site-level rollout flag。
-如果要启用 Visitor、Session 和 Dimensions workflow，只需按现有方式设置
-`analytics_enabled`；`protocol_v2_enabled` 已弃用且不会被 runtime 读取。
+Visitor、Session 和 Dimensions 由 Dashboard 的 Site capabilities 配置管理；
+旧 `analytics_enabled` 仅保留用于迁移/回滚兼容，不再作为运行时开关。`protocol_v2_enabled`
+已弃用且不会被 runtime 读取。
 
 运行 Dashboard 浏览器 E2E 前安装 Chromium：
 
@@ -147,6 +148,14 @@ Protocol Consolidation 后，事件协议不需要额外的 site-level rollout f
 pnpm playwright:install
 pnpm e2e:dashboard
 ```
+
+配置管理跨层 E2E 使用隔离的 Compose 项目和数据卷，覆盖受保护配置写入、运行时版本收敛、存储故障恢复、站点隔离和 Dashboard 展示：
+
+```bash
+pnpm e2e:configuration
+```
+
+失败诊断保存在 `artifacts/configuration-e2e/`。该命令会清理自身 Compose 项目和数据卷；不要在该 E2E 正在运行时手动停止它的 PostgreSQL 容器。默认使用 Dashboard `13100`、Collector `14101`、Analytics API `14102` 和 PostgreSQL `15433` 端口，可分别通过 `DASHBOARD_PORT`、`E2E_COLLECTOR_PORT`、`E2E_ANALYTICS_API_PORT`、`E2E_POSTGRES_PORT` 覆盖。
 
 ## Check
 
@@ -214,6 +223,8 @@ docker compose exec -T postgres pg_restore -U analytics -d analytics --clean --i
 Keep the backup outside version control and remove it after confirming the
 restore. The old named volume remains available for rollback; do not attach it
 to the PostgreSQL 18 container.
+
+Configuration documents, environment policies, Ingest Key digests, Conversion/Funnel definitions, and configuration audit records are stored in PostgreSQL and are included in the database backup. Treat these backups as sensitive and restrict access accordingly. Keep `CONFIG_ADMIN_TOKENS` in the deployment secret manager; it is not stored in PostgreSQL and must be restored separately. Ingest Key plaintext is returned only when a key is created, so retain it in the site's secret store when clients need to continue sending events. After a database restore, start the services and wait for their reported applied versions to converge before considering configuration current.
 
 启动 Phase 3 PostgreSQL：
 

@@ -1,6 +1,6 @@
 # Phase 8 Design — MVP 用户配置与能力管理
 
-> Status: In progress — PR0–PR7 已实现；PR7 Conversion/Funnel Definition Management 已完成，下一步 PR8 Configuration End-to-end Acceptance。
+> Status: Complete — PR0–PR8 已实现并验收；后续进入 MVP Release Readiness。
 > Scope: capability configuration、站点接入配置、Dashboard 管理和运行时生效语义
 
 ## 1. 阶段目标
@@ -323,4 +323,11 @@ Dashboard 不展示 Protocol 版本、schema、generation 或 parser rollout 信
 - 对 409 版本冲突显示服务端错误和“Reload latest definitions”操作；存在未保存改动时确认后才经 BFF 读取并应用服务器最新版，取消则保留草稿。服务端校验错误继续展示在编辑器中。
 - Dashboard E2E 覆盖非法定义拒绝、保存期间控件锁定、Conversion/Funnel 创建与刷新持久化、新 revision 保存、并发更新冲突与草稿确认/保留、停用和历史事实保留；定义变更不触发自动 backfill，显式历史 Conversion/Funnel 版本查询均返回原结果。
 - 验收结果：`pnpm --filter @web-analytics/dashboard test`（108 tests；包含保存锁定、服务端校验错误和冲突恢复组件交互测试）、Dashboard lint/typecheck、`pnpm e2e:dashboard`、`pnpm check` 和 `pnpm build` 均通过。
-- 不新增 API、schema 或 migration，不提供旧版恢复功能。PR8 仍需完成跨层配置生效、刷新/故障/回滚、历史边界和站点隔离验收，并更新 Getting Started 与运维/备份/恢复说明。
+- 不新增 API、schema 或 migration，不提供旧版恢复功能。PR8 的跨层验收和部署文档完成情况见下方 PR8 执行记录。
+
+#### PR8 执行记录（2026-09-27）
+
+- 新增独立 `pnpm e2e:configuration` 和 CI job，使用独立 Compose 项目/数据卷，通过 SQL fixture 预置 site capability，再通过受保护配置 API 更新 capability；environment ingest policy 则通过受保护 API 创建并更新。
+- 验收覆盖版本递增与冲突、Collector/Processor/Analytics API 运行版本收敛、Collector 停用拒绝写入和恢复、配置补偿性回滚、跨站点事件隔离、Geo 停用期间不生成新 facts、重新启用不自动 backfill、历史 Page View 查询，以及 Dashboard 显示 current 状态和 capability/ingest policy 版本。存储中断时验证 Collector 保持健康并记录保留最后有效策略；Processor 与 Analytics API 在故障前已应用目标版本，存储恢复后重新收敛。共享 configuration-runtime 单元测试模拟数据库不可达，并验证 Processor 与 Analytics API 保留最后有效快照且将站点标记为 stale。
+- Conversion/Funnel revision、历史事实保留和不自动 backfill 由现有 Dashboard E2E 覆盖；PR8 不增加 API、schema 或 migration。
+- `pnpm e2e:configuration`、`pnpm check`、`pnpm test`、`pnpm test:migrations`、`pnpm test:integration`、`pnpm e2e:analytics`、`pnpm e2e:dashboard` 和 `pnpm build` 均通过。迁移和集成测试使用隔离 PostgreSQL Compose 数据库；主机缺少 `psql` 时由 `/tmp` 临时转发器调用容器内客户端。Phase 8 退出条件满足，可进入 MVP Release Readiness。

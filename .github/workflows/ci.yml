@@ -242,3 +242,52 @@ jobs:
 
       - name: Run Router Adapter E2E
         run: pnpm e2e:router-adapters
+
+  configuration-e2e:
+    runs-on: ubuntu-latest
+    env:
+      COMPOSE_PROGRESS: plain
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6.1.0
+        with:
+          version: 12.6.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Configuration E2E
+        run: pnpm e2e:configuration
+
+      - name: Print Configuration E2E diagnostics
+        if: failure()
+        run: |
+          if [ -f artifacts/configuration-e2e/compose-ps.txt ]; then
+            echo '===== Configuration Compose services ====='
+            cat artifacts/configuration-e2e/compose-ps.txt
+          fi
+          if [ -f artifacts/configuration-e2e/service-logs.txt ]; then
+            echo '===== Configuration Compose logs (last 250 lines) ====='
+            tail -n 250 artifacts/configuration-e2e/service-logs.txt
+          fi
+
+      - name: Upload Configuration E2E artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: configuration-e2e-artifacts
+          path: artifacts/configuration-e2e
+          if-no-files-found: ignore

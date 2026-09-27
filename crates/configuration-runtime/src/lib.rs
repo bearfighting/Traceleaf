@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{Arc, RwLock},
     time::{Duration, Instant},
 };
@@ -112,6 +112,7 @@ pub struct CapabilityRuntime {
     instance_id: String,
     validator: Arc<Validator>,
     snapshots: Arc<RwLock<HashMap<String, CapabilitySnapshot>>>,
+    stale_sites: Arc<RwLock<HashSet<String>>>,
     last_prune: Arc<std::sync::Mutex<Instant>>,
 }
 
@@ -139,6 +140,7 @@ impl CapabilityRuntime {
             instance_id,
             validator: Arc::new(validator),
             snapshots: Arc::new(RwLock::new(HashMap::new())),
+            stale_sites: Arc::new(RwLock::new(HashSet::new())),
             last_prune: Arc::new(std::sync::Mutex::new(
                 Instant::now() - Duration::from_secs(3600),
             )),
@@ -155,6 +157,27 @@ impl CapabilityRuntime {
             .expect("capability snapshot lock poisoned")
             .get(site_id)
             .cloned()
+    }
+
+    pub fn is_stale(&self, site_id: &str) -> bool {
+        self.stale_sites
+            .read()
+            .expect("capability stale-state lock poisoned")
+            .contains(site_id)
+    }
+
+    fn mark_snapshots_stale(&self) {
+        let sites: Vec<_> = self
+            .snapshots
+            .read()
+            .expect("capability snapshot lock poisoned")
+            .keys()
+            .cloned()
+            .collect();
+        self.stale_sites
+            .write()
+            .expect("capability stale-state lock poisoned")
+            .extend(sites);
     }
 
     pub fn spawn(&self) {
@@ -176,6 +199,7 @@ impl CapabilityRuntime {
         let rows = match rows {
             Ok(rows) => rows,
             Err(_) => {
+                self.mark_snapshots_stale();
                 tracing::warn!(
                     service = self.service,
                     "capability refresh failed; retaining last valid snapshot"
@@ -194,6 +218,7 @@ impl CapabilityRuntime {
         {
             Ok(rows) => rows,
             Err(_) => {
+                self.mark_snapshots_stale();
                 tracing::warn!(
                     service = self.service,
                     "capability activation window read failed; retaining last valid snapshot"
@@ -219,6 +244,7 @@ impl CapabilityRuntime {
         let mut next = HashMap::new();
         let mut invalid = false;
         let mut reports = Vec::with_capacity(rows.len());
+        let mut stale_sites = HashSet::new();
         for (site_id, version, document) in rows {
             let activation_windows = windows.remove(&site_id).unwrap_or_default();
             let parsed = CapabilitySnapshot::from_document(&site_id, version, &document)
@@ -235,6 +261,7 @@ impl CapabilityRuntime {
                     next.insert(site_id, snapshot);
                 }
                 Err(_) => {
+                    stale_sites.insert(site_id.clone());
                     invalid = true;
                     if let Some(snapshot) = previous.get(&site_id) {
                         reports.push((site_id.clone(), Some(snapshot.version), "stale"));
@@ -249,6 +276,10 @@ impl CapabilityRuntime {
             .snapshots
             .write()
             .expect("capability snapshot lock poisoned") = next;
+        *self
+            .stale_sites
+            .write()
+            .expect("capability stale-state lock poisoned") = stale_sites;
         // A document can be stale for one site while other site snapshots are current.
         // Keep document-level failures in the per-site rows; reserve the instance
         // status for failures that prevented the refresh cycle itself.
@@ -348,8 +379,10 @@ mod tests {
 
     use chrono::Utc;
     use serde_json::json;
+    use sqlx::postgres::PgPoolOptions;
+    use std::time::Duration;
 
-    use super::CapabilitySnapshot;
+    use super::{CapabilityRuntime, CapabilitySnapshot};
 
     fn document() -> serde_json::Value {
         json!({
@@ -380,6 +413,38 @@ mod tests {
         assert!(!snapshot.enabled("unknown"));
         assert!(CapabilitySnapshot::from_document("site_b", 3, &document()).is_err());
         assert!(CapabilitySnapshot::from_document("site_a", 2, &document()).is_err());
+    }
+
+    #[tokio::test]
+    async fn processor_and_api_mark_retained_snapshot_stale_when_storage_is_unavailable() {
+        let pool = PgPoolOptions::new()
+            .max_connections(1)
+            .acquire_timeout(Duration::from_millis(200))
+            .connect_lazy("postgres://analytics:analytics@127.0.0.1:1/analytics")
+            .unwrap();
+
+        for service in ["processor", "analytics_api"] {
+            let runtime = CapabilityRuntime::new(pool.clone(), service).unwrap();
+            let snapshot = CapabilitySnapshot::from_document("site_a", 3, &document()).unwrap();
+            let windows = snapshot
+                .enabled
+                .keys()
+                .filter(|capability| snapshot.enabled(capability))
+                .map(|capability| (capability.clone(), Utc::now()))
+                .collect();
+            let snapshot = snapshot.with_activation_windows(windows).unwrap();
+            runtime
+                .snapshots
+                .write()
+                .unwrap()
+                .insert("site_a".to_owned(), snapshot.clone());
+
+            assert!(!runtime.refresh_once().await);
+            assert_eq!(runtime.snapshot("site_a"), Some(snapshot));
+            assert!(runtime.is_stale("site_a"));
+        }
+
+        pool.close().await;
     }
 
     #[test]
