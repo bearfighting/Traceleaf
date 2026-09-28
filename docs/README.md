@@ -7,6 +7,11 @@
 - [Post-MVP Follow-up](post-mvp-follow-up.md)：未完成或延期的性能、运维和发布工作。
 - [Release Readiness Freeze Record](release-readiness-design.md)：MVP 冻结时的验证状态。
 - [Getting Started](getting-started.md)：本地启动、配置和操作说明。
+- [Platform Improvement Roadmap](platform-improvement-roadmap.md)：Site Management、静态运行时模型、站点接入和 Dashboard UI 的总体顺序与跨任务验收。
+- [Dashboard UI Improvements](dashboard-ui-improvements.md)：Dashboard Header、capability Sidebar、筛选布局和 shadcn/Tailwind 改进方案。
+- [Site Onboarding and Settings Design](site-onboarding-settings-design.md)：站点创建向导、运行时配置权威来源、Ingest Key 生命周期和可选开发 seed。
+- [Analytics and Site Management Module Boundaries](analytics-site-management-module-boundaries.md)：同一服务内的业务模块、数据 ownership 和只读交界。
+- [Protocol Schema and Static Runtime Models](protocol-static-runtime-design.md)：将运行时 Schema 解释迁移为静态类型与代码校验的渐进方案。
 - [Architecture Design](architecture-design.md)：架构边界和系统设计参考。
 - [Monorepo Design](monorepo-design.md)：仓库结构与模块职责。
 - [Event Protocol](event-protocol.md)：当前事件协议说明。
