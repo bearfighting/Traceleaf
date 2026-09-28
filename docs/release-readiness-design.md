@@ -1,6 +1,6 @@
 # MVP Release Readiness Design
 
-> Status: In progress — local E2E cache reuse is implemented and verified; cold/warm timing records and the CI cache decision remain open.
+> Status: In progress — local E2E cold/warm baseline is measured and passing; runtime compile-log visibility, Dashboard scratch-volume cleanup, and the CI cache decision remain open.
 > Scope: MVP 功能完成后的完整测试、稳定性、部署、迁移和发布验证
 
 ## 1. 阶段定位
@@ -34,11 +34,21 @@ Docker build/cache baseline and optimization
 - Cargo 编译产物、Dashboard `.next` 和容器内 `node_modules` 使用按 workspace/依赖版本隔离的可复用缓存；Dashboard `.next` 还按 E2E 套件隔离，避免并行写缓存。E2E 清理不得删除这些构建缓存。
 - 服务镜像使用 Docker/BuildKit layer cache；源码变化后由 Cargo/Next.js 在持久缓存上增量重编译。
 - PostgreSQL 测试 volume、migration 和测试 fixture 每次仍从干净状态创建，以保持验收隔离。
-- 验证记录：`pnpm check` 通过；Configuration E2E 冷、热运行均通过，热运行的镜像依赖层命中 Docker cache；Analytics E2E（10 个 fixture）和 Dashboard E2E 均通过。当前没有保存各次运行的实际耗时和下载量，故性能收益尚未量化。
-- 完成条件：记录 Analytics、Dashboard、Configuration E2E 的冷启动与热启动耗时及关键构建日志，确认热启动没有重复大规模下载或完整重编译；补记缓存卷清理后测试数据仍干净。
-- CI E2E 使用托管临时 runner，跨 job/run 缓存不会自动保留。完成冷启动耗时和下载量记录后，再决定是否配置持久化 BuildKit cache；如实施，cache key 必须受 lockfile、toolchain 和 Dockerfile 变化约束。
+- 本地基线（2026-09-27，Docker 29.5.2，workspace cache prefix `web-analytics-e2e-564462637f69`）：冷启动只清理该 workspace 的 E2E 缓存卷，保留 Docker/BuildKit 镜像层；热启动紧接冷启动，运行间不清缓存。
 
-本项完成后再执行下方的完整 CI、migration、integration、E2E 和部署验证。当前本地缓存实现已落地，但在性能记录完成前，本项仍保持进行中。
+  | E2E           |          冷启动 |          热启动 | 观察结果     |
+  | ------------- | --------------: | --------------: | ------------ |
+  | Analytics     | 156.60 秒，通过 |  65.37 秒，通过 | 热跑快 58.3% |
+  | Dashboard     | 273.52 秒，通过 |  89.61 秒，通过 | 热跑快 67.2% |
+  | Configuration | 233.04 秒，通过 | 117.09 秒，通过 | 热跑快 49.8% |
+
+- Dashboard 首轮热跑两次在 `Replacement key was not created` 断言失败；service log 显示第二次重试中的两个 key 创建请求均返回 HTTP 201。测试原先立即读取 key 列表数量，现改为等待列表达到两项。修复后的 Dashboard 冷、热运行均通过。
+- 每次 E2E 均移除了自身 PostgreSQL 测试数据卷，workspace 持久缓存卷保留。Dashboard API-error 实例另建的按 PID 命名 `.next` 卷不会随脚本清理；本次只手动删除了本次生成的 scratch 卷，脚本清理行为仍需修正或明确缓存策略。
+- 三套 Compose 构建日志中，`cargo fetch --locked`、`pnpm install --frozen-lockfile` 及 migrator release build 层均显示 `CACHED`。服务以 detached 模式启动，当前日志没有保留其运行时 stdout，因此尚不能直接确认 Cargo target 命中后是否完全避免完整重编译。原始日志和耗时保存在本机忽略目录 `artifacts/docker-cache-benchmark/`；该目录也保留 Dashboard 修复前的两次失败记录及修复后的冷、热日志。
+- 三套修复后的 E2E 冷、热运行均通过。完成条件：让 E2E 诊断可观察服务运行时编译/下载输出，并处理 Dashboard API-error 临时卷清理；再确认 Cargo target 热跑没有完整重编译。
+- CI E2E 使用托管临时 runner，跨 job/run 缓存不会自动保留。本次未测 CI 冷启动耗时与下载量；基于 CI 实际耗时再决定是否配置持久化 BuildKit cache，如实施，cache key 必须受 lockfile、toolchain 和 Dockerfile 变化约束。
+
+本项完成后再执行下方的完整 CI、migration、integration、E2E 和部署验证；在上述完成条件满足前，本项仍保持进行中。
 
 ## 4. CI 基线
 
@@ -105,7 +115,7 @@ pnpm test:integration
 
 ## 6. E2E 和浏览器矩阵
 
-Analytics E2E、Dashboard E2E 和 Configuration E2E 使用独立 Compose project、端口和测试数据 volume，不删除开发数据库 volume。Cargo target、Cargo registry、Node modules 和 Dashboard 构建缓存使用独立、持久的 cache volume；清理测试项目时保留这些缓存。Dashboard `.next` 缓存按 E2E 套件隔离.
+Analytics E2E、Dashboard E2E 和 Configuration E2E 使用独立 Compose project、端口和测试数据 volume，不删除开发数据库 volume。Cargo target、Cargo registry、Node modules 和 Dashboard 构建缓存使用独立、持久的 cache volume；清理测试项目时保留这些缓存。Dashboard `.next` 缓存按 E2E 套件隔离。
 
 失败时保留：
 

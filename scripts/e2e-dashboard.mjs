@@ -1207,7 +1207,7 @@ async function assertDashboardConfiguration(page) {
   );
   await page.getByRole("button", { name: "Create Ingest Key" }).click();
   await page.locator(".one-time-secret code").waitFor();
-  assert((await page.locator(".key-list li").count()) === 2, "Replacement key was not created");
+  await expect(page.locator(".key-list li")).toHaveCount(2);
   await page.reload();
   assert(
     !(await page.locator("body").innerText()).includes(plaintext),
