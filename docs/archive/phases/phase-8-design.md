@@ -120,7 +120,7 @@ PR0 本轮审查的登记项如下；后续发现的问题追加到本表。`ser
 | 5    | **PR5 — Capability Runtime**                       | 让 Collector、Processor 与 Analytics API 按同一份版本化配置处理 capability 开关；运行时不再读取 `analytics_enabled`。关闭时停止相应的新事件接收、事实生成或报告；历史数据按 PR1 规则保留/查询，重新开启不自动 backfill，显式 rebuild 按当前配置执行。三个服务按站点上报版本并参与收敛状态聚合。                                                                                                  |
 | 6    | **PR6 — Dashboard Core Configuration**             | 在服务端配置 API 可用后实现 capability 与 consent 状态、environment ingestion 启停、Origin 管理、Ingest Key 创建/轮换/撤销和最后生效状态。覆盖读取、保存、校验错误、版本冲突、加载/空/错误状态；部署级 admin credential 不进入浏览器 bundle，Ingest Key 明文只按 PR1 规则返回。                                                                                                                  |
 | 7    | **PR7 — Conversion/Funnel Definition Management**  | 独立实现定义的创建/编辑/停用、版本化、校验与 Dashboard 管理。冻结定义变化对已生成 facts、历史查询和 backfill 的影响；避免将业务定义 CRUD 与基础 capability 开关耦合。                                                                                                                                                                                                                            |
-| 8    | **PR8 — Configuration End-to-end Acceptance**      | 完成配置变更后的端到端 workflow：受保护写入 → 存储/版本递增 → Collector 与 Processor/API 生效 → Dashboard 展示；覆盖刷新、服务故障、回滚、历史边界和站点隔离。同步更新 Getting Started、运维/备份/恢复说明和 Phase 8 验收记录。Firefox/WebKit 完整浏览器矩阵延期至 MVP 之后；retention、发布与 clean Release Candidate 仍由 Release Readiness 负责。                                             |
+| 8    | **PR8 — Configuration End-to-end Acceptance**      | 完成配置变更后的端到端 workflow：受保护写入 → 存储/版本递增 → Collector 与 Processor/API 生效 → Dashboard 展示；覆盖刷新、服务故障、回滚、历史边界和站点隔离。同步更新 Getting Started、运维/备份/恢复说明和 Phase 8 验收记录。Firefox/WebKit 完整浏览器矩阵延期至 MVP 之后；retention、生产恢复演练、country Geo staging 与 SDK 独立发布验证列为产品实际运行后的工作。                          |
 
 PR1 是模型与 migration 的硬性前置，语义见 ADR-012 和 configuration contract。PR2 先保留兼容路径，直到 PR4/PR5 的运行时切换和回滚验证完成；PR6 依赖 PR3–PR5 已提供且已验证的生效语义；PR7 可在 PR6 后独立实现，并按 PR1 冻结的定义版本与历史重算规则执行。PR8 只做跨层验收与部署文档，不承接未拆分的产品功能。
 
@@ -260,7 +260,7 @@ Dashboard 只通过服务端 BFF 调用配置 API，不直接访问 PostgreSQL�
 
 ## 7. 生效语义
 
-生效边界、版本冲突、刷新间隔、配置源故障、历史查询/backfill、定义 revision 和 Geo dataset 版本均由 PR1 的 [ADR-012](decisions/ADR-012-phase-8-configuration-contract.md) 冻结。后续实现必须遵循该决策；例外需先更新 ADR 和相应 contract fixtures。
+生效边界、版本冲突、刷新间隔、配置源故障、历史查询/backfill、定义 revision 和 Geo dataset 版本均由 PR1 的 [ADR-012](../../decisions/ADR-012-phase-8-configuration-contract.md) 冻结。后续实现必须遵循该决策；例外需先更新 ADR 和相应 contract fixtures。
 
 ## 8. Dashboard
 

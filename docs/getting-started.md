@@ -32,7 +32,7 @@ For each operator-managed update:
 
 1. Obtain the dataset from the provider under its license. Record provider, release/build epoch and the provider's published checksum. Do not commit the database or place it in CI artifacts.
 2. Verify the published checksum and inspect MMDB metadata. Accept only `GeoLite2-Country` or `DBIP-City-Lite`; reject corrupt files, mismatched checksums and other database types.
-3. In staging, mount the candidate at `GEOIP_DATABASE_PATH`, restart Collector, and send controlled synthetic requests through the configured trusted-proxy path. Confirm country and `unknown` results. Never use a real visitor IP as a test value or log it.
+3. As a post-launch operational check, mount the candidate in staging at `GEOIP_DATABASE_PATH`, restart Collector, and send controlled synthetic requests through the configured trusted-proxy path. Confirm country and `unknown` results. This staging exercise is not an MVP completion gate. Never use a real visitor IP as a test value or log it.
 4. Keep a restricted, short-lived rollback copy. Copy the candidate to a temporary file on the same filesystem, verify it again, then atomically replace `./data/GeoLite2-Country.mmdb`. Restart Collector and check health and a synthetic country report before promotion.
 5. If validation fails, restore the verified previous file atomically and restart Collector. Securely delete superseded licensed copies according to the relevant provider license and retention terms.
 6. Record the new provider, build epoch, checksum, deployment time and smoke-test result. Record only aggregate coverage metrics; never record IP addresses.

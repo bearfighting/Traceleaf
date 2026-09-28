@@ -393,7 +393,7 @@ dimension_event_facts
 
 Phase 6 PR1 必须先新增 ADR 选择具体 parser 库、版本和升级策略。在该 ADR 合并前，不能将 parser 结果作为稳定生产指标。
 
-PR1 已通过 [ADR-006](decisions/ADR-006-user-agent-parser.md) 锁定 Rust `woothee` crate `0.13.0`，生产 parser version 为 `woothee-0.13.0`。PR1 只锁定决策和 migration metadata，不实现正式 Parser adapter；adapter 在 PR3 实现。
+PR1 已通过 [ADR-006](../../decisions/ADR-006-user-agent-parser.md) 锁定 Rust `woothee` crate `0.13.0`，生产 parser version 为 `woothee-0.13.0`。PR1 只锁定决策和 migration metadata，不实现正式 Parser adapter；adapter 在 PR3 实现。
 
 实现必须提供以下接口边界：
 

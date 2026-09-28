@@ -285,7 +285,7 @@ URL 不用于推导 Ingest Key。Website 与 site 的关联通过 Collector 配�
 - Key 不能绕过 Origin allowlist。
 - Phase 2 不实现自动 key rotation 或在线管理 API；通过多个有效 key 支持部署者执行手动轮换。
 
-Phase 2 的配置字段使用 `ingest_keys: string[]`，允许多个 key 同时有效，为后续手动轮换保留空间。轮换流程、生成命令和 Website 配置方法见 [Ingest Key Guide](ingest-key.md)。
+Phase 2 的配置字段使用 `ingest_keys: string[]`，允许多个 key 同时有效，为后续手动轮换保留空间。轮换流程、生成命令和 Website 配置方法见 [Ingest Key Guide](../../ingest-key.md)。
 
 ### 7.3 Rate limiting
 
@@ -637,7 +637,7 @@ PR3 已完成 HTTP ingestion、Protocol V1 Schema 校验和 InMemory Sink。PR4 
 
 以下值已经作为 Phase 2 默认契约：64 KiB body、100 条 batch、`415` media type 错误、`204` preflight、600 秒 CORS max-age，以及 batch 原子接收。
 
-Ingest Key 的生成方式、Website 使用方法、Origin 关联规则和手动轮换流程统一记录在 [Ingest Key Guide](ingest-key.md) 中，并由 PR4 实现和测试。
+Ingest Key 的生成方式、Website 使用方法、Origin 关联规则和手动轮换流程统一记录在 [Ingest Key Guide](../../ingest-key.md) 中，并由 PR4 实现和测试。
 
 建议 PR1 输出 request / response fixtures，后续 Rust 和 TypeScript 都消费这些 fixtures，减少跨语言理解偏差。
 

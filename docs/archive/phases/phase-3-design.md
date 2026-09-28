@@ -238,7 +238,7 @@ API 规则：
 - site 数据必须隔离；未知 site 可以返回空结果，不暴露站点存在性。
 - 数据库不可用时 `/health` 返回非 2xx，且不泄露内部错误。
 
-Analytics API 使用 OpenAPI 3.1 contract：[analytics-api.openapi.json](analytics-api.openapi.json)。
+Analytics API 使用 OpenAPI 3.1 contract：[analytics-api.openapi.json](../../analytics-api.openapi.json)。
 所有 API 错误使用统一结构：
 
 ```json

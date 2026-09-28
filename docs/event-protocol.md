@@ -29,11 +29,11 @@ Page View 事件使用 JSON Schema 2020-12 描述，字段使用 `snake_case`：
 
 ## CustomEvent
 
-Custom Events use `type: "custom_event"`, require `event_name` and bounded object `properties`, and may include an existing site-scoped `visitor_id`. They do not carry Page View fields. See [PR3 Custom Events Design](phase-7-pr3-custom-events-design.md) for the exact limits.
+Custom Events use `type: "custom_event"`, require `event_name` and bounded object `properties`, and may include an existing site-scoped `visitor_id`. They do not carry Page View fields. See [PR3 Custom Events Design](archive/phases/phase-7-pr3-custom-events-design.md) for the exact limits.
 
 ## WebVitalEvent
 
-`web_vital` 事件只包含 LCP、INP、CLS、FCP、TTFB。事件关联 Page View 的 ULID、pathname 和 Page View 时间；统计日期使用该 Page View 的 UTC 日期。时间指标单位为毫秒且范围为 0–600000，CLS 范围为 0–100。评级由 Collector 按冻结阈值校验。`report_sequence` 在一个 Page View 中递增，Processor 每种指标仅保留最高序号。See [PR4 Web Vitals Design](phase-7-pr4-web-vitals-design.md)。
+`web_vital` 事件只包含 LCP、INP、CLS、FCP、TTFB。事件关联 Page View 的 ULID、pathname 和 Page View 时间；统计日期使用该 Page View 的 UTC 日期。时间指标单位为毫秒且范围为 0–600000，CLS 范围为 0–100。评级由 Collector 按冻结阈值校验。`report_sequence` 在一个 Page View 中递增，Processor 每种指标仅保留最高序号。See [PR4 Web Vitals Design](archive/phases/phase-7-pr4-web-vitals-design.md)。
 
 ## EventBatch
 

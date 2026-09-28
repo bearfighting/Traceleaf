@@ -1,6 +1,6 @@
 # Phase 7 Design — MVP 功能完善
 
-> Status: PR0–PR7 functional acceptance complete (2026-09-24). Geo country-only staging deployment evaluation is tracked in Release Readiness; Geo PR2 remains deferred. See [PR7 acceptance record](phase-7-pr7-acceptance.md).
+> Status: PR0–PR7 functional acceptance complete (2026-09-24). Geo country-only staging deployment evaluation is deferred until after the product is running; Geo PR2 remains deferred. See [PR7 acceptance record](phase-7-pr7-acceptance.md).
 > Scope: Protocol consolidation、内部 capability 边界和 MVP 产品能力
 
 ## 1. 阶段目标
@@ -262,7 +262,7 @@ PR2.5 完成后，新用户只需要选择对应 Router 的一个 facade import 
 
 > Status: Implemented; E2E acceptance complete
 
-Detailed contract, limits, privacy boundary, persistence plan and acceptance sequence are frozen in [Phase 7 PR3 Custom Events Design](phase-7-pr3-custom-events-design.md) and [ADR-009](decisions/ADR-009-custom-events-contract.md).
+Detailed contract, limits, privacy boundary, persistence plan and acceptance sequence are frozen in [Phase 7 PR3 Custom Events Design](phase-7-pr3-custom-events-design.md) and [ADR-009](../../decisions/ADR-009-custom-events-contract.md).
 
 ### Contract
 
@@ -323,7 +323,7 @@ Conversion/Funnel 依赖 Custom Events，Phase 7 只实现内部能力和固定 
 
 ## 11. PR6 — Geo
 
-> Status: Country-only Geo PR1 implementation, deterministic synthetic-MMDB E2E, local DB-IP parser smoke and official checksum verification complete; staging coverage/update evaluation is tracked in Release Readiness; Geo PR2 region/city deferred
+> Status: Country-only Geo PR1 implementation, deterministic synthetic-MMDB E2E, local DB-IP parser smoke and official checksum verification complete; staging coverage/update evaluation is deferred until after the product is running; Geo PR2 region/city deferred
 
 ### Geo PR1
 
@@ -343,7 +343,7 @@ PR1 implementation contract:
 - Raw IP exists only during request handling and is never persisted or logged. Geo enrichment stores country code, provider, dataset release, and parser version outside the event payload; unresolved values use `unknown`.
 - Processor builds idempotent `geo_country_facts` and supports `processor --rebuild-geo-country --site-id <site_id>` from saved enrichment metadata. Rebuild does not re-resolve historical IPs.
 - Country report route: `GET /v1/sites/{site_id}/reports/{from}/{to}/geo`; items contain ISO alpha-2 `country_code` and Page View count, including `unknown`. The response lists providers present in the selected date range so the Dashboard can show DB-IP attribution only when needed. `coverage_from` reports the UTC receipt date of the earliest Geo-enriched Page View; the Dashboard warns when a selection starts earlier or the coverage start is unknown.
-- Decision and region/city deferral are recorded in [ADR-011](decisions/ADR-011-geo-country-privacy.md). Unknown share, dataset release, offline startup, and IP non-persistence are the PR1 evaluation record.
+- Decision and region/city deferral are recorded in [ADR-011](../../decisions/ADR-011-geo-country-privacy.md). Unknown share, dataset release, offline startup, and IP non-persistence are the PR1 evaluation record.
 
 ### Geo PR2
 
@@ -354,7 +354,7 @@ PR1 implementation contract:
 - retention 和重新解析策略；
 - 不把精确位置作为默认展示或身份标识。
 
-Geo PR2（region/city）已决定延期至 MVP 之后，不阻塞其他 MVP capability；Release Readiness 只验证 country Geo 的部署和运行边界。
+Geo PR2（region/city）已决定延期至 MVP 之后，不阻塞其他 MVP capability。Country Geo 的 staging 覆盖率、数据更新和回滚评估也列为产品实际运行后的运维工作，不作为 MVP 退出条件。
 
 ## 12. 测试策略
 
@@ -368,7 +368,7 @@ Geo PR2（region/city）已决定延期至 MVP 之后，不阻塞其他 MVP capa
 - Dashboard component tests；
 - 每个 capability 的最小 E2E。
 
-完整 CI、migration regression、Collector hardening 和部署验证统一放在 [Release Readiness](release-readiness-design.md)；Firefox/WebKit 完整浏览器矩阵延期至 MVP 之后。
+完整 CI、migration regression、Collector hardening 和部署验证统一放在 [Release Readiness](../../release-readiness-design.md)；Firefox/WebKit 完整浏览器矩阵延期至 MVP 之后。
 
 ## 13. PR7 — MVP functional acceptance
 
