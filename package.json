@@ -39,7 +39,9 @@
     "analytics:definitions:validate": "node ./scripts/validate-analytics-definitions.mjs",
     "test:geo-mmdb": "cargo test -p collector geo::tests",
     "test:geo-mmdb-local": "cargo test -p collector operator_dbip_city_lite_mmdb_smoke -- --ignored --nocapture",
-    "format:check:docs": "./scripts/format-docs-check.sh"
+    "format:check:docs": "./scripts/format-docs-check.sh",
+    "dev:up": "docker compose -f compose.yaml -f compose.dev.yaml --profile storage --profile backend --profile processing --profile dashboard --profile playground-next up --build --wait",
+    "dev:down": "docker compose -f compose.yaml -f compose.dev.yaml down"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

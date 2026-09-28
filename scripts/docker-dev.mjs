@@ -17,11 +17,17 @@ if (spawnSync("docker", ["compose", "version"], { stdio: "ignore" }).status !== 
 const profiles = [parsed.target.profile];
 if (parsed.withBackend) profiles.push("backend", "storage", "processing");
 const composeArgs = ["-f", "compose.yaml"];
-if (parsed.withBackend) composeArgs.push("-f", "compose.backend.yaml");
+if (parsed.withBackend) composeArgs.push("-f", "compose.backend.yaml", "-f", "compose.dev.yaml");
 composeArgs.push(...profiles.flatMap((profile) => ["--profile", profile]));
 composeArgs.push("up", "--build", "--wait");
 
-const child = spawn("docker", ["compose", ...composeArgs], { stdio: "inherit" });
+const composeEnvironment = { ...process.env };
+if (!parsed.withBackend) composeEnvironment.NEXT_PUBLIC_ANALYTICS_TRANSPORT = "mock";
+
+const child = spawn("docker", ["compose", ...composeArgs], {
+  stdio: "inherit",
+  env: composeEnvironment,
+});
 child.on("error", (error) => {
   console.error(`Failed to start Docker Compose: ${error.message}`);
   process.exitCode = 1;
