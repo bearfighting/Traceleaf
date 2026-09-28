@@ -46,4 +46,19 @@ export function prepareE2ECaches(root, scope) {
       stdio: "ignore",
     });
   }
+
+  // Initialize the shared Cargo volume once before Compose mounts it into multiple Rust services.
+  // Docker otherwise races while copying the Rust image symlinks into the new volume.
+  execFileSync(
+    "docker",
+    [
+      "run",
+      "--rm",
+      "--volume",
+      `${prefix}_cargo_home:/usr/local/cargo`,
+      "rust:1.98.1-bookworm",
+      "true",
+    ],
+    { cwd: root, stdio: "ignore" },
+  );
 }
