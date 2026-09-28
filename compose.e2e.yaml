@@ -27,6 +27,8 @@ services:
       - "${E2E_POSTGRES_PORT:-15432}:5432"
 
   collector:
+    healthcheck:
+      start_period: 360s
     environment:
       COLLECTOR_CONFIG: /workspace/protocol/contracts/http-ingestion/current/config/collector.e2e.toml
       GEOIP_DATABASE_PATH: /workspace/data/GeoLite2-Country.mmdb
@@ -45,6 +47,8 @@ services:
         condition: service_completed_successfully
 
   analytics-api:
+    healthcheck:
+      start_period: 360s
     ports: !override
       - "${E2E_ANALYTICS_API_PORT:-14002}:4002"
     volumes: !override
