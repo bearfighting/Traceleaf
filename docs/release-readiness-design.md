@@ -18,7 +18,6 @@ Docker build/cache baseline and optimization
   → integration test
   → Analytics E2E
   → Dashboard E2E
-  → browser matrix
   → runtime hardening
   → retention dry-run
   → deployment / backup / rollback
@@ -91,7 +90,7 @@ pnpm build
 pnpm test:migrations
 pnpm test:integration
 pnpm e2e:analytics
-pnpm exec playwright install --with-deps chromium firefox webkit
+pnpm exec playwright install --with-deps chromium
 pnpm e2e:dashboard
 pnpm --filter @web-analytics/analytics-browser pack --dry-run
 ```
@@ -115,7 +114,7 @@ pnpm test:migrations
 pnpm test:integration
 ```
 
-## 6. E2E 和浏览器矩阵
+## 6. E2E 和 MVP 浏览器覆盖
 
 Analytics E2E、Dashboard E2E 和 Configuration E2E 使用独立 Compose project、端口和测试数据 volume，不删除开发数据库 volume。Cargo target、Cargo registry、Node modules 和 Dashboard 构建缓存使用独立、持久的 cache volume；清理测试项目时保留这些缓存。Dashboard `.next` 缓存按 E2E 套件隔离。
 
@@ -135,13 +134,13 @@ artifacts/analytics-e2e/
 artifacts/dashboard-e2e/
 ```
 
-Release Readiness 的目标浏览器矩阵至少覆盖 Chromium、Firefox 和 WebKit，并验证 SDK 初始化、consent、storage、navigation、transport 和 capability 事件。当前 CI 仍只执行 Chromium Dashboard smoke test；在 Release Readiness 实施后，CI 和本地 RC 验证必须使用同一组浏览器安装命令：
+MVP 验收保留 CI 中现有的 Chromium Dashboard smoke test。覆盖 SDK 初始化、consent、storage、navigation、transport 和 capability 事件的完整浏览器矩阵延期至 MVP 之后，不作为 MVP Release Candidate 退出条件。MVP 的 CI 和本地 RC 验证统一使用以下 Chromium 安装命令：
 
 ```bash
-pnpm exec playwright install --with-deps chromium firefox webkit
+pnpm exec playwright install --with-deps chromium
 ```
 
-现有仅安装 Chromium 的 `pnpm playwright:install` 只适用于当前 Dashboard smoke test，不代表完整浏览器矩阵。
+`pnpm playwright:install` 只安装 Chromium，适用于 MVP Dashboard smoke test。Firefox/WebKit 覆盖属于 post-MVP 浏览器矩阵。
 
 ## 7. Collector 和运行时 hardening
 
@@ -196,7 +195,7 @@ migration job
 - Phase 7 和 Phase 8 的 capability 与配置验收完成；
 - Geo region/city 已明确延期至 MVP 之后；country Geo 的部署验收完成并记录结果；
 - CI、migration、integration、Analytics E2E 和 Dashboard E2E 全部通过；
-- 浏览器矩阵通过；
+- CI 中的 Chromium Dashboard smoke test 通过；Firefox/WebKit 浏览器矩阵延期至 MVP 之后；
 - SDK bundle size 和 package smoke test 通过；
 - Collector runtime failure、shutdown、redaction 和 readiness 通过；
 - retention policy 已批准，或自动删除已明确延期；

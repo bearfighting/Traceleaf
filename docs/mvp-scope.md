@@ -133,7 +133,7 @@ MVP 只有在以下条件全部满足后才算完成：
 - Geo region/city 已明确延期至 MVP 之后；
 - migration 首次执行、重复执行和升级路径通过；
 - PostgreSQL integration、Analytics E2E 和 Dashboard E2E 通过；
-- 声明的浏览器矩阵通过；
+- CI 中现有的 Chromium Dashboard smoke test 通过；Firefox/WebKit 浏览器矩阵延期至 MVP 之后；
 - Collector failure、shutdown、redaction 和 readiness 行为通过；
 - retention 策略已批准，或自动删除明确延期且 dry-run 安全；
 - 部署、backup、rollback 和 package release 文档可重复执行；

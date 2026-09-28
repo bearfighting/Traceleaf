@@ -5,7 +5,7 @@
 
 ## 1. 阶段目标
 
-Phase 7 把 Phase 6 的 Page View、Visitor、Session 和 Dimensions 基线扩展为完整的 MVP 功能集。本阶段优先完成用户可使用的产品能力，不处理最终发布所需的完整浏览器矩阵、部署和 npm 发布工作。
+Phase 7 把 Phase 6 的 Page View、Visitor、Session 和 Dimensions 基线扩展为完整的 MVP 功能集。本阶段优先完成用户可使用的产品能力，不处理部署和 npm 发布工作；Firefox/WebKit 完整浏览器矩阵延期至 MVP 之后。
 
 Phase 7 不改变现有 Page View、Visitor、Session 和 Dimension 的已确认语义，除非对应能力的 contract review 明确发现缺陷并新增 ADR。
 
@@ -368,7 +368,7 @@ Geo PR2（region/city）已决定延期至 MVP 之后，不阻塞其他 MVP capa
 - Dashboard component tests；
 - 每个 capability 的最小 E2E。
 
-完整 CI、浏览器矩阵、migration regression、Collector hardening 和部署验证统一放在 [Release Readiness](release-readiness-design.md)。
+完整 CI、migration regression、Collector hardening 和部署验证统一放在 [Release Readiness](release-readiness-design.md)；Firefox/WebKit 完整浏览器矩阵延期至 MVP 之后。
 
 ## 13. PR7 — MVP functional acceptance
 

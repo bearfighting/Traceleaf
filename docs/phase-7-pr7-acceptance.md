@@ -3,7 +3,7 @@
 > Status: Complete. Phase 7 功能验收于 2026-09-24 关闭；按产品决策，真实流量 Geo staging 验证作为 Release Readiness 部署跟进，不阻塞本阶段功能关闭。
 > Last reviewed: 2026-09-24
 
-PR7 是 Phase 7 的最终功能验收，不代表 Release Readiness。完整浏览器矩阵、部署验证和 npm 发布仍按 [Release Readiness](release-readiness-design.md) 单独跟踪。
+PR7 是 Phase 7 的最终功能验收，不代表 Release Readiness。Firefox/WebKit 完整浏览器矩阵延期至 MVP 之后；部署验证和 npm 发布仍按 [Release Readiness](release-readiness-design.md) 单独跟踪。
 
 ## 验收证据
 

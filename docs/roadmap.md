@@ -205,7 +205,7 @@ Country / IP 不属于本阶段必须内容。
   → MVP functional acceptance
 ```
 
-本阶段每项能力都必须完成 contract、实现、fixture、API/Dashboard 和最小 E2E，但不承担最终发布所需的完整浏览器矩阵和部署验证。
+本阶段每项能力都必须完成 contract、实现、fixture、API/Dashboard 和最小 E2E，但不承担 Firefox/WebKit 完整浏览器矩阵和部署验证；多浏览器矩阵延期至 MVP 之后。
 
 ## Phase 8 — MVP Configuration and Capability Management
 
@@ -248,11 +248,13 @@ PR0 Pre-configuration Hardening
 
 - CI、migration regression 和 integration test；
 - Analytics E2E 和 Dashboard E2E；
-- 浏览器矩阵和 SDK bundle/package 检查；
+- Chromium Dashboard smoke test 和 SDK bundle/package 检查；
 - Collector runtime hardening；
 - retention policy 和 dry-run；
 - 部署、backup、rollback 和 npm release；
 - 干净环境 Release Candidate checklist。
+
+Firefox/WebKit 完整浏览器矩阵延期至 MVP 之后。
 
 ## Phase 9 — Post-MVP Product Extensions
 
