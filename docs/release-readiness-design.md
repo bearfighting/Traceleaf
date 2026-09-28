@@ -1,6 +1,6 @@
 # MVP Release Readiness Design
 
-> Status: In progress — local E2E cold/warm baseline is measured and passing; runtime compile-log visibility and the CI cache decision remain open.
+> Status: In progress — local E2E cold/warm baseline is measured and passing; runtime compile visibility, CI measurements, and the cross-run cache decision remain open.
 > Scope: MVP 功能完成后的完整测试、稳定性、部署、迁移和发布验证
 
 ## 1. 阶段定位
@@ -47,7 +47,8 @@ Docker build/cache baseline and optimization
 - 隔离复验（2026-09-27）：Analytics、Dashboard、Configuration E2E 顺序通过；各自的 PostgreSQL 测试卷在退出后删除，workspace 缓存卷持续保留。Dashboard API-error 临时 `.next` 卷在退出后删除。开发 PostgreSQL 在复验前已是 `Exited`，复验后状态未变；E2E 未启动或修改它。
 - 三套 Compose 构建日志中，`cargo fetch --locked`、`pnpm install --frozen-lockfile` 及 migrator release build 层均显示 `CACHED`。服务以 detached 模式启动，当前日志没有保留其运行时 stdout，因此尚不能直接确认 Cargo target 命中后是否完全避免完整重编译。原始日志和耗时保存在本机忽略目录 `artifacts/docker-cache-benchmark/`；该目录也保留 Dashboard 修复前的两次失败记录及修复后的冷、热日志。
 - 三套修复后的 E2E 冷、热运行均通过。完成条件：让 E2E 诊断可观察服务运行时编译/下载输出，并确认 Cargo target 热跑没有完整重编译。
-- CI E2E 使用托管临时 runner，跨 job/run 缓存不会自动保留。本次未测 CI 冷启动耗时与下载量；基于 CI 实际耗时再决定是否配置持久化 BuildKit cache，如实施，cache key 必须受 lockfile、toolchain 和 Dockerfile 变化约束。
+- CI E2E 使用托管临时 runner，跨 job/run 缓存不会自动保留。Analytics、Dashboard 和 Configuration job 现由统一测量脚本记录 E2E 命令耗时、Compose/BuildKit plain 输出，以及命令前后的 runner 默认网络接口接收字节差；每个 job 始终上传日志和 JSON 摘要到独立 artifact。接收字节差是整个 runner 的近似入站流量，不代表 Docker 专属下载量；需结合 plain 日志判断依赖下载和镜像构建缓存情况。
+- CI 基线尚待 GitHub Actions 实际运行。先采集无跨运行缓存的三个 job 结果；若日志显示有明显重复拉取或构建成本，再进行隔离的 BuildKit GitHub Actions cache 对照实验。只有整体耗时中位数可重复降低至少 20%，且流量或构建日志支持确实减少重复工作时才保留配置；否则移除实验配置并记录结论。实验缓存 key 如被保留，必须受 lockfile、toolchain 和 Dockerfile 变化约束。
 
 本项完成后再执行下方的完整 CI、migration、integration、E2E 和部署验证；在上述完成条件满足前，本项仍保持进行中。
 

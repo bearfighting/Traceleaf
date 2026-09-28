@@ -134,6 +134,8 @@ jobs:
 
   analytics-e2e:
     runs-on: ubuntu-latest
+    env:
+      COMPOSE_PROGRESS: plain
 
     steps:
       - name: Checkout
@@ -154,7 +156,15 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run Analytics E2E
-        run: pnpm e2e:analytics
+        run: node scripts/measure-ci-e2e.mjs analytics pnpm e2e:analytics
+
+      - name: Upload Analytics CI cache measurement
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: analytics-ci-cache-measurement
+          path: artifacts/ci-docker-cache/analytics
+          if-no-files-found: warn
 
       - name: Upload Analytics E2E artifacts
         if: failure()
@@ -191,7 +201,7 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Run Dashboard E2E
-        run: pnpm e2e:dashboard
+        run: node scripts/measure-ci-e2e.mjs dashboard pnpm e2e:dashboard
 
       - name: Print Dashboard E2E diagnostics
         if: failure()
@@ -212,6 +222,14 @@ jobs:
           name: dashboard-e2e-artifacts
           path: artifacts/dashboard-e2e
           if-no-files-found: ignore
+
+      - name: Upload Dashboard CI cache measurement
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: dashboard-ci-cache-measurement
+          path: artifacts/ci-docker-cache/dashboard
+          if-no-files-found: warn
 
   router-adapters-e2e:
     runs-on: ubuntu-latest
@@ -270,7 +288,7 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Run Configuration E2E
-        run: pnpm e2e:configuration
+        run: node scripts/measure-ci-e2e.mjs configuration pnpm e2e:configuration
 
       - name: Print Configuration E2E diagnostics
         if: failure()
@@ -291,3 +309,11 @@ jobs:
           name: configuration-e2e-artifacts
           path: artifacts/configuration-e2e
           if-no-files-found: ignore
+
+      - name: Upload Configuration CI cache measurement
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: configuration-ci-cache-measurement
+          path: artifacts/ci-docker-cache/configuration
+          if-no-files-found: warn
