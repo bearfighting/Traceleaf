@@ -2,6 +2,8 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { prepareE2ECaches } from "./e2e-cache.mjs";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const project = `web-analytics-router-compose-${process.pid}`;
 const port = process.env.ROUTER_COMPOSE_PORT ?? "13101";
@@ -44,6 +46,7 @@ function runCompose(args) {
 }
 
 try {
+  prepareE2ECaches(root, "router-compose");
   runCompose(["up", "-d", "--build", "--wait", "playground-react"]);
   await waitFor(`http://127.0.0.1:${port}/`);
   console.log("Router Compose backend smoke test passed.");
@@ -59,7 +62,7 @@ try {
 }
 
 async function waitFor(url) {
-  const deadline = Date.now() + 30_000;
+  const deadline = Date.now() + 180_000;
   while (Date.now() < deadline) {
     try {
       const response = await fetch(url);
