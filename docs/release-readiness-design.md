@@ -1,6 +1,6 @@
 # MVP Release Readiness Design
 
-> Status: In progress — local E2E cold/warm baseline is measured and passing; runtime compile-log visibility, Dashboard scratch-volume cleanup, and the CI cache decision remain open.
+> Status: In progress — local E2E cold/warm baseline is measured and passing; runtime compile-log visibility and the CI cache decision remain open.
 > Scope: MVP 功能完成后的完整测试、稳定性、部署、迁移和发布验证
 
 ## 1. 阶段定位
@@ -43,9 +43,10 @@ Docker build/cache baseline and optimization
   | Configuration | 233.04 秒，通过 | 117.09 秒，通过 | 热跑快 49.8% |
 
 - Dashboard 首轮热跑两次在 `Replacement key was not created` 断言失败；service log 显示第二次重试中的两个 key 创建请求均返回 HTTP 201。测试原先立即读取 key 列表数量，现改为等待列表达到两项。修复后的 Dashboard 冷、热运行均通过。
-- 每次 E2E 均移除了自身 PostgreSQL 测试数据卷，workspace 持久缓存卷保留。Dashboard API-error 实例另建的按 PID 命名 `.next` 卷不会随脚本清理；本次只手动删除了本次生成的 scratch 卷，脚本清理行为仍需修正或明确缓存策略。
+- 每次 E2E 均移除了自身 PostgreSQL 测试数据卷，workspace 持久缓存卷保留。Dashboard API-error 实例的按 PID 命名 `.next` 卷由该场景的清理逻辑在容器退出后精确删除；清理会保留原始测试错误并报告额外清理错误。
+- 隔离复验（2026-09-27）：Analytics、Dashboard、Configuration E2E 顺序通过；各自的 PostgreSQL 测试卷在退出后删除，workspace 缓存卷持续保留。Dashboard API-error 临时 `.next` 卷在退出后删除。开发 PostgreSQL 在复验前已是 `Exited`，复验后状态未变；E2E 未启动或修改它。
 - 三套 Compose 构建日志中，`cargo fetch --locked`、`pnpm install --frozen-lockfile` 及 migrator release build 层均显示 `CACHED`。服务以 detached 模式启动，当前日志没有保留其运行时 stdout，因此尚不能直接确认 Cargo target 命中后是否完全避免完整重编译。原始日志和耗时保存在本机忽略目录 `artifacts/docker-cache-benchmark/`；该目录也保留 Dashboard 修复前的两次失败记录及修复后的冷、热日志。
-- 三套修复后的 E2E 冷、热运行均通过。完成条件：让 E2E 诊断可观察服务运行时编译/下载输出，并处理 Dashboard API-error 临时卷清理；再确认 Cargo target 热跑没有完整重编译。
+- 三套修复后的 E2E 冷、热运行均通过。完成条件：让 E2E 诊断可观察服务运行时编译/下载输出，并确认 Cargo target 热跑没有完整重编译。
 - CI E2E 使用托管临时 runner，跨 job/run 缓存不会自动保留。本次未测 CI 冷启动耗时与下载量；基于 CI 实际耗时再决定是否配置持久化 BuildKit cache，如实施，cache key 必须受 lockfile、toolchain 和 Dockerfile 变化约束。
 
 本项完成后再执行下方的完整 CI、migration、integration、E2E 和部署验证；在上述完成条件满足前，本项仍保持进行中。

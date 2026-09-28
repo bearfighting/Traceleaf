@@ -1568,24 +1568,25 @@ async function assertDefinitionManagement(page) {
 }
 
 async function assertApiError(browser) {
-  runCompose(
-    [
-      "run",
-      "-d",
-      "--no-deps",
-      "--name",
-      errorContainer,
-      "-p",
-      `${errorDashboardPort}:3000`,
-      "-v",
-      `${project}_dashboard_error_next:/workspace/apps/dashboard/.next`,
-      "-e",
-      "ANALYTICS_API_URL=http://dashboard-api-error:4999",
-      "dashboard",
-    ],
-    { capture: true },
-  );
+  let scenarioError;
   try {
+    runCompose(
+      [
+        "run",
+        "-d",
+        "--no-deps",
+        "--name",
+        errorContainer,
+        "-p",
+        `${errorDashboardPort}:3000`,
+        "-v",
+        `${project}_dashboard_error_next:/workspace/apps/dashboard/.next`,
+        "-e",
+        "ANALYTICS_API_URL=http://dashboard-api-error:4999",
+        "dashboard",
+      ],
+      { capture: true },
+    );
     const errorUrl = `http://127.0.0.1:${errorDashboardPort}`;
     await waitFor("Dashboard error instance", `${errorUrl}/dashboard`);
     const page = await browser.newPage();
@@ -1598,9 +1599,32 @@ async function assertApiError(browser) {
     );
     await page.getByText("Site: site_playground · 2026-09-18 to 2026-09-18 UTC").first().waitFor();
     await page.close();
-  } finally {
-    execFileSync("docker", ["rm", "-f", errorContainer], { cwd: root, stdio: "ignore" });
+  } catch (error) {
+    scenarioError = error;
   }
+
+  const cleanupErrors = [];
+  for (const [args, missingResource] of [
+    [["rm", "-f", errorContainer], /no such container/i],
+    [["volume", "rm", `${project}_dashboard_error_next`], /no such volume/i],
+  ]) {
+    try {
+      execFileSync("docker", args, { cwd: root, stdio: "ignore" });
+    } catch (error) {
+      const output = [error.stdout, error.stderr, error.message]
+        .filter(Boolean)
+        .map(String)
+        .join("\n");
+      if (!missingResource.test(output)) cleanupErrors.push(error);
+    }
+  }
+
+  if (scenarioError) {
+    for (const error of cleanupErrors)
+      console.error(`Dashboard API-error cleanup failed: ${error}`);
+    throw scenarioError;
+  }
+  if (cleanupErrors.length) throw cleanupErrors[0];
 }
 
 let browser;

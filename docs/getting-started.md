@@ -155,7 +155,7 @@ pnpm e2e:dashboard
 pnpm e2e:configuration
 ```
 
-失败诊断保存在 `artifacts/configuration-e2e/`。`pnpm e2e:analytics`、`pnpm e2e:dashboard` 和 `pnpm e2e:configuration` 会清理各自的 Compose 项目和测试数据卷，同时保留按 workspace、依赖锁定内容和 E2E 套件隔离命名的 Docker 编译缓存卷；这样后续运行可以复用 Cargo target、Cargo registry、Node modules 和 Next.js 构建缓存。PostgreSQL 测试数据仍每次重建。缓存卷可用 `docker volume ls --filter name=web-analytics-e2e-` 查看；不再需要时按列出的具体卷名删除，避免清除其他项目的数据。Configuration E2E 默认使用 Dashboard `13100`、Collector `14101`、Analytics API `14102` 和 PostgreSQL `15433` 端口，可分别通过 `DASHBOARD_PORT`、`E2E_COLLECTOR_PORT`、`E2E_ANALYTICS_API_PORT`、`E2E_POSTGRES_PORT` 覆盖。
+失败诊断保存在 `artifacts/configuration-e2e/`。`pnpm e2e:analytics`、`pnpm e2e:dashboard` 和 `pnpm e2e:configuration` 会清理各自的 Compose 项目和测试数据卷，同时保留按 workspace、依赖锁定内容和 E2E 套件隔离命名的 Docker 编译缓存卷；这样后续运行可以复用 Cargo target、Cargo registry、Node modules 和 Next.js 构建缓存。PostgreSQL 测试数据仍每次重建；Dashboard API-error 测试使用的临时 `.next` 卷会在测试结束后删除。缓存卷可用 `docker volume ls --filter name=web-analytics-e2e-` 查看；不再需要时按列出的具体卷名删除，避免清除其他项目的数据。Configuration E2E 默认使用 Dashboard `13100`、Collector `14101`、Analytics API `14102` 和 PostgreSQL `15433` 端口，可分别通过 `DASHBOARD_PORT`、`E2E_COLLECTOR_PORT`、`E2E_ANALYTICS_API_PORT`、`E2E_POSTGRES_PORT` 覆盖。
 
 ## Check
 
