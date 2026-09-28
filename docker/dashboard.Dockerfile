@@ -18,6 +18,8 @@ COPY packages/protocol-ts/package.json packages/protocol-ts/package.json
 COPY packages/transport/package.json packages/transport/package.json
 
 RUN pnpm install --frozen-lockfile
+RUN chown -R node:node /workspace
+USER node
 
 EXPOSE 3000
 
