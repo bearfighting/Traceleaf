@@ -29,3 +29,4 @@ pnpm --filter @web-analytics/tanstack-router-playground test
 pnpm --filter @web-analytics/playground-support test
 pnpm --filter @web-analytics/dashboard test
 node --test scripts/router-targets.test.mjs
+node --test scripts/capability-seed.test.mjs

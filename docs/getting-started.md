@@ -122,20 +122,21 @@ Dashboard 支持以下 URL 参数：
 
 管理配置时，设置 `DASHBOARD_DEFAULT_ENVIRONMENT`（默认 `production`），并将 `DASHBOARD_CONFIG_ADMIN_TOKEN` 设置为 `CONFIG_ADMIN_TOKENS` 中的一把 deployment-admin token。配置入口为 `http://localhost:3000/dashboard/settings`；Dashboard 服务端 BFF 使用该凭据调用受保护配置 API，浏览器不会获得 Admin token。生产部署还必须由可信反向代理保护 Dashboard 管理入口。
 
-以 Compose 启动 Dashboard 和后端完整 workflow：
+以 Compose 启动包含数据库迁移、开发 seed、后端、Dashboard 和 Next.js Playground 的完整本地环境：
 
 ```bash
-docker compose \
-  -f compose.yaml \
-  -f compose.backend.yaml \
-  --profile backend \
-  --profile storage \
-  --profile processing \
-  --profile dashboard \
-  up --build --wait
+pnpm dev:up
 ```
 
-Dashboard 默认访问 `http://localhost:13000/dashboard`。它在容器内使用 `http://analytics-api:4002`，不需要数据库环境变量。
+首次启动前复制 `.env.example` 为 `.env`。开发覆盖文件中的 seed 在迁移成功后，为 Playground 站点建立 capability、activation window 和 development Ingest Policy；策略只保存 Ingest Key 的 SHA-256 摘要。Seed 只补齐缺失记录，不覆盖已有配置。完整环境默认使用 `site_example/development`，并允许三个本地 Playground 默认端口（3000、3101、3102）；可通过 `PLAYGROUND_ORIGINS` 设置逗号分隔的 Origin 列表。本地示例凭据不可用于生产。
+
+Playground 默认访问 `http://localhost:3000`，Dashboard 访问 `http://localhost:13000/dashboard`。关闭服务但保留数据库数据和 Docker volumes：
+
+```bash
+pnpm dev:down
+```
+
+`compose.dev.yaml` 只由 `pnpm dev:up` / `pnpm dev:down` 加载，普通 Compose、CI 和隔离 E2E 流程不会运行开发 seed。要清空数据库仍需显式删除 PostgreSQL volume；`pnpm dev:down` 不会删除它。
 
 Protocol Consolidation 后，事件协议不需要额外的 site-level rollout flag。
 Visitor、Session 和 Dimensions 由 Dashboard 的 Site capabilities 配置管理；
@@ -262,7 +263,7 @@ pnpm docker:backend
 ```
 
 该命令同时启用 `backend` 和 `storage` profiles。Collector 使用 PostgreSQL；没有 `DATABASE_URL` 时不会静默回退到 InMemory Sink。
-`pnpm docker:backend` 会先等待 PostgreSQL 健康、执行 migration，再启动 Collector 和 Playground。
+`pnpm docker:backend` 会加载开发 Compose 覆盖层，等待 PostgreSQL 健康、执行 migration 和本地 seed，再启动 Collector 与 Next.js Playground。完整 Dashboard 环境使用 `pnpm dev:up`；停止时运行 `pnpm dev:down`，数据库 volume 会保留。
 
 启动 Processor 和 Analytics API workflow：
 
@@ -344,21 +345,20 @@ NEXT_PUBLIC_ANALYTICS_INGEST_KEY=public-key-example
 NEXT_PUBLIC_ANALYTICS_SITE_ID=site_example
 ```
 
+配置后运行 `pnpm docker:dev --with-backend` 启动当前 Router、Collector、数据库迁移和本地 seed；完整 Dashboard 环境使用 `pnpm dev:up`。使用 React Router 或 TanStack Router 时，seed 默认也允许对应的本地端口 Origin。自定义端口或 Origin 时，同步更新 `PLAYGROUND_ORIGINS`。
+
 `NEXT_PUBLIC_ANALYTICS_ENDPOINT` 必须是完整的 `POST /v1/events` URL，不能只填写 Collector base URL。浏览器会自动发送 `Origin`，Collector 会执行 CORS、Origin、Ingest Key、Schema 和限流校验。
 
 启动 Phase 2 Collector：
 
 ```bash
-docker compose --profile backend up --build collector
+pnpm docker:backend
 ```
 
 如果同时启动 Playground，并要求它等待 Collector 健康后再启动：
 
 ```bash
-docker compose \
-  -f compose.yaml \
-  -f compose.backend.yaml \
-  --profile backend up --build
+pnpm dev:up
 ```
 
 也可以直接运行：
@@ -375,7 +375,7 @@ pnpm docker:dev --router tanstack
 pnpm docker:dev --router react --with-backend
 ```
 
-默认端口分别为 Next `3000`、React Router `3101` 和 TanStack Router `3102`，可通过 `PLAYGROUND_NEXT_PORT`、`PLAYGROUND_REACT_PORT` 和 `PLAYGROUND_TANSTACK_PORT` 覆盖。`--with-backend` 会启用 `backend`、`storage` 和 `processing` profiles；默认的 `pnpm docker:dev` 只启动选中的 MockTransport playground。
+默认端口分别为 Next `3000`、React Router `3101` 和 TanStack Router `3102`，可通过 `PLAYGROUND_NEXT_PORT`、`PLAYGROUND_REACT_PORT` 和 `PLAYGROUND_TANSTACK_PORT` 覆盖。`--with-backend` 会加载开发 seed 覆盖层并启用 `backend`、`storage` 和 `processing` profiles；不带 `--with-backend` 时，即使 `.env` 配置了 fetch，`pnpm docker:dev` 仍使用 MockTransport。
 
 Collector 默认监听 `http://localhost:4001`，健康检查地址为：
 
