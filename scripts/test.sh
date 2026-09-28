@@ -11,7 +11,9 @@ pnpm capabilities:validate
 pnpm analytics:contract:validate
 pnpm analytics:definitions:validate
 pnpm http:validate
-pnpm build:packages
+if [[ "${WORKSPACE_BUILD_READY:-false}" != "true" ]]; then
+  pnpm build:packages
+fi
 pnpm --filter @web-analytics/protocol-ts test
 pnpm --filter @web-analytics/observer-core test
 pnpm --filter @web-analytics/observer-next test
