@@ -2,11 +2,6 @@ use chrono::NaiveDate;
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]
-pub(crate) struct HealthResponse {
-    pub(crate) status: &'static str,
-}
-
-#[derive(Debug, Serialize)]
 pub(crate) struct OverviewResponse {
     pub(crate) site_id: String,
     pub(crate) page_views: i64,

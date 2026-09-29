@@ -4,7 +4,8 @@ use axum::{
     response::{IntoResponse, Response},
 };
 
-use crate::{
+use crate::analytics::{
+    definition_catalog,
     errors::{ApiError, HandlerError},
     models::{
         ConversionReportItem, ConversionReportResponse, EventDailyItem, EventsReportResponse,
@@ -12,12 +13,12 @@ use crate::{
         TimelineItem, TimelineResponse, WebVitalReportItem, WebVitalReportResponse,
     },
     queries,
-    state::AppState,
+    state::AnalyticsState,
     validation,
 };
 
 pub(crate) async fn range_overview(
-    State(state): State<AppState>,
+    State(state): State<AnalyticsState>,
     Path((site_id, from, to)): Path<(String, String, String)>,
 ) -> Result<Response, HandlerError> {
     let range = validation::parse_range(&from, &to)?;
@@ -34,7 +35,7 @@ pub(crate) async fn range_overview(
 }
 
 pub(crate) async fn timeline(
-    State(state): State<AppState>,
+    State(state): State<AnalyticsState>,
     Path((site_id, from, to)): Path<(String, String, String)>,
 ) -> Result<Response, HandlerError> {
     let range = validation::parse_range(&from, &to)?;
@@ -58,7 +59,7 @@ pub(crate) async fn timeline(
 }
 
 pub(crate) async fn pages(
-    State(state): State<AppState>,
+    State(state): State<AnalyticsState>,
     Path((site_id, from, to)): Path<(String, String, String)>,
     RawQuery(raw_query): RawQuery,
 ) -> Result<Response, HandlerError> {
@@ -84,7 +85,7 @@ pub(crate) async fn pages(
 }
 
 pub(crate) async fn events(
-    State(state): State<AppState>,
+    State(state): State<AnalyticsState>,
     Path((site_id, from, to)): Path<(String, String, String)>,
     RawQuery(raw_query): RawQuery,
 ) -> Result<Response, HandlerError> {
@@ -130,7 +131,7 @@ pub(crate) async fn events(
 }
 
 pub(crate) async fn web_vitals(
-    State(state): State<AppState>,
+    State(state): State<AnalyticsState>,
     Path((site_id, from, to)): Path<(String, String, String)>,
     RawQuery(raw_query): RawQuery,
 ) -> Result<Response, HandlerError> {
@@ -180,14 +181,14 @@ pub(crate) async fn web_vitals(
 }
 
 pub(crate) async fn conversions(
-    State(state): State<AppState>,
+    State(state): State<AnalyticsState>,
     Path((site_id, from, to)): Path<(String, String, String)>,
     RawQuery(raw_query): RawQuery,
 ) -> Result<Response, HandlerError> {
     let range = validation::parse_range(&from, &to)?;
     let (limit, definition_id, requested_version) =
         validation::parse_definition_query(raw_query.as_deref())?;
-    let definition_version = resolve_definition_version(
+    let definition_version = definition_catalog::resolve_version(
         &state.pool,
         &site_id,
         requested_version.as_deref(),
@@ -195,7 +196,7 @@ pub(crate) async fn conversions(
     )
     .await
     .map_err(ApiError::database)?
-    .ok_or(crate::errors::RequestError::InvalidDefinitionVersion)?;
+    .ok_or(crate::analytics::errors::RequestError::InvalidDefinitionVersion)?;
     let rows = queries::conversion_rows(
         &state.pool,
         &site_id,
@@ -257,14 +258,14 @@ pub(crate) async fn conversions(
 }
 
 pub(crate) async fn funnels(
-    State(state): State<AppState>,
+    State(state): State<AnalyticsState>,
     Path((site_id, from, to)): Path<(String, String, String)>,
     RawQuery(raw_query): RawQuery,
 ) -> Result<Response, HandlerError> {
     let range = validation::parse_range(&from, &to)?;
     let (limit, definition_id, requested_version) =
         validation::parse_definition_query(raw_query.as_deref())?;
-    let definition_version = resolve_definition_version(
+    let definition_version = definition_catalog::resolve_version(
         &state.pool,
         &site_id,
         requested_version.as_deref(),
@@ -272,7 +273,7 @@ pub(crate) async fn funnels(
     )
     .await
     .map_err(ApiError::database)?
-    .ok_or(crate::errors::RequestError::InvalidDefinitionVersion)?;
+    .ok_or(crate::analytics::errors::RequestError::InvalidDefinitionVersion)?;
     let rows = queries::funnel_rows(
         &state.pool,
         &site_id,
@@ -330,18 +331,4 @@ pub(crate) async fn funnels(
         aggregation_version: 1,
     })
     .into_response())
-}
-
-async fn resolve_definition_version(
-    pool: &sqlx::PgPool,
-    site_id: &str,
-    requested: Option<&str>,
-    fallback: &str,
-) -> Result<Option<String>, sqlx::Error> {
-    if let Some(version) = requested {
-        return sqlx::query_scalar::<_, String>("SELECT definition_version FROM site_definition_revisions WHERE site_id=$1 AND definition_version=$2")
-            .bind(site_id).bind(version).fetch_optional(pool).await;
-    }
-    Ok(Some(sqlx::query_scalar::<_, String>("SELECT definition_version FROM site_definition_revisions WHERE site_id=$1 ORDER BY revision DESC LIMIT 1")
-        .bind(site_id).fetch_optional(pool).await?.unwrap_or_else(|| fallback.to_owned())))
 }

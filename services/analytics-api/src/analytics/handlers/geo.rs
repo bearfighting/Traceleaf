@@ -4,16 +4,16 @@ use axum::{
     response::{IntoResponse, Response},
 };
 
-use crate::{
+use crate::analytics::{
     errors::{ApiError, HandlerError},
     models::{GeoCountryItem, GeoCountryReportResponse},
     queries,
-    state::AppState,
+    state::AnalyticsState,
     validation,
 };
 
 pub(crate) async fn countries(
-    State(state): State<AppState>,
+    State(state): State<AnalyticsState>,
     Path((site_id, from, to)): Path<(String, String, String)>,
 ) -> Result<Response, HandlerError> {
     let range = validation::parse_range(&from, &to)?;

@@ -1,7 +1,7 @@
 use chrono::NaiveDate;
 use url::form_urlencoded;
 
-use crate::{errors::RequestError, models::DateRange};
+use crate::analytics::{errors::RequestError, models::DateRange};
 
 const DEFAULT_LIMIT: i64 = 20;
 const MAX_LIMIT: i64 = 100;

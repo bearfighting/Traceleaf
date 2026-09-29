@@ -6,18 +6,18 @@ use axum::{
 use chrono::{DateTime, Utc};
 use sqlx::Postgres;
 
-use crate::{
+use crate::analytics::{
     errors::{ApiError, HandlerError},
     models::{
         DimensionItem, DimensionReportResponse, VisitorSessionItem, VisitorSessionReportResponse,
     },
     queries,
-    state::AppState,
+    state::AnalyticsState,
     validation,
 };
 
 async fn phase6_transaction<'a>(
-    state: &'a AppState,
+    state: &'a AnalyticsState,
     _site_id: &str,
 ) -> Result<sqlx::Transaction<'a, Postgres>, HandlerError> {
     let mut transaction = state.pool.begin().await.map_err(ApiError::database)?;
@@ -29,7 +29,7 @@ async fn phase6_transaction<'a>(
 }
 
 fn common_watermark(
-    rows: &[crate::models::WatermarkRow],
+    rows: &[crate::analytics::models::WatermarkRow],
     required_sources: &[&str],
 ) -> Option<DateTime<Utc>> {
     required_sources
@@ -44,7 +44,7 @@ fn common_watermark(
 }
 
 pub(crate) async fn visitors(
-    State(state): State<AppState>,
+    State(state): State<AnalyticsState>,
     Path((site_id, from, to)): Path<(String, String, String)>,
 ) -> Result<Response, HandlerError> {
     let range = validation::parse_range(&from, &to)?;
@@ -134,14 +134,14 @@ pub(crate) async fn visitors(
 }
 
 pub(crate) async fn sessions(
-    State(state): State<AppState>,
+    State(state): State<AnalyticsState>,
     Path((site_id, from, to)): Path<(String, String, String)>,
 ) -> Result<Response, HandlerError> {
     visitors(State(state), Path((site_id, from, to))).await
 }
 
 pub(crate) async fn dimensions(
-    State(state): State<AppState>,
+    State(state): State<AnalyticsState>,
     Path((site_id, from, to, dimension)): Path<(String, String, String, String)>,
     RawQuery(raw_query): RawQuery,
 ) -> Result<Response, HandlerError> {

@@ -8,10 +8,10 @@ use axum::{
 };
 use serde_json::json;
 
-use crate::state::AppState;
+use crate::analytics::state::AnalyticsState;
 
 pub(crate) async fn gate(
-    State(state): State<AppState>,
+    State(state): State<AnalyticsState>,
     request: Request<Body>,
     next: Next,
 ) -> Response {
