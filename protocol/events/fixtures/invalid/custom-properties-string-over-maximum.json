@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "event_id": "01J00000000000000000000002",
+  "type": "custom_event",
+  "site_id": "site_example",
+  "occurred_at": 1760000000000,
+  "event_name": "signup_started",
+  "properties": {
+    "label": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  }
+}

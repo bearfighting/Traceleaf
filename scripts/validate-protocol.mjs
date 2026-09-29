@@ -142,7 +142,8 @@ function validateWebVital(event) {
     !thresholds ||
     !Number.isFinite(event.value) ||
     event.value < 0 ||
-    event.value > thresholds[2]
+    event.value > thresholds[2] ||
+    event.page_view_occurred_at > event.occurred_at
   )
     return false;
   return (

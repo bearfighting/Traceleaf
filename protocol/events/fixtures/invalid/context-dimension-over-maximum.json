@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "event_id": "01J00000000000000000000001",
+  "type": "page_view",
+  "site_id": "site_example",
+  "visitor_id": "550e8400-e29b-41d4-a716-446655440000",
+  "context_schema_version": 1,
+  "occurred_at": 1760000000000,
+  "path": "/about",
+  "context": {
+    "language": "en-CA",
+    "timezone": "America/Toronto",
+    "viewport_width": 100001,
+    "viewport_height": 900,
+    "screen_width": 2560,
+    "screen_height": 1440,
+    "utm_source": "newsletter",
+    "utm_medium": "email",
+    "referrer": "https://news.example.com/article",
+    "user_agent": "Mozilla/5.0"
+  }
+}

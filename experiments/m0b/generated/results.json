@@ -1,0 +1,113 @@
+{
+  "toolkitCommit": "825f4398e125f586354a18ba575d4d37edc5c745",
+  "toolkitPackage": "@schema-transformation-toolkit/sdk@0.7.0",
+  "json2tsPackage": "json-schema-to-typescript@16.0.0",
+  "typifyPackage": "cargo-typify@0.8.0",
+  "inputs": {
+    "event": {
+      "file": "protocol/events/schemas/event-batch.schema.json",
+      "sha256": "7dd8c3ebe2bfaac4f5cfb005a8df205a8a351efdf7fb7f95728c43b1c23b044a"
+    },
+    "policy": {
+      "file": "protocol/contracts/configuration/current/environment-policy.schema.json",
+      "sha256": "27f2da381e34de83184f72af83db1a5cdefec4118e9e481e89e5cce9ca397ed5"
+    }
+  },
+  "bundledEvent": {
+    "sha256": "817a3fcec0921af39a66ad258e08fc449af7d7dce40f6bbed5abf5995f49310e",
+    "comparedFixtures": 28
+  },
+  "results": [
+    {
+      "tool": "toolkit",
+      "sample": "event",
+      "language": "typescript",
+      "status": "failed",
+      "phase": "parse",
+      "code": "unsupported-json-schema-ref"
+    },
+    {
+      "tool": "toolkit",
+      "sample": "event",
+      "language": "rust",
+      "status": "failed",
+      "phase": "parse",
+      "code": "unsupported-json-schema-ref"
+    },
+    {
+      "tool": "toolkit",
+      "sample": "policy",
+      "language": "typescript",
+      "status": "generated",
+      "caveats": 2,
+      "losses": 13,
+      "sha256": "d52291102a64474def1658092849aa245d79a5f8a142479a4e9d1d3485882de8"
+    },
+    {
+      "tool": "toolkit",
+      "sample": "policy",
+      "language": "rust",
+      "status": "failed",
+      "phase": "generate",
+      "code": "unsupported-rust-node"
+    },
+    {
+      "tool": "toolkit",
+      "sample": "event-bundled",
+      "language": "typescript",
+      "status": "failed",
+      "phase": "parse",
+      "code": "unsupported-json-schema-keyword"
+    },
+    {
+      "tool": "toolkit",
+      "sample": "event-bundled",
+      "language": "rust",
+      "status": "failed",
+      "phase": "parse",
+      "code": "unsupported-json-schema-keyword"
+    },
+    {
+      "tool": "json2ts",
+      "sample": "event-original",
+      "language": "typescript",
+      "status": "failed",
+      "exitCode": 1
+    },
+    {
+      "tool": "json2ts",
+      "sample": "event",
+      "language": "typescript",
+      "status": "generated",
+      "sha256": "3872d1d63f380e094ac77062d41f88f44a0f8abe7484ded70bcc1d7f2ca07200"
+    },
+    {
+      "tool": "json2ts",
+      "sample": "policy",
+      "language": "typescript",
+      "status": "generated",
+      "sha256": "8593be938b342554ed958b4171ff23fa891737fa3e1ff31b1edf4f7f7fe2f059"
+    },
+    {
+      "tool": "typify",
+      "sample": "event",
+      "language": "rust",
+      "status": "failed",
+      "exitCode": 101
+    },
+    {
+      "tool": "typify",
+      "sample": "policy",
+      "language": "rust",
+      "status": "generated",
+      "sha256": "16bda8082bed61538d21347a1a4d8278c41dde9a63029530bec0c11664681e7a"
+    },
+    {
+      "tool": "typify",
+      "sample": "event-bundled",
+      "language": "rust",
+      "status": "failed",
+      "exitCode": 101
+    }
+  ]
+}

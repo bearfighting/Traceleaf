@@ -1,0 +1,906 @@
+{
+  "schema_version": 1,
+  "events": [
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000000",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000001",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000002",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000003",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000004",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000005",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000006",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000007",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000008",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000009",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000010",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000011",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000012",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000013",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000014",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000015",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000016",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000017",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000018",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000019",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000020",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000021",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000022",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000023",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000024",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000025",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000026",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000027",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000028",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000029",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000030",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000031",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000032",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000033",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000034",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000035",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000036",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000037",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000038",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000039",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000040",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000041",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000042",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000043",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000044",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000045",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000046",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000047",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000048",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000049",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000050",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000051",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000052",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000053",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000054",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000055",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000056",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000057",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000058",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000059",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000060",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000061",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000062",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000063",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000064",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000065",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000066",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000067",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000068",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000069",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000070",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000071",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000072",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000073",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000074",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000075",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000076",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000077",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000078",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000079",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000080",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000081",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000082",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000083",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000084",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000085",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000086",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000087",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000088",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000089",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000090",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000091",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000092",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000093",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000094",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000095",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000096",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000097",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000098",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    },
+    {
+      "schema_version": 1,
+      "event_id": "01J00000000000000000000099",
+      "type": "page_view",
+      "site_id": "site_example",
+      "occurred_at": 1760000000000,
+      "path": "/about",
+      "future_field": "allowed"
+    }
+  ],
+  "future_field": true
+}
