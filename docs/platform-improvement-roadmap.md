@@ -2,7 +2,7 @@
 
 - Status: Proposed
 - Scope: Site Management、运行时静态模型、站点接入、Dashboard UI 的协调实施
-- Detailed designs: [模块边界](analytics-site-management-module-boundaries.md)、[静态运行时模型](protocol-static-runtime-design.md)、[站点接入与 Settings](site-onboarding-settings-design.md)、[Dashboard UI](dashboard-ui-improvements.md)
+- Detailed designs: [M0a 现状基线](m0a-baseline-and-decisions.md)、[模块边界](analytics-site-management-module-boundaries.md)、[静态运行时模型](protocol-static-runtime-design.md)、[站点接入与 Settings](site-onboarding-settings-design.md)、[Dashboard UI](dashboard-ui-improvements.md)
 
 ## 目标与约束
 
@@ -43,24 +43,24 @@
 - 现有 Analytics 和管理 HTTP 路径在内部模块迁移时保持兼容。Dashboard 可配置两个逻辑 API URL，首期可指向同一个 `analytics-api` listener。
 - 当前 deployment-admin token 仍是受信任管理环境的凭据。面向多用户公开使用前需另立身份和授权设计；管理 token 只留在 Dashboard 服务端。
 
-## 首版语义基线（M0 确认后冻结）
+## 首版语义基线（M0a 已冻结）
 
 - 新 Site ID 由 Site Management 服务端生成稳定、不含名称或 URL 的标识；显示名称和 URL 可修改，也不作为唯一键。导入旧数据时保留原 Site ID。
-- 新站点创建要求显示名称与 HTTP(S) 网站 URL；首个 environment 默认建议为 `production`，管理员可改。显式开发 seed 使用 `development`。Page Views 必选且默认开启，其余能力由管理员选择，服务端验证依赖。
+- 新站点创建要求显示名称与 HTTP(S) 网站 URL；首个 environment 创建表单默认 `production` 且可修改，运行时不隐式默认 environment。显式开发 seed 使用 `development`。新 Site 默认仅开启必选 Page Views，其余能力初始关闭、由管理员选择并由服务端验证依赖；迁移既有 Site 保留其有效能力状态。
 - 旧站点导入允许 URL 暂时缺失。Registry 的 `lifecycle_status`（active/archived）与管理 UI 使用的 `setup_status`（ready/needs_attention）分开；后者根据元数据和必要配置推导，不单独控制 Collector。缺少 URL 的旧站点若已有有效 policy 可继续采集；缺少 policy 的站点保留历史查询但不能接收新事件。
 - 归档后 Collector 停止接收该 Site 的新事件，历史报告仍可查询。key 摘要与审计保留；恢复后管理员须显式确认或启用 environment policy，不能自动开放采集。
-- 创建请求使用客户端生成的 `Idempotency-Key`，以唯一创建请求 ID 关联规范化请求摘要与 Site ID。相同 key/相同请求重试返回元数据，不重放明文 key；相同 key/不同请求返回冲突。首次响应丢失时管理员创建 replacement key。
+- 创建请求使用客户端生成的 `Idempotency-Key`，以唯一创建请求 ID 关联规范化请求摘要与 Site ID。相同 key/相同请求重试返回元数据，不重放明文 key；相同 key/不同请求返回冲突。该关联在 Site 生命周期内不设过期时间，Site ID 不得重用。首次响应丢失时管理员创建 replacement key。
 - 部署管理员须先配置相互匹配的 `CONFIG_ADMIN_TOKENS` 与 `DASHBOARD_CONFIG_ADMIN_TOKEN`。它们是基础设施凭据。凭据缺失时 Dashboard 显示管理员设置错误，不把 401/503 当作空站点；当前全局 token 模式仅用于受信任的管理环境。
-- M0 应对一个事件 contract 和一个配置 contract 试用类型生成器，再按 contract 类别选定生成或手工维护策略、未知字段行为与 CI 防漂移检查。
+- M0b 对一个事件 contract 和一个配置 contract 试用类型生成器，再按 contract 类别选定生成或手工维护策略、未知字段行为与 CI 防漂移检查。
 
-以上是本轮实施的建议基线；M0 调整任一项时须同步更新子设计、迁移规则与验收场景。
+以上基线由 [M0a 现状基线与 ADR-013/014](m0a-baseline-and-decisions.md) 冻结。M5 新 API 的 wire contract、M0b 类型生成策略和 M3/M4 迁移操作细节仍由相应切片定义。
 
 ## 实施依赖
 
 ```mermaid
 flowchart LR
-  A[决策与现状基线] --> B[同进程 Rust 模块边界]
-  B --> C[配置契约与静态运行视图]
+  A[M0a：现状与语义基线] --> B[M1：同进程 Rust 模块边界]
+  B --> C[M2：配置契约与静态运行视图]
   C --> D[Site Registry 与旧数据迁移]
   D --> E[数据库配置权威切换]
   E --> F[Site Management 创建与列表 API]
@@ -72,9 +72,9 @@ flowchart LR
   U --> G
   U --> V[Analytics 报表页面迁移]
 
-  A --> X[Schema 编译缓存与契约 fixtures]
+  A --> X[M0b：生成器/contract 试验]
   X --> C
-  X --> Y[Collector 事件静态类型迁移]
+  X --> Y[M9：Collector 事件静态类型迁移]
 ```
 
 图中的 `Y` 是独立技术线；站点接入不等待整个事件解析器替换。`U` 和 `V` 可与后端阶段并行，但需要使用已确定的导航与 site 参数 contract。`E` 是开放真实站点创建流程前的门槛；`S` 必须先于空站点 Dashboard 验收。
@@ -83,33 +83,41 @@ flowchart LR
 
 每个切片应能独立 review、保留可运行状态，并在修改公开行为时同步更新 contract 与迁移说明。以下编号是本轮总计划的顺序，子设计中的 Phase/阶段编号仅描述各自内部步骤。
 
-### M0：冻结共同决策与兼容基线
+### M0a：现状基线与共同语义冻结
+
+**状态：完成（2026-09-28）**。证据与决定见 [M0a 基线](m0a-baseline-and-decisions.md) 及 ADR-013/014。
 
 **交付**
 
-- 列出现有路由、数据库表、配置来源、Schema 消费者与读写者，包括 Processor 显式 definitions 导入和运行时状态上报。
-- 冻结 Site/Environment/Origin/key/definition revision 的身份与版本规则，以及既有 API 的请求、响应、错误、鉴权和 ETag 行为。
-- 评审并冻结上文首版语义基线：默认能力与环境、旧站点修复状态、归档、首次管理员凭据和创建重试。
-- 为事件与配置分别评估静态类型生成样本，按 contract 类别决定类型来源、未知字段行为和 CI 门禁。
-- 核对已接受 ADR 的 bootstrap 例外；如改变旧决策，新增 ADR。
+- 建立可追溯现状清单：现有路由/HTTP contract、表与读写者、配置来源、Schema 消费者、迁移/seed/显式导入来源及测试覆盖。
+- 复用现有测试，并为关键既有管理/Analytics 行为补少量 characterization tests；未覆盖行为标记为后续切片工作，不扩建完整合同测试体系。
+- 冻结 Site/Environment/Origin/key/definition revision 的领域语义、历史数据保留及迁移兼容规则；区分当前已实现行为与 Registry/API 的未来目标。
+- 按主题新增 ADR-013（Site 身份与生命周期）及 ADR-014（运行配置权威与迁移边界），同步四份子设计的术语和决策状态。
+- 新 Site API 的字段、错误 envelope、ETag 和幂等摘要 wire contract 留给 M5；事件/配置类型生成策略、未知字段及 CI 门禁留给 M0b。
 
-**完成条件**：四份子设计的术语和行为一致，迁移覆盖现存站点及历史数据，首版语义和类型策略形成可审查的决策记录。
+**完成条件**：审计项均有代码、migration、test 或 protocol 文档证据；已冻结项有 ADR；未决项标注责任阶段；旧 API 搬迁基线可用于 M1 回归。
+
+### M0b：静态类型生成器与 contract parity 试验
+
+**前置**：可与 M1 并行；事件和配置 contract 样本需引用 M0a 基线。**交付**：分别对一个事件 contract 和一个配置 contract 做小范围生成试验，检查 union、`$ref`、未知字段和动态 JSON 字段表现；按 contract 类别决定生成或手工类型、版本固定的工具/命令、fixtures parity 与 CI 防漂移规则。
+
+**完成条件**：形成可执行的类型来源决策，供 M2 配置静态化与 M9 Collector 事件静态化使用；不改变 production 行为。
 
 ### M1：在现有进程内建立代码模块边界
 
-**前置**：M0。**交付**：`analytics`、`site_management` Rust `mod`、各自的 router/state/DTO/repository；顶层仅组装。先迁移现有 handler，保持 HTTP 路径和持久化行为。为跨域 definition/capability 读取确定只读 adapter，记录暂时保留的直接 SQL 依赖。
+**前置**：M0a。**交付**：`analytics`、`site_management` Rust `mod`、各自的 router/state/DTO/repository；顶层仅组装。先迁移现有 handler，保持 HTTP 路径和持久化行为。为跨域 definition/capability 读取确定只读 adapter，记录暂时保留的直接 SQL 依赖。
 
 **完成条件**：两个业务模块不互相导入内部 handler/service/repository；原有 Analytics 和管理 API 的合同测试通过。此切片不增加 Site 创建功能。
 
 ### M2：收敛配置静态模型与 capability registry
 
-**前置**：M0、M1。**交付**：版本化存储配置类型、现有管理 API 请求类型、字段和跨字段校验、最小运行时快照及 capability registry。先消除重复 validator 编译，再用正负 fixtures 对照 Schema 与静态实现，逐个切换现有配置读取与管理请求路径。
+**前置**：M0a、M0b、M1。**交付**：版本化存储配置类型、现有管理 API 请求类型、字段和跨字段校验、最小运行时快照及 capability registry。先消除重复 validator 编译，再用正负 fixtures 对照 Schema 与静态实现，逐个切换现有配置读取与管理请求路径。
 
 **完成条件**：JSONB/HTTP 输入继续完整校验；Collector、Processor、Analytics 只消费所需的静态运行视图；capability ID/依赖不在无校验列表中漂移。新 Site 创建请求类型在 M5 随冻结的创建 API contract 补充。
 
 ### M3：建立 Site Registry 并迁移旧站点
 
-**前置**：M0、M2 的存储 contract。**交付**：Site Registry migration、外键/引用策略、回填与核对工具。来源覆盖已有 capability/policy/definition 记录和历史分析数据中的 Site ID；无可靠 URL 的旧记录标记待确认，不从 Origin 静默推断权威 URL。导入记录的 `setup_status` 从缺失的元数据或配置推导，生命周期状态单独保存。
+**前置**：M0a、M2 的存储 contract。**交付**：Site Registry migration、外键/引用策略、回填与核对工具。来源覆盖已有 capability/policy/definition 记录和历史分析数据中的 Site ID；无可靠 URL 的旧记录标记待确认，不从 Origin 静默推断权威 URL。导入记录的 `setup_status` 从缺失的元数据或配置推导，生命周期状态单独保存。
 
 **完成条件**：旧站点在 Registry 中可见；有有效 policy 的旧站点可继续采集，缺失 policy 的站点保留历史查询且显示待补齐；原始事件、派生事实、definitions 和 key audit 保留；重复迁移或 importer 不产生重复站点。
 
@@ -135,7 +143,7 @@ flowchart LR
 
 ### M7：Dashboard 视觉与信息架构
 
-**M7a 可在 M0 后与 M1–M5 并行**：接入 Tailwind/shadcn，建立主题 token、基础控件、Global Header、页面骨架、Analytics Sidebar 和筛选状态规则。使用可替换的站点数据入口承接当前静态列表，不把环境变量固定进新 Shell。
+**M7a 可在 M0a 后与 M1–M5 并行**：接入 Tailwind/shadcn，建立主题 token、基础控件、Global Header、页面骨架、Analytics Sidebar 和筛选状态规则。使用可替换的站点数据入口承接当前静态列表，不把环境变量固定进新 Shell。
 
 **M7b 在 M7a 后独立完成**：把现有 Analytics 报表分配到对应页面，统一 contextual filters、空数据/禁用/错误状态和窄屏交互。只依赖现有 Analytics 查询 API，可与 M3–M6 并行。
 
@@ -151,7 +159,7 @@ flowchart LR
 
 ### M9：事件协议静态化与最终边界验收
 
-**可在 M0 的事件 contract/fixtures 基线完成后独立推进**：将 Collector event batch/event 解析迁移到版本化静态类型和显式校验，保留 Schema/fixtures 的 CI 验证，再移除 production JSON Schema runtime。这一切片不阻塞 M3–M8。
+**可在 M0b 的事件 contract/fixtures 与静态类型策略确定后独立推进**：将 Collector event batch/event 解析迁移到版本化静态类型和显式校验，保留 Schema/fixtures 的 CI 验证，再移除 production JSON Schema runtime。这一切片不阻塞 M3–M8。
 
 **最终验收**：联合检查 Rust 模块依赖、repository SQL 写入、Schema/类型 parity、历史数据兼容和 Site 创建至报表查询链路。是否拆 crate、进程或数据库由后续实际需求另行决定。
 
@@ -159,10 +167,10 @@ flowchart LR
 
 | 工作线                                    | 可开始时间        | 合并约束                                         |
 | ----------------------------------------- | ----------------- | ------------------------------------------------ |
-| 后端模块隔离                              | M0 后             | 先于新增 Site Management API；不混入数据库迁移   |
-| Schema 缓存、fixtures 和类型生成评估      | M0 后             | 配置模型切换与 M2 契约对齐；事件解析迁移独立合并 |
+| 后端模块隔离                              | M0a 后            | 先于新增 Site Management API；不混入数据库迁移   |
+| Schema 缓存、fixtures 和类型生成评估      | M0a 后，可并行 M1 | 配置模型切换与 M2 契约对齐；事件解析迁移独立合并 |
 | Site Registry、权威切换和管理 API         | M2 相关契约稳定后 | 按 M3 → M4 → M5 合并，每步可保留兼容期           |
-| Tailwind/shadcn 与 Analytics Shell        | M0 后             | 可并行；不以静态站点列表为最终页面接口           |
+| Tailwind/shadcn 与 Analytics Shell        | M0a 后            | 可并行；不以静态站点列表为最终页面接口           |
 | Dashboard onboarding 与 Settings 业务流程 | M5 合同固定后     | 显式 seed/空站点入口先于 M6 验收；M7c 在 M6 后   |
 
 每个 PR 应列出它覆盖的 M 编号、改动的公开 contract、需要回滚的数据库/配置状态以及相应的验收证据。避免把模块搬迁、Schema 引擎替换、迁移、API 创建和大规模 UI 重写放进同一 PR。
