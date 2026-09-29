@@ -24,7 +24,7 @@
 
 ## 与总规划的关系
 
-配置存储类型和管理 API 类型应在 Site Management 所拥有的数据/API contract 冻结后实现，并分别放在 owner module；Collector、Processor 和 Analytics 共用的最小能力快照继续由 `crates/configuration-runtime` 承载。该 crate 不暴露完整管理文档或管理写操作。M0 先用一个事件 contract 和一个配置 contract 评估类型生成器，按 contract 类别记录生成或手工维护的决定及未知字段策略；M2/M9 实现时遵守该决定。重复 Schema validator 编译可先独立修复；Collector 事件协议静态化是一条独立技术线，不阻塞 Site Registry 和 onboarding。具体合并门槛以 [Platform Improvement Roadmap](platform-improvement-roadmap.md) 为准。
+配置存储类型和管理 API 类型应在 Site Management 所拥有的数据/API contract 冻结后实现，并分别放在 owner module；Collector、Processor 和 Analytics 共用的最小能力快照继续由 `crates/configuration-runtime` 承载。该 crate 不暴露完整管理文档或管理写操作。M0a 已建立事件/配置 Schema 消费与测试现状基线；M0b 再用一个事件 contract 和一个配置 contract 评估类型生成器，决定按 contract 类别采用生成或手工类型、未知字段策略及 CI parity 门禁；M2/M9 实现时遵守该决定。重复 Schema validator 编译可先独立修复；Collector 事件协议静态化是一条独立技术线，不阻塞 Site Registry 和 onboarding。具体合并门槛以 [Platform Improvement Roadmap](platform-improvement-roadmap.md) 为准。
 
 ## 当前依赖清单
 
@@ -77,7 +77,7 @@ untrusted JSON / database JSONB
 
 ### 类型来源策略
 
-存在两种合理路径。M0 必须对代表性的事件和配置 Schema 分别进行一次小范围生成试验，检查 union、`$ref`、额外字段和动态 JSON 字段的输出质量，然后按 contract 类别选定路径并记录版本固定的工具、生成命令或手工 parity 规则：
+存在两种合理路径。M0b 必须对代表性的事件和配置 Schema 分别进行一次小范围生成试验，检查 union、`$ref`、额外字段和动态 JSON 字段的输出质量，然后按 contract 类别选定路径并记录版本固定的工具、生成命令或手工 parity 规则：
 
 1. **生成并提交类型（推荐优先评估）**：从 Schema 生成 Rust/TypeScript 模型，生成结果受版本控制；CI 运行 generator 并检查无 diff。Schema 生成器无法表达的语义规则仍写在服务代码中。
 2. **手工维护类型**：适用于生成结果不清晰、动态数据占比较高的部分；必须用 Schema fixtures 和一致性测试防止漂移。
@@ -114,12 +114,12 @@ Rust wire types 可在评估后从 Collector 内部模块迁移到共享 crate�
 
 ## 渐进迁移阶段
 
-### Phase 0：基线和契约盘点
+### Phase 0：基线和契约盘点（M0a + M0b）
 
 - 建立 schema → runtime consumer → type/model → fixtures 的映射表。
 - 整理现有 valid/invalid fixtures，记录服务当前接受/拒绝行为及错误码。
-- 明确 Event Protocol 版本、未知字段策略和配置文档 schema version 的兼容政策。
-- 完成事件与配置各一个静态类型生成样本，决定哪些 contract 生成并提交类型、哪些手工维护；分别明确 CI 的生成无差异检查或 fixtures parity 门禁。
+- M0a：建立 Schema → runtime consumer → type/model → fixtures 映射，记录当前协议版本、Schema 消费者、接受/拒绝行为和错误码。
+- M0b：完成事件与配置各一个静态类型生成样本，决定哪些 contract 生成并提交类型、哪些手工维护；明确未知字段策略、版本兼容规则，以及 CI 的生成无差异检查或 fixtures parity 门禁。
 - 不改变 production 行为。
 
 ### Phase 1：消除重复 validator 编译
@@ -160,7 +160,7 @@ Rust wire types 可在评估后从 Collector 内部模块迁移到共享 crate�
 - 用共享正负 fixtures 验证静态实现与 JSON Schema 的接受/拒绝一致。
 - 保留批次单 Site、隐私、事件大小、custom property 规则和现有 HTTP 状态/错误语义。
 - 切换稳定后从运行依赖中移除 `jsonschema`；仍被测试/contract validator 使用时保留为 dev dependency。
-- 此技术线在 M0 的事件 contract/fixtures 基线完成后可独立推进，不以配置静态化结束为前置条件。
+- 此技术线在 M0a 事件 contract/fixtures 现状基线完成、且 M0b 类型策略确定后可独立推进，不以配置静态化结束为前置条件。
 
 ### Phase 6：收敛和移除旧路径
 

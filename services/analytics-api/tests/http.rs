@@ -1661,6 +1661,25 @@ async fn definition_sets_append_immutable_revisions_with_etags_and_reject_remova
     assert_eq!(updated["revision"], 2);
     assert_eq!(updated["conversions"][0]["active"], false);
     assert_ne!(updated["definition_version"], version);
+    let revisions = app
+        .clone()
+        .oneshot(
+            Request::get(format!("/v1/sites/{site_id}/definition-revisions"))
+                .body(axum::body::Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(revisions.status(), StatusCode::OK);
+    let revisions = body(revisions).await;
+    assert_eq!(revisions["site_id"], site_id);
+    assert_eq!(
+        revisions["current_definition_version"],
+        updated["definition_version"]
+    );
+    assert_eq!(revisions["revisions"].as_array().unwrap().len(), 2);
+    assert_eq!(revisions["revisions"][0]["revision"], 2);
+    assert_eq!(revisions["revisions"][1]["definition_version"], version);
     let current_report = app
         .clone()
         .oneshot(

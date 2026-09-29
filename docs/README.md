@@ -8,6 +8,7 @@
 - [Release Readiness Freeze Record](release-readiness-design.md)：MVP 冻结时的验证状态。
 - [Getting Started](getting-started.md)：本地启动、配置和操作说明。
 - [Platform Improvement Roadmap](platform-improvement-roadmap.md)：Site Management、静态运行时模型、站点接入和 Dashboard UI 的总体顺序与跨任务验收。
+- [M0a Baseline and Decisions](m0a-baseline-and-decisions.md)：代码、数据库、配置来源和既有测试证据，以及 Site 与运行配置语义冻结记录。
 - [Dashboard UI Improvements](dashboard-ui-improvements.md)：Dashboard Header、capability Sidebar、筛选布局和 shadcn/Tailwind 改进方案。
 - [Site Onboarding and Settings Design](site-onboarding-settings-design.md)：站点创建向导、运行时配置权威来源、Ingest Key 生命周期和可选开发 seed。
 - [Analytics and Site Management Module Boundaries](analytics-site-management-module-boundaries.md)：同一服务内的业务模块、数据 ownership 和只读交界。

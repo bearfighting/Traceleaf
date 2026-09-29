@@ -99,7 +99,7 @@ Capability 的启用状态来源仍是现有配置服务与 contract，不由 Si
 
 ## 分阶段实施
 
-总规划中的 M7a 可在 M0 后与后端模块隔离和站点 API 开发并行；M7b 的 Analytics 报表页面迁移只依赖现有查询 API；M7c 的 Settings 重组依赖动态 Site Registry 与 onboarding API。以下步骤只描述 UI 内部顺序，不重复定义站点管理业务流程。
+总规划中的 M7a 可在 M0a 后与后端模块隔离和站点 API 开发并行；M7b 的 Analytics 报表页面迁移只依赖现有查询 API；M7c 的 Settings 重组依赖动态 Site Registry 与 onboarding API。以下步骤只描述 UI 内部顺序，不重复定义站点管理业务流程。
 
 1. **M7a 基础样式与组件**：配置 Tailwind 和 shadcn/ui，建立主题 token、通用控件与页面容器。
 2. **M7a 应用 Shell**：实现 Global Header、Analytics / Settings 一级导航、响应式 Analytics Sidebar 和 active state；站点选择通过可替换的数据入口读取，过渡期可接现有列表，但不把环境变量写进 Shell 组件。

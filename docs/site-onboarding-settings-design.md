@@ -63,7 +63,7 @@ Collector 和 Analytics API 从持久化配置读取这些数据。Dashboard 的
 
 ## 数据模型与 API 方向
 
-本节的数据写入和创建事务由 Site Management module 拥有。字段、schema version 和错误语义应在总规划 M0/M2 冻结，再实现数据库 migration 与 API；Dashboard 只通过管理 API 使用这些能力。
+本节的数据写入和创建事务由 Site Management module 拥有。Site 领域语义由 M0a/ADR-013 冻结，静态配置模型由 M0b/M2 决定；新 Registry migration 在 M3 实施，新 Site API 的 wire contract 与错误语义在 M5 冻结。Dashboard 只通过管理 API 使用这些能力。
 
 ### Site Registry
 
@@ -81,6 +81,8 @@ Collector 和 Analytics API 从持久化配置读取这些数据。Dashboard 的
 
 ### Admin API
 
+以下路由与响应语义是产品方向草案，不是已冻结的 HTTP contract；M5 冻结具体字段、错误 envelope、ETag 与幂等请求 wire shape 后再实现；幂等关联的 Site 生命周期保留语义已由 ADR-013 冻结。
+
 补充受 deployment-admin 保护的站点集合与创建接口，例如：
 
 - `GET /v1/admin/sites`：列出 Site Registry 元数据和基本可用状态。
@@ -89,7 +91,7 @@ Collector 和 Analytics API 从持久化配置读取这些数据。Dashboard 的
 
 创建接口应在一个数据库事务内创建 Site Registry、capability configuration、activation windows、首个 environment policy 和 Ingest Key 摘要，并写入审计记录。任何一步失败都应回滚，避免出现下拉列表里有站点但 Collector 无法接受事件的半成品状态。
 
-`POST /v1/admin/sites` 要求客户端生成的 `Idempotency-Key`。创建事务保存唯一创建请求 ID、规范化请求摘要和 Site ID。首次成功返回 `201`、站点元数据及一次性明文 Ingest Key；相同 key 和相同请求重试返回 `200` 与站点元数据，不重放明文；相同 key 对应不同请求返回 `409`。请求 ID 与 Site 保持关联，以免保留期过后重复创建。数据库只保存 key 摘要和 key ID，不为重试保存可恢复的明文。若首次响应丢失，管理员通过创建 replacement key 恢复。
+`POST /v1/admin/sites` 要求客户端生成的 `Idempotency-Key`。创建事务保存唯一创建请求 ID、规范化请求摘要和 Site ID。首次成功返回 `201`、站点元数据及一次性明文 Ingest Key；相同 key 和相同请求重试返回 `200` 与站点元数据，不重放明文；相同 key 对应不同请求返回 `409`。请求 ID 与 Site 保持关联，在 Site 生命周期内不设过期时间；归档后仍保留，Site ID 不得重用。数据库只保存 key 摘要和 key ID，不为重试保存可恢复的明文。若首次响应丢失，管理员通过创建 replacement key 恢复。
 
 现有 capabilities、environment policy、key rotation/revocation 和 definitions APIs 继续提供各自的独立管理能力；站点创建 API 是向导的一次性协调入口，不应复制这些领域的验证规则。
 
@@ -186,7 +188,7 @@ Analytics Sidebar 与 Settings Sidebar 是不同上下文：Analytics Sidebar �
 
 目标状态下普通 `pnpm dev:up` 不自动运行 seed，以便验证首次 onboarding。显式 seed 入口应在 Dashboard 空站点流程验收之前交付；已存在的数据卷不因启动方式切换而被清空。Seed 作为显式本地快捷项：
 
-- `--seed` 保留为 `--seed-init` 的简写，只创建固定本地演示 Site、capabilities、development policy 和本地 key 摘要；不创建分析事件。
+- 目标 CLI 将提供显式 `--seed-init`（`--seed` 可作为简写），只创建固定本地演示 Site、capabilities、development policy 和本地 key 摘要；不创建分析事件。当前 `pnpm dev:up` 自动运行开发 seed，切换为默认空站点由 M6 完成。
 - 将来可单独提供 `--seed-init` 和 `--seed-analysis`。前者初始化配置；后者只导入固定的合成分析数据，并要求 demo Site 已存在。组合运行可以使用 `--seed --seed-analysis`。
 - Seed 只允许在开发 Compose workflow 使用，必须有明确 flag；CI/E2E 使用各自隔离 fixture，不受影响。
 - Seed 数据应固定、明确标注为 demo/local only；不得从常规平台 `.env` 推导 Site runtime config。
@@ -194,10 +196,10 @@ Analytics Sidebar 与 Settings Sidebar 是不同上下文：Analytics Sidebar �
 
 ## 迁移与渐进实施
 
-总体实施顺序和跨任务门槛以 [Platform Improvement Roadmap](platform-improvement-roadmap.md) 的 M0–M9 为准；以下步骤描述站点接入领域自己的交付细节。Site Management `mod` 和相关静态配置 contract 应先于新增 Site API 建立；Collector 配置权威切换应先于面向用户开放创建向导。
+总体实施顺序和跨任务门槛以 [Platform Improvement Roadmap](platform-improvement-roadmap.md) 的 M0a/M0b、M1–M9 为准；以下步骤描述站点接入领域自己的交付细节。Site Management `mod` 和相关静态配置 contract 应先于新增 Site API 建立；Collector 配置权威切换应先于面向用户开放创建向导。
 
-1. **契约与模型**：按总规划 M0 冻结 Site Registry、唯一性、生命周期、默认能力/环境、幂等 key response 和审计事件；补 ADR 或更新相关决策文档。
-2. **数据迁移兼容**：增加 Site Registry migration；为现有 capability/policy/definition 及历史分析数据中的 Site ID 建立元数据。准备一次性 importer/运维步骤，将当前环境变量清单与 Collector TOML fallback 的站点导入数据库，核对 Processor 从 definitions 文件显式导入的 revisions，并人工补齐名称/URL。
+1. **契约与模型**：按 M0a 与 ADR-013/014 执行已冻结的 Site/生命周期/配置权威语义；Site API wire contract、错误响应及幂等摘要格式在 M5 单独冻结。
+2. **数据迁移兼容**：增加 Site Registry migration；为现有 capability/policy/definition 及历史分析数据中的 Site ID 建立元数据。准备一次性 importer/运维步骤，合并当前环境变量清单、Collector TOML fallback、DB 配置及历史 analytics 中的 Site ID；开发环境另核对旧 seed 输入。它们只作为迁移清点来源，不能成为迁移后运行时配置。核对 Processor 从 definitions 文件显式导入的 revisions，并人工补齐名称/URL。
 3. **Collector 与 definitions 权威切换**：确认数据库管理 Site 的加载、归档和缺失策略语义；移除重复 TOML runtime policy，验证旧 key 不会复活；限定 Processor 文件导入为历史迁移工具。
 4. **Admin API**：实现站点列表、创建和元数据更新；确保完整创建事务、幂等重试、审计和权限保护。
 5. **显式开发 seed**：将自动 seed 改为 `--seed`/`--seed-init`，先验证空环境与 seeded 环境两个入口。
@@ -207,16 +209,16 @@ Analytics Sidebar 与 Settings Sidebar 是不同上下文：Analytics Sidebar �
 
 每阶段支持回滚；数据迁移不得删除 raw events、derived facts 或 key audit history。
 
-## 关键风险与待确认问题
+## 已冻结语义与延期事项
 
-- **环境选择**：首版建议 `production` 作为可修改的向导默认值；显式开发 seed 使用 `development`。M0 须检查当前部署和 E2E fixture 对此默认值的兼容。
-- **URL 检查**：首版仅做 URL 语法与 Origin 规则校验；服务端可达性 probe 和域名控制权 challenge 是独立后续任务。
-- **环境模型**：一个 Site ID 跨多个 environment 共享；首次向导创建一个 environment，其他 environment 之后由 Settings 添加。M0 须确认现有数据库唯一约束是否覆盖此模型。
-- **Capabilities 默认值**：首版建议仅 Page Views 默认开启，其余能力按用户选择；M0 核对 capability manifest 的依赖并确定 UI 自动选择与服务端校验的错误反馈。
+- **环境选择**：首个 environment 创建表单默认 `production` 且允许修改；显式开发 seed 使用 `development`。这是显式创建值，不是运行时隐式默认；现有 E2E/部署 environment 名继续按请求值工作。
+- **URL 检查（延期）**：首版仅做 URL 语法与 Origin 规则校验；服务端可达性 probe 和域名控制权 challenge 是独立后续任务。
+- **环境模型**：已冻结：一个 Site ID 跨多个 environment 共享；首次向导创建一个显式 environment，其他 environment 之后由 Settings 添加。现有 policy 主键 `(site_id, environment)` 支持该关系。
+- **Capabilities 默认值**：已冻结：新 Site 仅 Page Views 默认开启，其余能力初始关闭并由用户选择；服务端按 capability manifest 校验依赖。迁移旧 Site 保留其原有有效状态。
 - **旧站点迁移**：名称和网站 URL 无法总是从旧 ID 推断；迁入记录应显示 needs_attention 与具体缺失项，同时保留原有有效采集策略和历史报表。
 - **部署授权**：当前全局 deployment-admin token 可支持受信任单管理员 MVP；开放给多个用户前需要用户身份、角色和审计 actor 升级。
 - **归档/删除**：首版归档停止新事件、保留历史报告和 key 摘要；恢复需显式确认 policy。物理删除及隐私删除另立任务。
-- **并发与重试**：服务端生成 Site ID；双击提交或请求超时依赖 `Idempotency-Key` 去重，首次 key 响应丢失时引导创建 replacement。M0 须确定规范化请求摘要与冲突错误 contract。
+- **并发与重试**：已冻结领域语义：服务端生成 Site ID；同一创建请求 ID/相同规范化摘要幂等返回元数据、不重放明文 key；同一 ID/不同摘要冲突；关联在 Site 生命周期内不设过期时间。M5 冻结具体 wire contract 与字段规范。
 - **状态新鲜度**：Collector policy refresh 当前为周期性更新；向导应显示“配置已保存/Collector 尚未应用/已生效”，而不是保存成功就立即宣称采集已就绪。
 
 ## 验收标准
