@@ -1,93 +1,35 @@
-use axum::{
-    Router, middleware,
-    routing::{delete, get, post},
+use crate::{
+    analytics::routes as analytics_routes, site_management::routes as site_management_routes,
+    state::AppState,
 };
-
-use crate::{handlers, state::AppState};
+use axum::{Json, Router, extract::State, http::StatusCode, routing::get};
+use serde_json::json;
 
 pub(crate) fn router(state: AppState) -> Router {
-    state.capabilities.spawn();
     Router::new()
-        .route("/health", get(handlers::health::health))
-        .route(
-            "/v1/admin/sites/{site_id}/conversion-funnel-definitions",
-            get(crate::configuration::get_definition_set)
-                .post(crate::configuration::create_definition_set)
-                .put(crate::configuration::put_definition_set),
-        )
-        .route(
-            "/v1/sites/{site_id}/definition-revisions",
-            get(crate::configuration::get_definition_revisions),
-        )
-        .route(
-            "/v1/admin/sites/{site_id}/capabilities",
-            get(crate::configuration::get_capabilities).put(crate::configuration::put_capabilities),
-        )
-        .route(
-            "/v1/admin/sites/{site_id}/environments/{environment}/ingest-policy",
-            get(crate::configuration::get_ingest_policy)
-                .post(crate::configuration::create_ingest_policy)
-                .put(crate::configuration::put_ingest_policy),
-        )
-        .route(
-            "/v1/admin/sites/{site_id}/environments/{environment}/ingest-keys",
-            post(crate::configuration::create_ingest_key),
-        )
-        .route(
-            "/v1/admin/sites/{site_id}/environments/{environment}/ingest-keys/{key_id}",
-            delete(crate::configuration::revoke_ingest_key),
-        )
-        .route(
-            "/v1/sites/{site_id}/overview",
-            get(handlers::overview::overview),
-        )
-        .route(
-            "/v1/sites/{site_id}/reports/{from}/{to}/overview",
-            get(handlers::reports::range_overview),
-        )
-        .route(
-            "/v1/sites/{site_id}/reports/{from}/{to}/timeline",
-            get(handlers::reports::timeline),
-        )
-        .route(
-            "/v1/sites/{site_id}/reports/{from}/{to}/pages",
-            get(handlers::reports::pages),
-        )
-        .route(
-            "/v1/sites/{site_id}/reports/{from}/{to}/conversions",
-            get(handlers::reports::conversions),
-        )
-        .route(
-            "/v1/sites/{site_id}/reports/{from}/{to}/funnels",
-            get(handlers::reports::funnels),
-        )
-        .route(
-            "/v1/sites/{site_id}/reports/{from}/{to}/web-vitals",
-            get(handlers::reports::web_vitals),
-        )
-        .route(
-            "/v1/sites/{site_id}/reports/{from}/{to}/geo",
-            get(handlers::geo::countries),
-        )
-        .route(
-            "/v1/sites/{site_id}/reports/{from}/{to}/events",
-            get(handlers::reports::events),
-        )
-        .route(
-            "/v1/sites/{site_id}/reports/{from}/{to}/visitors",
-            get(handlers::phase6::visitors),
-        )
-        .route(
-            "/v1/sites/{site_id}/reports/{from}/{to}/sessions",
-            get(handlers::phase6::sessions),
-        )
-        .route(
-            "/v1/sites/{site_id}/reports/{from}/{to}/dimensions/{dimension}",
-            get(handlers::phase6::dimensions),
-        )
-        .route_layer(middleware::from_fn_with_state(
-            state.clone(),
-            crate::capability_runtime::gate,
+        .merge(analytics_routes::router(state.analytics.clone()))
+        .merge(site_management_routes::router(
+            state.site_management.clone(),
         ))
-        .with_state(state)
+        .merge(
+            Router::new()
+                .route("/health", get(health))
+                .with_state(state),
+        )
+}
+
+async fn health(
+    State(state): State<AppState>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    sqlx::query("SELECT 1")
+        .execute(&state.analytics.pool)
+        .await
+        .map_err(|error| {
+            tracing::error!(%error, "analytics health database check failed");
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({"error":{"code":"analytics_api_error","message":"Analytics API failed to complete the request"}})),
+            )
+        })?;
+    Ok(Json(json!({"status":"ok"})))
 }

@@ -14,19 +14,21 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use url::Url;
 
-use crate::{
+use crate::site_management::{
     auth::AdminAuth,
     config_store::{self, ConfigurationRow, StoreError},
     errors::{ConfigurationApiError, ConfigurationValidationDetail},
-    state::AppState,
+    state::SiteManagementState,
 };
 
-const CAPABILITY_SCHEMA: &str =
-    include_str!("../../../protocol/contracts/configuration/current/capability-update.schema.json");
-const POLICY_UPDATE_SCHEMA: &str = include_str!(
-    "../../../protocol/contracts/configuration/current/environment-policy-update.schema.json"
+const CAPABILITY_SCHEMA: &str = include_str!(
+    "../../../../protocol/contracts/configuration/current/capability-update.schema.json"
 );
-const CAPABILITY_MANIFEST: &str = include_str!("../../../protocol/capabilities/capabilities.json");
+const POLICY_UPDATE_SCHEMA: &str = include_str!(
+    "../../../../protocol/contracts/configuration/current/environment-policy-update.schema.json"
+);
+const CAPABILITY_MANIFEST: &str =
+    include_str!("../../../../protocol/capabilities/capabilities.json");
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -333,7 +335,7 @@ fn validate_identity(
 
 pub(crate) async fn get_capabilities(
     _auth: AdminAuth,
-    State(state): State<AppState>,
+    State(state): State<SiteManagementState>,
     Path(site_id): Path<String>,
 ) -> Result<Response, ConfigurationApiError> {
     validate_identity(&site_id, None)?;
@@ -350,7 +352,7 @@ pub(crate) async fn get_capabilities(
 
 pub(crate) async fn put_capabilities(
     _auth: AdminAuth,
-    State(state): State<AppState>,
+    State(state): State<SiteManagementState>,
     Path(site_id): Path<String>,
     headers: HeaderMap,
     request: Result<Json<Value>, JsonRejection>,
@@ -376,7 +378,7 @@ pub(crate) async fn put_capabilities(
 
 pub(crate) async fn get_ingest_policy(
     _auth: AdminAuth,
-    State(state): State<AppState>,
+    State(state): State<SiteManagementState>,
     Path((site_id, environment)): Path<(String, String)>,
 ) -> Result<Response, ConfigurationApiError> {
     validate_identity(&site_id, Some(&environment))?;
@@ -393,7 +395,7 @@ pub(crate) async fn get_ingest_policy(
 
 pub(crate) async fn create_ingest_policy(
     _auth: AdminAuth,
-    State(state): State<AppState>,
+    State(state): State<SiteManagementState>,
     Path((site_id, environment)): Path<(String, String)>,
     headers: HeaderMap,
     request: Result<Json<Value>, JsonRejection>,
@@ -425,7 +427,7 @@ pub(crate) async fn create_ingest_policy(
 
 pub(crate) async fn put_ingest_policy(
     _auth: AdminAuth,
-    State(state): State<AppState>,
+    State(state): State<SiteManagementState>,
     Path((site_id, environment)): Path<(String, String)>,
     headers: HeaderMap,
     request: Result<Json<Value>, JsonRejection>,
@@ -479,7 +481,7 @@ fn create_key_material()
 
 pub(crate) async fn create_ingest_key(
     _auth: AdminAuth,
-    State(state): State<AppState>,
+    State(state): State<SiteManagementState>,
     Path((site_id, environment)): Path<(String, String)>,
     headers: HeaderMap,
 ) -> Result<Response, ConfigurationApiError> {
@@ -516,7 +518,7 @@ pub(crate) async fn create_ingest_key(
 
 pub(crate) async fn revoke_ingest_key(
     _auth: AdminAuth,
-    State(state): State<AppState>,
+    State(state): State<SiteManagementState>,
     Path((site_id, environment, key_id)): Path<(String, String, String)>,
     headers: HeaderMap,
 ) -> Result<Response, ConfigurationApiError> {
@@ -534,7 +536,7 @@ pub(crate) async fn revoke_ingest_key(
 }
 
 const DEFINITION_SET_UPDATE_SCHEMA: &str = include_str!(
-    "../../../protocol/contracts/configuration/current/conversion-funnel-definition-set-update.schema.json"
+    "../../../../protocol/contracts/configuration/current/conversion-funnel-definition-set-update.schema.json"
 );
 
 fn validate_definition_set(definitions: &Value) -> Result<(), ConfigurationApiError> {
@@ -612,7 +614,7 @@ fn validate_definition_set(definitions: &Value) -> Result<(), ConfigurationApiEr
 
 pub(crate) async fn get_definition_set(
     _auth: AdminAuth,
-    State(state): State<AppState>,
+    State(state): State<SiteManagementState>,
     Path(site_id): Path<String>,
 ) -> Result<Response, ConfigurationApiError> {
     validate_identity(&site_id, None)?;
@@ -629,7 +631,7 @@ pub(crate) async fn get_definition_set(
 
 pub(crate) async fn create_definition_set(
     _auth: AdminAuth,
-    State(state): State<AppState>,
+    State(state): State<SiteManagementState>,
     Path(site_id): Path<String>,
     headers: HeaderMap,
     request: Result<Json<Value>, JsonRejection>,
@@ -651,7 +653,7 @@ pub(crate) async fn create_definition_set(
 
 pub(crate) async fn put_definition_set(
     _auth: AdminAuth,
-    State(state): State<AppState>,
+    State(state): State<SiteManagementState>,
     Path(site_id): Path<String>,
     headers: HeaderMap,
     request: Result<Json<Value>, JsonRejection>,
@@ -669,38 +671,4 @@ pub(crate) async fn put_definition_set(
         row.version,
         row.document,
     ))
-}
-
-pub(crate) async fn get_definition_revisions(
-    State(state): State<AppState>,
-    Path(site_id): Path<String>,
-) -> Result<Response, ConfigurationApiError> {
-    validate_identity(&site_id, None)?;
-    let revisions = sqlx::query_as::<_, (i64, String, Option<chrono::DateTime<Utc>>)>(
-        "SELECT revision, definition_version, effective_at FROM site_definition_revisions WHERE site_id = $1 ORDER BY revision DESC",
-    )
-    .bind(&site_id)
-    .fetch_all(&state.pool)
-    .await
-    .map_err(|error| {
-        tracing::error!(%error, "definition revision query failed");
-        ConfigurationApiError::Unavailable
-    })?;
-    let current_definition_version = revisions.first().map(|(_, version, _)| version.clone());
-    let values = revisions
-        .into_iter()
-        .map(|(revision, definition_version, effective_at)| {
-            json!({
-                "revision": revision,
-                "definition_version": definition_version,
-                "effective_at": effective_at.map(|time| time.to_rfc3339_opts(SecondsFormat::Micros, true)),
-            })
-        })
-        .collect::<Vec<_>>();
-    Ok(Json(json!({
-        "site_id": site_id,
-        "current_definition_version": current_definition_version,
-        "revisions": values,
-    }))
-    .into_response())
 }

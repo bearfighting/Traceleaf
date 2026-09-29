@@ -6,6 +6,7 @@ cd "$ROOT_DIR"
 
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test -p analytics-api --test module_boundaries
 
 pnpm --filter @web-analytics/protocol-ts typecheck
 pnpm --filter @web-analytics/observer-core typecheck

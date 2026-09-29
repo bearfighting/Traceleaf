@@ -3,14 +3,10 @@ use sqlx::PgPool;
 
 use sqlx::{Postgres, Transaction};
 
-use crate::models::{
+use crate::analytics::models::{
     ActiveGeneration, DateRange, DimensionRow, EventDailyRow, GeoCountryRow, PageRow, TimelineRow,
     VisitorSessionRow, WatermarkRow, WebVitalReportRow,
 };
-
-pub(crate) async fn health(pool: &PgPool) -> Result<(), sqlx::Error> {
-    sqlx::query("SELECT 1").execute(pool).await.map(|_| ())
-}
 
 pub(crate) async fn overview(pool: &PgPool, site_id: &str) -> Result<i64, sqlx::Error> {
     sqlx::query_scalar::<_, i64>(
@@ -485,8 +481,8 @@ pub(crate) async fn conversion_rows(
     range: DateRange,
     definition_id: Option<&str>,
     limit: i64,
-) -> Result<Vec<crate::models::ConversionReportRow>, sqlx::Error> {
-    sqlx::query_as::<_, crate::models::ConversionReportRow>("WITH eligible AS (SELECT (occurred_at AT TIME ZONE 'UTC')::date AS day, COUNT(DISTINCT session_id)::bigint AS sessions FROM custom_event_facts WHERE site_id=$1 AND session_id IS NOT NULL AND (occurred_at AT TIME ZONE 'UTC')::date BETWEEN $4 AND $5 GROUP BY 1), matched AS (SELECT definition_id,(occurred_at AT TIME ZONE 'UTC')::date AS day,COUNT(*)::bigint AS event_count,COUNT(DISTINCT session_id)::bigint AS converted_sessions FROM conversion_facts WHERE site_id=$1 AND definition_version=$2 AND (occurred_at AT TIME ZONE 'UTC')::date BETWEEN $4 AND $5 AND ($3::text IS NULL OR definition_id=$3) GROUP BY 1,2) SELECT m.definition_id,m.day,m.event_count,m.converted_sessions,COALESCE(e.sessions,0)::bigint AS eligible_sessions FROM matched m LEFT JOIN eligible e USING(day) ORDER BY m.definition_id,m.day LIMIT $6")
+) -> Result<Vec<crate::analytics::models::ConversionReportRow>, sqlx::Error> {
+    sqlx::query_as::<_, crate::analytics::models::ConversionReportRow>("WITH eligible AS (SELECT (occurred_at AT TIME ZONE 'UTC')::date AS day, COUNT(DISTINCT session_id)::bigint AS sessions FROM custom_event_facts WHERE site_id=$1 AND session_id IS NOT NULL AND (occurred_at AT TIME ZONE 'UTC')::date BETWEEN $4 AND $5 GROUP BY 1), matched AS (SELECT definition_id,(occurred_at AT TIME ZONE 'UTC')::date AS day,COUNT(*)::bigint AS event_count,COUNT(DISTINCT session_id)::bigint AS converted_sessions FROM conversion_facts WHERE site_id=$1 AND definition_version=$2 AND (occurred_at AT TIME ZONE 'UTC')::date BETWEEN $4 AND $5 AND ($3::text IS NULL OR definition_id=$3) GROUP BY 1,2) SELECT m.definition_id,m.day,m.event_count,m.converted_sessions,COALESCE(e.sessions,0)::bigint AS eligible_sessions FROM matched m LEFT JOIN eligible e USING(day) ORDER BY m.definition_id,m.day LIMIT $6")
         .bind(site_id).bind(version).bind(definition_id).bind(range.from).bind(range.to).bind(limit).fetch_all(pool).await
 }
 
@@ -508,8 +504,8 @@ pub(crate) async fn funnel_rows(
     range: DateRange,
     definition_id: Option<&str>,
     limit: i64,
-) -> Result<Vec<crate::models::FunnelReportRow>, sqlx::Error> {
-    sqlx::query_as::<_, crate::models::FunnelReportRow>("WITH counts AS (SELECT definition_id,cohort_day AS day,step_index,COUNT(DISTINCT session_id)::bigint AS sessions FROM funnel_step_facts WHERE site_id=$1 AND definition_version=$2 AND cohort_day BETWEEN $3 AND $4 AND ($5::text IS NULL OR definition_id=$5) GROUP BY definition_id,cohort_day,step_index) SELECT definition_id,day,step_index,sessions,LAG(sessions,1,sessions) OVER(PARTITION BY definition_id,day ORDER BY step_index)::bigint AS previous_step_sessions FROM counts ORDER BY definition_id,day,step_index LIMIT $6")
+) -> Result<Vec<crate::analytics::models::FunnelReportRow>, sqlx::Error> {
+    sqlx::query_as::<_, crate::analytics::models::FunnelReportRow>("WITH counts AS (SELECT definition_id,cohort_day AS day,step_index,COUNT(DISTINCT session_id)::bigint AS sessions FROM funnel_step_facts WHERE site_id=$1 AND definition_version=$2 AND cohort_day BETWEEN $3 AND $4 AND ($5::text IS NULL OR definition_id=$5) GROUP BY definition_id,cohort_day,step_index) SELECT definition_id,day,step_index,sessions,LAG(sessions,1,sessions) OVER(PARTITION BY definition_id,day ORDER BY step_index)::bigint AS previous_step_sessions FROM counts ORDER BY definition_id,day,step_index LIMIT $6")
         .bind(site_id).bind(version).bind(range.from).bind(range.to).bind(definition_id).bind(limit).fetch_all(pool).await
 }
 

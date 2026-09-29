@@ -3,10 +3,12 @@ use axum::{
     extract::{Path, State},
 };
 
-use crate::{errors::ApiError, models::OverviewResponse, queries, state::AppState};
+use crate::analytics::{
+    errors::ApiError, models::OverviewResponse, queries, state::AnalyticsState,
+};
 
 pub(crate) async fn overview(
-    State(state): State<AppState>,
+    State(state): State<AnalyticsState>,
     Path(site_id): Path<String>,
 ) -> Result<Json<OverviewResponse>, ApiError> {
     let page_views = queries::overview(&state.pool, &site_id)

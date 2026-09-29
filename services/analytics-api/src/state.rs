@@ -1,37 +1,27 @@
+use crate::{
+    analytics::state::AnalyticsState,
+    site_management::{auth::AdminTokens, state::SiteManagementState},
+};
 use sqlx::PgPool;
-
-use crate::auth::AdminTokens;
-use configuration_runtime::CapabilityRuntime;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub(crate) pool: PgPool,
-    pub(crate) definition_version: String,
-    pub(crate) admin_tokens: Option<AdminTokens>,
-    pub(crate) capabilities: CapabilityRuntime,
+    pub(crate) analytics: AnalyticsState,
+    pub(crate) site_management: SiteManagementState,
 }
 
 pub fn state_with_definition_version(pool: PgPool, definition_version: String) -> AppState {
     AppState {
-        pool: pool.clone(),
-        definition_version,
-        admin_tokens: None,
-        capabilities: CapabilityRuntime::new(pool.clone(), "analytics_api")
-            .expect("embedded capability schema must compile"),
+        analytics: AnalyticsState::new(pool.clone(), definition_version),
+        site_management: SiteManagementState::new(pool),
     }
 }
 
 pub fn state_with_admin_tokens(mut state: AppState, admin_tokens: Option<AdminTokens>) -> AppState {
-    state.admin_tokens = admin_tokens;
+    state.site_management.admin_tokens = admin_tokens;
     state
 }
 
 pub fn state(pool: PgPool) -> AppState {
-    AppState {
-        pool: pool.clone(),
-        definition_version: "1".to_owned(),
-        admin_tokens: None,
-        capabilities: CapabilityRuntime::new(pool.clone(), "analytics_api")
-            .expect("embedded capability schema must compile"),
-    }
+    state_with_definition_version(pool, "1".to_owned())
 }

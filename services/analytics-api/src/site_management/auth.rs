@@ -9,7 +9,7 @@ use axum::{
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use subtle::ConstantTimeEq;
 
-use crate::{errors::ConfigurationApiError, state::AppState};
+use crate::site_management::{errors::ConfigurationApiError, state::SiteManagementState};
 
 #[derive(Clone)]
 pub struct AdminTokens(Vec<[u8; 32]>);
@@ -80,12 +80,12 @@ impl AdminTokens {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct AdminAuth;
 
-impl FromRequestParts<AppState> for AdminAuth {
+impl FromRequestParts<SiteManagementState> for AdminAuth {
     type Rejection = ConfigurationApiError;
 
     async fn from_request_parts(
         parts: &mut Parts,
-        state: &AppState,
+        state: &SiteManagementState,
     ) -> Result<Self, Self::Rejection> {
         let Some(tokens) = state.admin_tokens.as_ref() else {
             return Err(ConfigurationApiError::Unauthorized);
