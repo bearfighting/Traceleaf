@@ -11,12 +11,12 @@
 
 当前服务将部分 Schema 通过 `include_str!` 嵌入二进制，并在运行时建立 JSON Schema validator。部分路径存在重复编译：Collector environment policy 每轮配置刷新都会建立 validator；configuration runtime 一方面缓存 validator，另一方面在文档转换函数内重新编译；Analytics API 也会在管理请求处理时编译 Schema。
 
-本设计提出一条渐进路径：保留 Schema 作为协议契约、开发期一致性校验和 fixtures 的依据；运行服务编译静态类型和业务校验代码，不在运行时加载或解释 Schema。
+本设计采用分阶段路径：在跨语言 parity 尚未完成前，运行时继续使用 Schema validator；每个契约的 validator 应在进程启动时构造并注入消费者，避免 Handler 或刷新循环重复加载/编译。parity 结果经评审后，再决定是否把生产运行时切换为静态解析和显式校验；Schema 继续作为协议契约及开发期/CI fixtures 验证依据。Collector 事件与存储策略样本的决策见 [ADR-015](decisions/ADR-015-validation-lifecycle-and-staged-static-migration.md)。
 
 ## 设计原则
 
 1. **契约与执行逻辑分离**：Schema 描述数据形状和公开约束；服务代码负责类型解析、业务不变量和错误语义。
-2. **运行时仍需验证输入**：静态类型不覆盖所有 JSON Schema 约束。所有外部 JSON 和数据库配置仍需在运行时验证，只是不通过运行时 Schema 引擎。
+2. **运行时仍需验证输入**：静态类型不覆盖所有 JSON Schema 约束。当前过渡阶段由运行时 Schema validator 与显式语义校验共同验证输入；若 parity 后决定静态化，所有外部 JSON 和数据库配置仍需由静态解析和显式规则在运行时验证。
 3. **协议变化显式进入代码**：Schema 变更必须同步更新受影响语言的静态模型、校验逻辑和测试；Schema 文件自身不能静默改变线上行为。
 4. **分层看待不同契约**：事件协议、配置 API、持久化配置文档、capability manifest 的消费者和兼容要求不同，不使用一种统一机制处理。
 5. **版本兼容明确**：事件类型按协议版本建模；服务决定明确支持哪些版本，以及字段变化何时需要升级版本。
@@ -38,6 +38,8 @@
 | TypeScript protocol types     | `packages/protocol-ts` 已有事件与 context 静态类型                                                                           | 需要持续验证类型、Schema 和 fixtures 的一致性                                                              |
 | CI/开发期校验                 | scripts 使用 Ajv 检查 Schema、manifest 和 fixtures                                                                           | 这是适合保留的 Schema 使用场景                                                                             |
 
+M0b 选定的 Collector 事件与 Stored Environment Policy 样本，当前事件 validator 已在启动期创建并注入 HTTP 应用状态；policy validator 仍在每轮数据库 refresh 中创建。过渡目标是按契约分别构造并注入具体验证组件，先消除重复构造，再以 parity 结果决定是否静态化。其他服务与 contract 的 validator 生命周期由各自实施阶段确定。
+
 ## 目标模型
 
 ### JSON Schema 的职责
@@ -49,7 +51,7 @@ Schema 保留在 Protocol 中，用于：
 - 在 CI 中检查协议文件结构、`$ref`、示例和 OpenAPI 一致性。
 - 作为语言类型生成的输入（若选用代码生成）。
 
-Schema 不应在 production service 中 `include_str!`、读取文件或建立 JSON Schema validator。
+静态化被选定并完成迁移的 contract 不应在 production service 中 `include_str!`、读取或建立 JSON Schema validator。在迁移决策完成前，运行时 Schema validator 仍可作为过渡校验路径，但必须由启动层构造并注入，不得在请求/刷新热路径编译。Schema validator 是否退出生产依赖，由对应 contract 的 parity 证据和阶段决策确定。
 
 ### 静态类型和运行时校验
 
@@ -84,7 +86,11 @@ untrusted JSON / database JSONB
 
 不论采用哪种方式，都不生成或执行 production runtime JSON Schema validator。不能因为生成器将某字段映射为通用 JSON value，就误以为该字段无需显式运行时约束。
 
-Rust wire types 可在评估后从 Collector 内部模块迁移到共享 crate；是否新建 crate 应由 Analytics API、Processor 是否实际复用这些类型决定，不为抽象本身提前拆包。TypeScript 继续使用 `packages/protocol-ts` 作为共享事件类型入口。
+### M0b 候选工具：Schema Transformation Toolkit
+
+M0b 对 SDK 0.7.0 的评估结果、项目所需的 JSON Schema → TypeScript/Rust 能力、验收条件与后续实现优先级已转移到独立 Toolkit 仓库维护：详见 `../../schema-transformation/schema-transformation-toolkit/docs/development/design.md` 的 downstream acceptance profile、`../../schema-transformation/schema-transformation-toolkit/docs/development/progress.md` 的 WAP integration priority，以及 `../../schema-transformation/schema-transformation-toolkit/examples/web-analytics-platform-m0b/` 的完整样例包。
+
+本仓库保留 M0b 的总体生成策略、Schema/Collector parity 与生产运行时决策。当前受测 Toolkit release 不接入生产；待 Toolkit 达到其下游能力门槛并通过原始 schemas 与共享 fixtures 后，再重新评估为主要转换工具。
 
 ## 契约分类和处理策略
 
@@ -119,41 +125,48 @@ Rust wire types 可在评估后从 Collector 内部模块迁移到共享 crate�
 - 建立 schema → runtime consumer → type/model → fixtures 的映射表。
 - 整理现有 valid/invalid fixtures，记录服务当前接受/拒绝行为及错误码。
 - M0a：建立 Schema → runtime consumer → type/model → fixtures 映射，记录当前协议版本、Schema 消费者、接受/拒绝行为和错误码。
-- M0b：完成事件与配置各一个静态类型生成样本，决定哪些 contract 生成并提交类型、哪些手工维护；明确未知字段策略、版本兼容规则，以及 CI 的生成无差异检查或 fixtures parity 门禁。
+- M0b：完成事件与配置各一个静态类型生成样本；将 Schema Transformation Toolkit 作为候选之一，固定版本并实测其真实 JSON Schema 到 TypeScript/Rust 的支持边界、生成质量、Serde/wire 适配和 fixtures parity。决定该工具按 contract 类别采用、仅用于评估或不采用；同时决定哪些 contract 生成并提交类型、哪些手工维护，明确未知字段策略、版本兼容规则，以及 CI 的生成无差异检查或 fixtures parity 门禁。
 - 不改变 production 行为。
 
-### Phase 1：消除重复 validator 编译
+### Phase 1：启动期构造并注入 Schema validator（过渡阶段）
 
-作为低风险过渡，先保持现有 JSON Schema 规则不变：
+在 parity 评估完成前保留当前 Schema 判定行为，先统一 validator 生命周期：
 
-- Collector `RuntimePolicyManager` 将 policy validator 在初始化时构建并复用，不在每 5 秒刷新时重编译。
+- Collector 事件 validator 保持在服务启动时构建，并注入 HTTP 应用状态。
+- Collector `RuntimePolicyManager` 的 policy validator 改为启动时构建并注入/持有，不在每次配置刷新时重编译。
 - configuration runtime 统一使用已缓存的 validator，移除 `from_document` 内部的重复编译。
 - Analytics API 将 update schema validator 在应用初始化时构建并共享，而非每个请求重建。
 
-这一步只处理编译生命周期，不把它误认为最终的静态模型架构。
+Collector 事件与 policy 使用分开的具体验证组件；当前没有多实现需求，不预先增加 trait/interface。该生命周期调整只保留现有规则，不代表最终选择运行时 Schema 引擎。
 
-### Phase 2：数据库配置静态化
+### Phase 2：parity 决策门
+
+- 对每个 contract 比较 JSON Schema 与拟议静态解析/显式校验的 valid/invalid 接受结果，解释并处置全部差异。
+- 只有 parity 结果可审查且错误/未知字段兼容要求清晰后，才决定该 contract 是否切换静态运行时验证。
+- 未通过 parity 的 contract 继续使用已在启动时构造并注入的 Schema validator，不以类型生成成功替代运行时校验。
+
+### Phase 3：数据库配置静态化
 
 - 在 Site Management 的存储 contract 和旧站点迁移规则冻结后，从 `StoredPolicy`、`StoredKey`、`StoredCapability` 等已有结构开始；新增 Site Registry 类型按实际 migration/API 同步加入。
 - 增加显式字段级和跨字段校验，覆盖当前 Schema 与数据库约束的关键规则。
 - 在同一测试中对有效/无效 fixture 同时运行 Schema validator 和静态解析器。
 - 先双跑比对结果，再切换运行路径；稳定后移除对应 runtime Schema validator。
 
-### Phase 3：管理 API request 静态化
+### Phase 4：管理 API request 静态化
 
 - 将 capability update、environment policy update、definition update 和相关响应改为具体请求模型；Site create/list/detail 类型随已冻结的新增 API contract 加入。
 - 把 `serde_json::Value` 限制在真实动态字段内，不用于包裹整个已知 contract。
 - 保留 optimistic concurrency、ETag、审计和稳定 API error semantics。
 - 对新增、未知字段、无效依赖和越界值建立正负 contract tests。
 
-### Phase 4：Capability registry 静态化（总规划 M2）
+### Phase 5：Capability registry 静态化（总规划 M2）
 
 - 决定 manifest 哪些字段是产品文档元数据，哪些字段影响运行行为。
 - 将 ID、依赖、支持状态等静态信息生成到 Rust/TypeScript registry，或收敛到一个明确的静态来源。
 - CI 对比生成 registry 与 manifest，防止 ID、count、dependencies 漂移。
 - 删除不必要的运行时 manifest JSON Schema 校验。此阶段在 Site onboarding 使用 capability 默认值和依赖之前完成。
 
-### Phase 5：事件 Collector 静态化（总规划 M9，独立技术线）
+### Phase 6：事件 Collector 静态化（总规划 M9，独立技术线）
 
 - 从现有 Collector Rust types 和 `packages/protocol-ts` 开始整理版本化 event types。
 - 用静态类型解析 batch/event；补足当前结构体尚未覆盖的 unknown-field、format、range 和跨字段规则。
@@ -162,7 +175,7 @@ Rust wire types 可在评估后从 Collector 内部模块迁移到共享 crate�
 - 切换稳定后从运行依赖中移除 `jsonschema`；仍被测试/contract validator 使用时保留为 dev dependency。
 - 此技术线在 M0a 事件 contract/fixtures 现状基线完成、且 M0b 类型策略确定后可独立推进，不以配置静态化结束为前置条件。
 
-### Phase 6：收敛和移除旧路径
+### Phase 7：收敛和移除旧路径
 
 - 删除 production runtime 的 JSON Schema load/compile 代码及不再需要的依赖。
 - `protocol:validate` 保留 JSON Schema、fixtures、OpenAPI 和生成结果检查。

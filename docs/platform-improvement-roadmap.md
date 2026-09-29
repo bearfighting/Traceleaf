@@ -99,9 +99,11 @@ flowchart LR
 
 ### M0b：静态类型生成器与 contract parity 试验
 
-**前置**：可与 M1 并行；事件和配置 contract 样本需引用 M0a 基线。**交付**：分别对一个事件 contract 和一个配置 contract 做小范围生成试验，检查 union、`$ref`、未知字段和动态 JSON 字段表现；按 contract 类别决定生成或手工类型、版本固定的工具/命令、fixtures parity 与 CI 防漂移规则。
+**状态：评估与决策完成（2026-09-29）**。结论与证据见 [M0b checklist](m0b-protocol-static-runtime-checklist.md)、[收尾摘要](m0b-final-summary.md) 和 [ADR-016](decisions/ADR-016-contract-type-sources-and-generation.md)。
 
-**完成条件**：形成可执行的类型来源决策，供 M2 配置静态化与 M9 Collector 事件静态化使用；不改变 production 行为。
+**交付与结论**：已使用 Event Batch V1 和 Stored Environment Policy V1 评估 Schema → TS/Rust 类型生成、候选类型质量、Schema 外约束、运行时责任及 56 个 canonical fixtures 的跨语言 parity。当前生产接入策略为事件/配置 TS 使用 json-schema-to-typescript、policy Rust 使用 typify 加显式约束、事件 Rust 手工维护并做 parity。受测 Toolkit commit / SDK 0.7.0 不接入生产，但保留为长期优先改进候选；达到专项报告定义的四路径能力、wire 行为、完整诊断、parity 与可重复生成门槛后重新评估为主要工具。工具版本、逐阶段证据及差异见 checklist 链接的报告。
+
+**后续实施**：生成物接入、固定工具版本、生成 `--check`、类型编译及 parity CI 门禁在 M2/M9 实施。M2 负责 policy 类型与显式校验、启动时构造并复用 policy validator，以及对 Collector date-time 差异作兼容决策。M9 负责事件静态类型迁移、Page View 扩展字段保留、可选字段 wire 序列化和 parity 验收。M0b 不替换生产类型、运行时校验或构建流程。
 
 ### M1：在现有进程内建立代码模块边界
 
@@ -111,7 +113,7 @@ flowchart LR
 
 ### M2：收敛配置静态模型与 capability registry
 
-**前置**：M0a、M0b、M1。**交付**：版本化存储配置类型、现有管理 API 请求类型、字段和跨字段校验、最小运行时快照及 capability registry。先消除重复 validator 编译，再用正负 fixtures 对照 Schema 与静态实现，逐个切换现有配置读取与管理请求路径。
+**前置**：M0a、M0b、M1。**交付**：版本化存储配置类型、现有管理 API 请求类型、字段和跨字段校验、最小运行时快照及 capability registry。纳入 M0b 配置样本决策：固定并接入 json-schema-to-typescript/typify，提交产物并提供生成 `--check`；对 policy 增加显式约束和共享 fixture parity。Collector policy validator 在启动时构造并复用，保持 last-good/stale 语义。明确是否将当前接受的 Schema 无效 date-time 改为拒绝；作出兼容决策前不改变现有行为。先消除重复 validator 编译，再用正负 fixtures 对照 Schema 与静态实现，逐个切换现有配置读取与管理请求路径。
 
 **完成条件**：JSONB/HTTP 输入继续完整校验；Collector、Processor、Analytics 只消费所需的静态运行视图；capability ID/依赖不在无校验列表中漂移。新 Site 创建请求类型在 M5 随冻结的创建 API contract 补充。
 
@@ -159,7 +161,7 @@ flowchart LR
 
 ### M9：事件协议静态化与最终边界验收
 
-**可在 M0b 的事件 contract/fixtures 与静态类型策略确定后独立推进**：将 Collector event batch/event 解析迁移到版本化静态类型和显式校验，保留 Schema/fixtures 的 CI 验证，再移除 production JSON Schema runtime。这一切片不阻塞 M3–M8。
+**可在 M0b 的事件 contract/fixtures 与静态类型策略确定后独立推进**：将 Collector event batch/event 解析迁移到版本化静态类型和显式校验；Rust 类型按 ADR-016 手工维护并通过共享 fixture parity。保留 Schema/fixtures 的 CI 验证，再评估移除 production JSON Schema runtime。这一切片须验证 Page View 对 Schema 允许扩展字段的保留、可选字段缺省时不序列化为 Schema 禁止的 `null`，并通过 wire round-trip parity。事件 TypeScript 生成、固定版本、产物 `--check` 和 parity CI 门禁与 M2 共用生成基础设施，不重复建设。此切片不阻塞 M3–M8。
 
 **最终验收**：联合检查 Rust 模块依赖、repository SQL 写入、Schema/类型 parity、历史数据兼容和 Site 创建至报表查询链路。是否拆 crate、进程或数据库由后续实际需求另行决定。
 

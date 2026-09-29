@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "site_id": "site_playground",
+  "environment": "preview",
+  "version": 1,
+  "updated_at": "not-a-date",
+  "enabled": true,
+  "allowed_origins": [
+    "https://preview.example.com"
+  ],
+  "ingest_keys": [],
+  "rate_limit_per_minute": 600
+}

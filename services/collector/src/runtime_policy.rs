@@ -462,6 +462,56 @@ mod tests {
     }
 
     #[test]
+    fn canonical_policy_fixtures_match_runtime_parser() {
+        let schema: Value = serde_json::from_str(POLICY_SCHEMA).unwrap();
+        let validator = jsonschema::options()
+            .with_draft(Draft::Draft202012)
+            .build(&schema)
+            .unwrap();
+        let fixture_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../protocol/contracts/configuration/current/fixtures/environment-policy");
+
+        for (directory, expected_valid) in [("valid", true), ("invalid", false)] {
+            for entry in std::fs::read_dir(fixture_root.join(directory)).unwrap() {
+                let path = entry.unwrap().path();
+                if path.extension().and_then(|extension| extension.to_str()) != Some("json") {
+                    continue;
+                }
+                let document: Value =
+                    serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+                let site_id = document["site_id"].as_str().unwrap_or("site_playground");
+                let environment = document["environment"].as_str().unwrap_or("production");
+                let version = document["version"].as_i64().unwrap_or(1);
+                let accepted =
+                    parse_database_policy(&validator, site_id, environment, version, &document)
+                        .is_ok();
+                let filename = path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("");
+                let expected_current_service_result = match filename {
+                    // Current Collector policy validation does not assert Schema date-time formats,
+                    // and the stored model keeps these values as strings. This is an intentional
+                    // parity finding, not a production behavior change in the M0b experiment.
+                    "invalid-updated-at-date-time.json"
+                    | "invalid-key-created-at-date-time.json" => true,
+                    _ => expected_valid,
+                };
+                assert_eq!(
+                    accepted,
+                    expected_current_service_result,
+                    "fixture: {}",
+                    path.display()
+                );
+                println!(
+                    "M0B_POLICY_COLLECTOR_RESULT\t{}\t{}\t{}",
+                    directory, filename, accepted
+                );
+            }
+        }
+    }
+
+    #[test]
     fn rejects_database_identity_and_version_mismatches() {
         let schema: Value = serde_json::from_str(POLICY_SCHEMA).unwrap();
         let validator = jsonschema::options()
@@ -475,6 +525,20 @@ mod tests {
         document["site_id"] = Value::String("other_site".to_owned());
         assert!(
             parse_database_policy(&validator, "site_playground", "preview", 1, &document).is_err()
+        );
+
+        let mut document: Value = serde_json::from_str(include_str!(
+            "../../../protocol/contracts/configuration/current/fixtures/environment-policy/valid/empty-ingest-keys.json"
+        ))
+        .unwrap();
+        document["version"] = Value::from(2);
+        assert!(
+            parse_database_policy(&validator, "site_playground", "preview", 1, &document).is_err(),
+            "stored document version must match its database row"
+        );
+        assert!(
+            parse_database_policy(&validator, "site_playground", "preview", 2, &document).is_ok(),
+            "matching database row and document version is accepted"
         );
     }
 }
