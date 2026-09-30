@@ -82,7 +82,7 @@ M0a 完成了进入 M1、M2、M3 前所需的现状盘点与领域语义冻结�
 
 1. M3 回填候选 Site ID 的来源至少覆盖 `site_capability_configurations`、`site_environment_policies`、`site_definition_revisions`、历史 raw events 与 derived facts、`DASHBOARD_SITES`/`DASHBOARD_DEFAULT_SITE`、Collector TOML Site/environment 项。开发环境另核对旧 `dev-seed` 的输入配置；这些环境变量/TOML/seed 值只作为一次性迁移清点输入，不保留运行时权威。来源重叠时合并成一个 Site，保留每一来源的核对数量和差异报告。
 2. 迁移保留现有 Site ID、原始事件、事实/聚合、definition revision 与审计记录。未知 URL/名称明确标记待补充；Origin 只可作为 UI 建议。
-3. 有效 DB policy 的旧 Site 在切换期间持续采集；无 policy 的 Site 可查询历史数据但不能接收新事件。数据库暂时不可用时已运行 Collector 可按当前 last-known-good stale 规则运行；策略明确不存在/停用/归档时 fail closed。
+3. 有效 DB policy 的旧 Site 在切换期间持续采集。M4 移除 TOML fallback 后，无 DB policy 的 Site 可查询历史数据但不能接收新事件；在 M4 切换前，缺失 DB 行仍可能由现有 TOML fallback 提供策略，必须在移除 fallback 前核对。数据库暂时不可用时已运行 Collector 可按当前 last-known-good stale 规则运行；切换后的策略明确不存在/停用/归档时 fail closed。
 4. TOML fallback 在 M4 切换前可作为显式兼容来源；迁移必须核对 TOML site/environment、allowed origins 与 ingest key 后再移除，且删除 DB 行不能使 TOML key 再次生效。
 5. `ANALYTICS_DEFINITIONS_FILE` 显式导入及一次性 seed 均须标注迁移/开发来源，不等同常规 Site Management 写入。普通 Processor 处理循环不得从文件覆写当前 definitions。
 6. configuration runtime state 表在迁移中按运行状态处理；它们不能创建 Site，也不能作为 Site Registry 的权威来源。

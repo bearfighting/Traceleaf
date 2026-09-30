@@ -121,6 +121,8 @@ flowchart LR
 
 **前置**：M0a、M2 的存储 contract。**交付**：Site Registry migration、外键/引用策略、回填与核对工具。来源覆盖已有 capability/policy/definition 记录和历史分析数据中的 Site ID；无可靠 URL 的旧记录标记待确认，不从 Origin 静默推断权威 URL。导入记录的 `setup_status` 从缺失的元数据或配置推导，生命周期状态单独保存。
 
+详细执行步骤、来源清单、恢复策略和验收项见 [M3 Site Registry checklist](m3-site-registry-checklist.md)。
+
 **完成条件**：旧站点在 Registry 中可见；有有效 policy 的旧站点可继续采集，缺失 policy 的站点保留历史查询且显示待补齐；原始事件、派生事实、definitions 和 key audit 保留；重复迁移或 importer 不产生重复站点。
 
 ### M4：切换平台运行配置权威
