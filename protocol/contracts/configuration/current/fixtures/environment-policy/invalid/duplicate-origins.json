@@ -5,10 +5,7 @@
   "version": 1,
   "updated_at": "2026-09-25T00:00:00Z",
   "enabled": true,
-  "allowed_origins": [
-    "https://preview.example.com",
-    "https://preview.example.com"
-  ],
+  "allowed_origins": ["https://preview.example.com", "https://preview.example.com"],
   "ingest_keys": [],
   "rate_limit_per_minute": 600
 }

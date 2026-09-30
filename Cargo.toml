@@ -14,6 +14,7 @@ edition = "2024"
 
 [workspace.dependencies]
 configuration-runtime = { path = "crates/configuration-runtime" }
+regress = "0.12.0"
 anyhow = "1"
 async-trait = "0.1"
 axum = "0.8"

@@ -1,3 +1,7 @@
+#[allow(dead_code)]
+#[path = "generated/environment_policy.rs"]
+mod generated_environment_policy;
+
 use std::{
     collections::{HashMap, HashSet},
     sync::{Arc, Mutex},
@@ -7,7 +11,6 @@ use std::{
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use getrandom::fill as random_fill;
 use jsonschema::{Draft, Validator};
-use serde::Deserialize;
 use serde_json::Value;
 use sqlx::PgPool;
 
@@ -26,27 +29,16 @@ const POLICY_SCHEMA: &str = include_str!(
 
 type Identity = (String, String);
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct StoredPolicy {
-    schema_version: u32,
-    site_id: String,
-    environment: String,
-    version: i64,
-    updated_at: String,
-    enabled: bool,
-    allowed_origins: Vec<String>,
-    ingest_keys: Vec<StoredKey>,
-    rate_limit_per_minute: i64,
+pub fn stored_policy_validator() -> Result<Validator, String> {
+    let schema: Value = serde_json::from_str(POLICY_SCHEMA).map_err(|error| error.to_string())?;
+    jsonschema::options()
+        .with_draft(Draft::Draft202012)
+        .should_validate_formats(true)
+        .build(&schema)
+        .map_err(|error| error.to_string())
 }
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct StoredKey {
-    key_id: String,
-    sha256_digest: String,
-    created_at: String,
-}
+use configuration_runtime::EnvironmentPolicyView as StoredPolicy;
 
 #[derive(Debug, Clone)]
 struct DatabasePolicy {
@@ -65,6 +57,7 @@ pub struct RuntimePolicyManager {
     pool: PgPool,
     fallback_sites: Vec<SiteConfig>,
     policy: KeyPolicy,
+    validator: Validator,
     instance_id: String,
     last_database: Mutex<HashMap<Identity, DatabasePolicy>>,
     last_prune: Mutex<Instant>,
@@ -75,6 +68,7 @@ impl RuntimePolicyManager {
         pool: PgPool,
         fallback_registry: SiteRegistry,
         policy: KeyPolicy,
+        validator: Validator,
     ) -> Result<Arc<Self>, getrandom::Error> {
         let mut instance_bytes = [0_u8; 16];
         random_fill(&mut instance_bytes)?;
@@ -82,6 +76,7 @@ impl RuntimePolicyManager {
             pool,
             fallback_sites: fallback_registry.all_sites(),
             policy,
+            validator,
             instance_id: URL_SAFE_NO_PAD.encode(instance_bytes),
             last_database: Mutex::new(HashMap::new()),
             last_prune: Mutex::new(Instant::now() - STATUS_PRUNE_INTERVAL),
@@ -114,32 +109,14 @@ impl RuntimePolicyManager {
             }
         };
 
-        let schema: Value = match serde_json::from_str(POLICY_SCHEMA) {
-            Ok(schema) => schema,
-            Err(_) => {
-                self.report_last_database_as_stale().await;
-                self.write_instance_status("stale").await;
-                return false;
-            }
-        };
-        let validator = match jsonschema::options()
-            .with_draft(Draft::Draft202012)
-            .build(&schema)
-        {
-            Ok(validator) => validator,
-            Err(_) => {
-                self.report_last_database_as_stale().await;
-                self.write_instance_status("stale").await;
-                return false;
-            }
-        };
         let mut parsed = Vec::with_capacity(rows.len());
         let mut invalid = HashSet::new();
         let mut present = HashSet::new();
         for (site_id, environment, version, document) in rows {
             let identity = (site_id.clone(), environment.clone());
             present.insert(identity.clone());
-            match parse_database_policy(&validator, &site_id, &environment, version, &document) {
+            match parse_database_policy(&self.validator, &site_id, &environment, version, &document)
+            {
                 Ok(policy) => parsed.push(policy),
                 Err(()) => {
                     tracing::warn!(
@@ -367,16 +344,8 @@ fn parse_database_policy(
     if validator.iter_errors(value).next().is_some() {
         return Err(());
     }
-    let stored: StoredPolicy = serde_json::from_value(value.clone()).map_err(|_| ())?;
-    if stored.schema_version != 1
-        || stored.site_id != site_id
-        || stored.environment != environment
-        || stored.version != version
-        || version < 1
-        || stored.rate_limit_per_minute < 1
-    {
-        return Err(());
-    }
+    let stored =
+        StoredPolicy::parse_validated(value, site_id, environment, version).map_err(|_| ())?;
     let _updated_at_is_validated_by_schema = stored.updated_at;
     let mut digests = Vec::with_capacity(stored.ingest_keys.len());
     for key in stored.ingest_keys {
@@ -416,10 +385,9 @@ fn decode_digest(value: &str) -> Option<[u8; 32]> {
 #[cfg(test)]
 mod tests {
     use super::{
-        CONFIG_REFRESH_INTERVAL, POLICY_SCHEMA, STATUS_HEARTBEAT_TTL, decode_digest,
-        parse_database_policy,
+        CONFIG_REFRESH_INTERVAL, STATUS_HEARTBEAT_TTL, decode_digest, parse_database_policy,
+        stored_policy_validator,
     };
-    use jsonschema::Draft;
     use serde_json::Value;
 
     #[test]
@@ -437,11 +405,7 @@ mod tests {
 
     #[test]
     fn parses_schema_valid_empty_key_policy_as_fail_closed_runtime_site() {
-        let schema: Value = serde_json::from_str(POLICY_SCHEMA).unwrap();
-        let validator = jsonschema::options()
-            .with_draft(Draft::Draft202012)
-            .build(&schema)
-            .unwrap();
+        let validator = stored_policy_validator().unwrap();
         let document: Value = serde_json::from_str(include_str!(
             "../../../protocol/contracts/configuration/current/fixtures/environment-policy/valid/empty-ingest-keys.json"
         ))
@@ -462,12 +426,22 @@ mod tests {
     }
 
     #[test]
+    fn rejects_schema_invalid_document_with_startup_validator() {
+        let validator = stored_policy_validator().unwrap();
+        let document: Value = serde_json::from_str(include_str!(
+            "../../../protocol/contracts/configuration/current/fixtures/environment-policy/valid/production.json"
+        ))
+        .unwrap();
+        let mut invalid = document;
+        invalid["unexpected"] = serde_json::json!(true);
+        assert!(
+            parse_database_policy(&validator, "site_playground", "preview", 1, &invalid).is_err()
+        );
+    }
+
+    #[test]
     fn canonical_policy_fixtures_match_runtime_parser() {
-        let schema: Value = serde_json::from_str(POLICY_SCHEMA).unwrap();
-        let validator = jsonschema::options()
-            .with_draft(Draft::Draft202012)
-            .build(&schema)
-            .unwrap();
+        let validator = stored_policy_validator().unwrap();
         let fixture_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../protocol/contracts/configuration/current/fixtures/environment-policy");
 
@@ -489,14 +463,7 @@ mod tests {
                     .file_name()
                     .and_then(|name| name.to_str())
                     .unwrap_or("");
-                let expected_current_service_result = match filename {
-                    // Current Collector policy validation does not assert Schema date-time formats,
-                    // and the stored model keeps these values as strings. This is an intentional
-                    // parity finding, not a production behavior change in the M0b experiment.
-                    "invalid-updated-at-date-time.json"
-                    | "invalid-key-created-at-date-time.json" => true,
-                    _ => expected_valid,
-                };
+                let expected_current_service_result = expected_valid;
                 assert_eq!(
                     accepted,
                     expected_current_service_result,
@@ -512,12 +479,82 @@ mod tests {
     }
 
     #[test]
+    fn typify_policy_structure_and_explicit_rules_cover_canonical_and_semantic_cases() {
+        use super::generated_environment_policy::SiteEnvironmentIngestPolicy;
+        use std::collections::HashSet;
+
+        let fixtures = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../protocol/contracts/configuration/current/fixtures/environment-policy");
+        for name in ["empty-ingest-keys.json", "production.json"] {
+            let value: Value =
+                serde_json::from_slice(&std::fs::read(fixtures.join("valid").join(name)).unwrap())
+                    .unwrap();
+            let typed: SiteEnvironmentIngestPolicy = serde_json::from_value(value).unwrap();
+            assert_eq!(typed.schema_version, serde_json::json!(1));
+            assert!(!typed.allowed_origins.is_empty());
+            assert_eq!(
+                typed.allowed_origins.iter().collect::<HashSet<_>>().len(),
+                typed.allowed_origins.len()
+            );
+        }
+
+        let mut base: Value =
+            serde_json::from_slice(&std::fs::read(fixtures.join("valid/production.json")).unwrap())
+                .unwrap();
+        for (name, mutation) in [
+            (
+                "unsupported schema_version",
+                serde_json::json!({"schema_version": 2}),
+            ),
+            ("empty origins", serde_json::json!({"allowed_origins": []})),
+            (
+                "duplicate origins",
+                serde_json::json!({"allowed_origins": ["https://example.com", "https://example.com"]}),
+            ),
+        ] {
+            let mut candidate = base.clone();
+            for (key, value) in mutation.as_object().unwrap() {
+                candidate[key] = value.clone();
+            }
+            let typed: SiteEnvironmentIngestPolicy = serde_json::from_value(candidate).unwrap();
+            let unique = typed.allowed_origins.iter().collect::<HashSet<_>>().len()
+                == typed.allowed_origins.len();
+            let explicit_valid = typed.schema_version == serde_json::json!(1)
+                && !typed.allowed_origins.is_empty()
+                && unique;
+            assert!(!explicit_valid, "explicit policy rule must reject {name}");
+        }
+        base["unexpected"] = serde_json::json!(true);
+        assert!(
+            serde_json::from_value::<SiteEnvironmentIngestPolicy>(base).is_err(),
+            "Typify structure rejects unknown root fields"
+        );
+    }
+
+    #[test]
+    fn schema_unbounded_policy_integers_exceed_collector_i64_range() {
+        let validator = stored_policy_validator().unwrap();
+        let base: Value = serde_json::from_str(include_str!(
+            "../../../protocol/contracts/configuration/current/fixtures/environment-policy/valid/empty-ingest-keys.json"
+        )).unwrap();
+        for field in ["version", "rate_limit_per_minute"] {
+            let mut document = base.clone();
+            document[field] = serde_json::json!(1e30);
+            assert!(
+                validator.iter_errors(&document).next().is_none(),
+                "Schema should accept the unbounded integer probe for {field}"
+            );
+            assert!(
+                parse_database_policy(&validator, "site_playground", "preview", 1, &document)
+                    .is_err(),
+                "Collector i64 parsing rejects out-of-range {field}"
+            );
+        }
+    }
+
+    #[test]
     fn rejects_database_identity_and_version_mismatches() {
-        let schema: Value = serde_json::from_str(POLICY_SCHEMA).unwrap();
-        let validator = jsonschema::options()
-            .with_draft(Draft::Draft202012)
-            .build(&schema)
-            .unwrap();
+        let validator = stored_policy_validator().unwrap();
         let mut document: Value = serde_json::from_str(include_str!(
             "../../../protocol/contracts/configuration/current/fixtures/environment-policy/valid/empty-ingest-keys.json"
         ))

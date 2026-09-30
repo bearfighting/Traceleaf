@@ -6,6 +6,7 @@ use axum::{
     middleware::Next,
     response::{IntoResponse, Response},
 };
+use configuration_runtime::CapabilityId;
 use serde_json::json;
 
 use crate::analytics::state::AnalyticsState;
@@ -40,9 +41,9 @@ pub(crate) async fn gate(
     // PR1 keeps existing historical reports queryable after a capability is disabled.
     // Conversion and Funnel history is explicitly non-queryable after disable.
     let disabled_nonhistorical_capability = if path.ends_with("/conversions") {
-        Some("conversions")
+        Some(CapabilityId::Conversions)
     } else if path.ends_with("/funnels") {
-        Some("funnels")
+        Some(CapabilityId::Funnels)
     } else {
         None
     };

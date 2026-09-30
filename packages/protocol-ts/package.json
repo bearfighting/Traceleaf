@@ -15,10 +15,13 @@
     "build": "tsc -b tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
+    "generate:configuration": "node ../../scripts/generate-m2-configuration-types.mjs",
+    "check:configuration": "node ../../scripts/generate-m2-configuration-types.mjs --check",
     "format": "prettier --write src package.json tsconfig.json vitest.config.ts",
     "format:check": "prettier --check src package.json tsconfig.json vitest.config.ts"
   },
   "devDependencies": {
+    "json-schema-to-typescript": "16.0.0",
     "prettier": "^3.9.9",
     "typescript": "^6.0.3",
     "vitest": "^5.0.1"

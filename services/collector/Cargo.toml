@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 configuration-runtime.workspace = true
+regress.workspace = true
 anyhow.workspace = true
 async-trait.workspace = true
 axum.workspace = true

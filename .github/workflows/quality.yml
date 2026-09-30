@@ -58,6 +58,9 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Install pinned Rust schema generator
+        run: cargo install cargo-typify --version 0.8.0 --locked
+
       - name: Test
         env:
           WORKSPACE_BUILD_READY: "true"

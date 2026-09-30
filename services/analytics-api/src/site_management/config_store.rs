@@ -58,6 +58,41 @@ fn set_version_and_time(document: &mut Value, version: i64, updated_at: DateTime
     document["updated_at"] = json!(updated_at.to_rfc3339_opts(SecondsFormat::Micros, true));
 }
 
+fn replace_capabilities(
+    document: &mut Value,
+    capabilities: Value,
+    version: i64,
+    updated_at: DateTime<Utc>,
+) {
+    document["capabilities"] = capabilities;
+    set_version_and_time(document, version, updated_at);
+}
+
+fn append_ingest_key(
+    document: &mut Value,
+    key_id: &str,
+    digest: &str,
+    created_at: DateTime<Utc>,
+) -> bool {
+    let mut keys = document["ingest_keys"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    if keys
+        .iter()
+        .any(|key| key["key_id"].as_str() == Some(key_id))
+    {
+        return false;
+    }
+    keys.push(json!({
+        "key_id": key_id,
+        "sha256_digest": digest,
+        "created_at": created_at.to_rfc3339_opts(SecondsFormat::Micros, true),
+    }));
+    document["ingest_keys"] = json!(keys);
+    true
+}
+
 async fn next_version_and_time(
     transaction: &mut Transaction<'_, Postgres>,
     current: i64,
@@ -121,8 +156,7 @@ pub(crate) async fn update_capabilities(
         return Err(StoreError::Conflict);
     }
     let (next_version, updated_at) = next_version_and_time(&mut transaction, version).await?;
-    document["capabilities"] = capabilities;
-    set_version_and_time(&mut document, next_version, updated_at);
+    replace_capabilities(&mut document, capabilities, next_version, updated_at);
     sqlx::query(
         "UPDATE site_capability_configurations SET version = $2, updated_at = $3, document = $4 WHERE site_id = $1",
     )
@@ -170,6 +204,27 @@ pub(crate) async fn update_capabilities(
     })
 }
 
+fn ingest_policy_document(
+    site_id: &str,
+    environment: &str,
+    enabled: bool,
+    allowed_origins: Value,
+    rate_limit_per_minute: i64,
+    now: DateTime<Utc>,
+) -> Value {
+    json!({
+        "schema_version": 1,
+        "site_id": site_id,
+        "environment": environment,
+        "version": 1,
+        "updated_at": now.to_rfc3339_opts(SecondsFormat::Micros, true),
+        "enabled": enabled,
+        "allowed_origins": allowed_origins,
+        "ingest_keys": [],
+        "rate_limit_per_minute": rate_limit_per_minute,
+    })
+}
+
 pub(crate) async fn create_ingest_policy(
     pool: &PgPool,
     site_id: &str,
@@ -193,17 +248,14 @@ pub(crate) async fn create_ingest_policy(
         .fetch_one(&mut *transaction)
         .await
         .map_err(map_database_error)?;
-    let document = json!({
-        "schema_version": 1,
-        "site_id": site_id,
-        "environment": environment,
-        "version": 1,
-        "updated_at": now.to_rfc3339_opts(SecondsFormat::Micros, true),
-        "enabled": enabled,
-        "allowed_origins": allowed_origins,
-        "ingest_keys": [],
-        "rate_limit_per_minute": rate_limit_per_minute,
-    });
+    let document = ingest_policy_document(
+        site_id,
+        environment,
+        enabled,
+        allowed_origins,
+        rate_limit_per_minute,
+        now,
+    );
     sqlx::query(
         "INSERT INTO site_environment_policies (site_id, environment, version, updated_at, document)
          VALUES ($1, $2, 1, $3, $4)",
@@ -324,23 +376,10 @@ pub(crate) async fn create_ingest_key(
     if version != expected_version {
         return Err(StoreError::Conflict);
     }
-    let mut keys = document["ingest_keys"]
-        .as_array()
-        .cloned()
-        .unwrap_or_default();
-    if keys
-        .iter()
-        .any(|key| key["key_id"].as_str() == Some(key_id))
-    {
+    if !append_ingest_key(&mut document, key_id, digest, created_at) {
         return Err(StoreError::Conflict);
     }
-    keys.push(json!({
-        "key_id": key_id,
-        "sha256_digest": digest,
-        "created_at": created_at.to_rfc3339_opts(SecondsFormat::Micros, true),
-    }));
     let (next_version, updated_at) = next_version_and_time(&mut transaction, version).await?;
-    document["ingest_keys"] = json!(keys);
     set_version_and_time(&mut document, next_version, updated_at);
     sqlx::query(
         "UPDATE site_environment_policies SET version = $3, updated_at = $4, document = $5 WHERE site_id = $1 AND environment = $2",
@@ -817,4 +856,102 @@ async fn write_definition_audit(
     .await
     .map_err(map_database_error)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod serialization_schema_tests {
+    use chrono::{TimeZone, Utc};
+    use serde_json::Value;
+
+    fn schema(name: &str) -> jsonschema::Validator {
+        let text = match name {
+            "environment-policy.schema.json" => include_str!(
+                "../../../../protocol/contracts/configuration/current/environment-policy.schema.json"
+            ),
+            "capabilities.schema.json" => include_str!(
+                "../../../../protocol/contracts/configuration/current/capabilities.schema.json"
+            ),
+            "conversion-funnel-definition-set-update.schema.json" => include_str!(
+                "../../../../protocol/contracts/configuration/current/conversion-funnel-definition-set-update.schema.json"
+            ),
+            _ => unreachable!(),
+        };
+        let document: Value = serde_json::from_str(text).unwrap();
+        jsonschema::options()
+            .with_draft(jsonschema::Draft::Draft202012)
+            .should_validate_formats(true)
+            .build(&document)
+            .unwrap()
+    }
+
+    #[test]
+    fn policy_and_capability_write_documents_serialize_to_their_stored_schemas() {
+        let at = Utc.with_ymd_and_hms(2026, 9, 30, 12, 0, 0).unwrap();
+        let policy: Value = serde_json::from_str(include_str!(
+            "../../../../protocol/contracts/configuration/current/fixtures/environment-policy/valid/production.json"
+        )).unwrap();
+        let mut policy = super::ingest_policy_document(
+            policy["site_id"].as_str().unwrap(),
+            policy["environment"].as_str().unwrap(),
+            policy["enabled"].as_bool().unwrap(),
+            policy["allowed_origins"].clone(),
+            policy["rate_limit_per_minute"].as_i64().unwrap(),
+            at,
+        );
+        assert!(super::append_ingest_key(
+            &mut policy,
+            "ik_12345678",
+            &"a".repeat(64),
+            at,
+        ));
+        super::set_version_and_time(&mut policy, 3, at);
+        let policy_round_trip: Value =
+            serde_json::from_str(&serde_json::to_string(&policy).unwrap()).unwrap();
+        assert!(
+            schema("environment-policy.schema.json")
+                .validate(&policy_round_trip)
+                .is_ok()
+        );
+
+        let mut capabilities: Value = serde_json::from_str(include_str!(
+            "../../../../protocol/contracts/configuration/current/fixtures/capabilities/valid/legacy-enabled.json"
+        )).unwrap();
+        let update: Value = serde_json::from_str(include_str!(
+            "../../../../protocol/contracts/configuration/current/fixtures/capability-update/valid/all-enabled.json"
+        )).unwrap();
+        super::replace_capabilities(&mut capabilities, update["capabilities"].clone(), 2, at);
+        let round_trip: Value =
+            serde_json::from_str(&serde_json::to_string(&capabilities).unwrap()).unwrap();
+        assert!(
+            schema("capabilities.schema.json")
+                .validate(&round_trip)
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn definition_revision_serialization_preserves_validated_contract_and_server_metadata() {
+        let update: Value = serde_json::from_str(include_str!(
+            "../../../../protocol/contracts/configuration/current/fixtures/conversion-funnel-definition-set-update/valid/definitions.json"
+        )).unwrap();
+        let update_schema = schema("conversion-funnel-definition-set-update.schema.json");
+        assert!(update_schema.validate(&update).is_ok());
+        let at = Utc.with_ymd_and_hms(2026, 9, 30, 12, 0, 0).unwrap();
+        let stored =
+            super::definition_document("site_example", 4, "revision-4", at, Some(at), update);
+        let round_trip: Value =
+            serde_json::from_str(&serde_json::to_string(&stored).unwrap()).unwrap();
+        assert_eq!(round_trip["schema_version"], 1);
+        assert_eq!(round_trip["site_id"], "site_example");
+        assert_eq!(round_trip["revision"], 4);
+        assert_eq!(round_trip["updated_at"], "2026-09-30T12:00:00.000000Z");
+        assert!(
+            update_schema
+                .validate(&serde_json::json!({
+                    "conversions": round_trip["conversions"],
+                    "funnels": round_trip["funnels"]
+                }))
+                .is_ok()
+        );
+    }
 }

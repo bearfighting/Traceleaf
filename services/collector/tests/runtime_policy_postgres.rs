@@ -28,15 +28,25 @@ async fn refresh_applies_database_policy_and_uses_toml_only_for_missing_rows() {
     let pool = pool().await;
     let db_site = "pr4_runtime_db_site";
     let toml_site = "pr4_runtime_toml_site";
-    sqlx::query("DELETE FROM configuration_runtime_state WHERE site_id IN ($1, $2)")
+    let no_last_good_site = "pr4_runtime_no_last_good";
+    sqlx::query("DELETE FROM configuration_runtime_instances WHERE service = 'collector' AND instance_id IN (SELECT instance_id FROM configuration_runtime_state WHERE site_id IN ($1, $2, $3))")
         .bind(db_site)
         .bind(toml_site)
+        .bind(no_last_good_site)
         .execute(&pool)
         .await
         .unwrap();
-    sqlx::query("DELETE FROM site_environment_policies WHERE site_id IN ($1, $2)")
+    sqlx::query("DELETE FROM configuration_runtime_state WHERE site_id IN ($1, $2, $3)")
         .bind(db_site)
         .bind(toml_site)
+        .bind(no_last_good_site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM site_environment_policies WHERE site_id IN ($1, $2, $3)")
+        .bind(db_site)
+        .bind(toml_site)
+        .bind(no_last_good_site)
         .execute(&pool)
         .await
         .unwrap();
@@ -64,7 +74,13 @@ async fn refresh_applies_database_policy_and_uses_toml_only_for_missing_rows() {
     .unwrap();
     let runtime_registry = SiteRegistry::from_runtime_sites(Vec::new()).unwrap();
     let policy = KeyPolicy::new(runtime_registry);
-    let manager = RuntimePolicyManager::new(pool.clone(), toml_registry, policy.clone()).unwrap();
+    let manager = RuntimePolicyManager::new(
+        pool.clone(),
+        toml_registry,
+        policy.clone(),
+        collector::runtime_policy::stored_policy_validator().unwrap(),
+    )
+    .unwrap();
 
     let updated_at = "2026-09-25T00:00:00Z";
     let document = json!({
@@ -100,6 +116,8 @@ async fn refresh_applies_database_policy_and_uses_toml_only_for_missing_rows() {
             )
             .is_ok()
     );
+    // A second refresh uses the validator injected when the manager was constructed.
+    assert!(manager.refresh_once().await);
     assert!(matches!(
         policy.authorize(
             db_site,
@@ -223,14 +241,93 @@ async fn refresh_applies_database_policy_and_uses_toml_only_for_missing_rows() {
         ));
     }
 
-    sqlx::query("DELETE FROM configuration_runtime_state WHERE site_id IN ($1, $2)")
-        .bind(db_site)
-        .bind(toml_site)
+    let (applied_version, refresh_status): (Option<i64>, String) = sqlx::query_as(
+        "SELECT applied_version, refresh_status FROM configuration_runtime_state WHERE service = 'collector' AND site_id = $1 AND environment = 'production' ORDER BY last_seen_at DESC LIMIT 1",
+    )
+    .bind(db_site)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(applied_version, Some(2));
+    assert_eq!(refresh_status, "stale");
+
+    let no_last_good_document = json!({
+        "schema_version": 1,
+        "site_id": no_last_good_site,
+        "environment": "production",
+        "version": 1,
+        "updated_at": "2026-09-25T00:00:15Z",
+        "enabled": true,
+        "allowed_origins": ["https://toml.example.test"],
+        "ingest_keys": [{
+            "key_id": "ik_nolastgood",
+            "sha256_digest": digest("no-last-good-key"),
+            "created_at": "2026-09-25T00:00:15Z"
+        }],
+        "rate_limit_per_minute": 41
+    });
+    sqlx::query("INSERT INTO site_environment_policies (site_id, environment, version, updated_at, document) VALUES ($1, 'production', 1, $2, $3)")
+        .bind(no_last_good_site)
+        .bind("2026-09-25T00:00:15Z".parse::<chrono::DateTime<chrono::Utc>>().unwrap())
+        .bind(no_last_good_document)
         .execute(&pool)
         .await
         .unwrap();
-    sqlx::query("DELETE FROM site_environment_policies WHERE site_id = $1")
+    let no_last_good_fallback = SiteRegistry::from_sites(vec![SiteConfig {
+        site_id: no_last_good_site.to_owned(),
+        environment: "staging".to_owned(),
+        enabled: true,
+        allowed_origins: vec!["https://toml.example.test".to_owned()],
+        ingest_keys: vec!["no-last-good-fallback-key".to_owned()],
+        rate_limit_per_minute: 23,
+        ingest_key_digests: Vec::new(),
+    }])
+    .unwrap();
+    let no_last_good_policy = KeyPolicy::new(SiteRegistry::from_runtime_sites(Vec::new()).unwrap());
+    let no_last_good_manager = RuntimePolicyManager::new(
+        pool.clone(),
+        no_last_good_fallback,
+        no_last_good_policy.clone(),
+        collector::runtime_policy::stored_policy_validator().unwrap(),
+    )
+    .unwrap();
+    assert!(no_last_good_manager.refresh_once().await);
+    assert!(
+        no_last_good_policy
+            .authorize(
+                no_last_good_site,
+                Some("https://toml.example.test"),
+                Some("no-last-good-key")
+            )
+            .is_err()
+    );
+    let (applied_version, refresh_status): (Option<i64>, String) = sqlx::query_as(
+        "SELECT applied_version, refresh_status FROM configuration_runtime_state WHERE service = 'collector' AND site_id = $1 AND environment = 'production' ORDER BY last_seen_at DESC LIMIT 1",
+    )
+    .bind(no_last_good_site)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(applied_version, None);
+    assert_eq!(refresh_status, "stale");
+
+    sqlx::query("DELETE FROM configuration_runtime_instances WHERE service = 'collector' AND instance_id IN (SELECT instance_id FROM configuration_runtime_state WHERE site_id IN ($1, $2, $3))")
         .bind(db_site)
+        .bind(toml_site)
+        .bind(no_last_good_site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM configuration_runtime_state WHERE site_id IN ($1, $2, $3)")
+        .bind(db_site)
+        .bind(toml_site)
+        .bind(no_last_good_site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM site_environment_policies WHERE site_id IN ($1, $2)")
+        .bind(db_site)
+        .bind(no_last_good_site)
         .execute(&pool)
         .await
         .unwrap();

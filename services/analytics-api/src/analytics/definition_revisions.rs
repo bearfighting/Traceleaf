@@ -35,6 +35,9 @@ pub(crate) async fn get_definition_revisions(
             tracing::error!(%error, "definition revision query failed");
             DefinitionRevisionsError::Unavailable
         })?;
+    if revisions.iter().any(|revision| !revision.is_valid()) {
+        return Err(DefinitionRevisionsError::Unavailable);
+    }
     let current_definition_version = revisions
         .first()
         .map(|revision| revision.definition_version.clone());
