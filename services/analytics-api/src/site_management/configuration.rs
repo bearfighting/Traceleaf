@@ -666,6 +666,83 @@ mod validator_tests {
         configuration::validate_schema, validation::ConfigurationValidators,
     };
 
+    #[test]
+    fn canonical_update_fixtures_match_management_schema_boundaries() {
+        let validators = ConfigurationValidators::new().unwrap();
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../protocol/contracts/configuration/current/fixtures");
+        let cases = [
+            ("environment-policy-update", &validators.environment_policy),
+            ("capability-update", &validators.capabilities),
+            (
+                "conversion-funnel-definition-set-update",
+                &validators.definition_set,
+            ),
+        ];
+        for (fixture_name, validator) in cases {
+            for (kind, expected) in [("valid", true), ("invalid", false)] {
+                let directory = root.join(fixture_name).join(kind);
+                for entry in std::fs::read_dir(directory).unwrap() {
+                    let path = entry.unwrap().path();
+                    if path.extension().and_then(|extension| extension.to_str()) != Some("json") {
+                        continue;
+                    }
+                    let value: Value =
+                        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+                    let schema_accepts = validate_schema(validator, &value, "").is_ok();
+                    let filename = path.file_name().unwrap().to_string_lossy();
+                    let semantic = matches!(
+                        (fixture_name, filename.as_ref()),
+                        (
+                            "conversion-funnel-definition-set-update",
+                            "duplicate-ids.json"
+                        )
+                    );
+                    assert_eq!(schema_accepts, expected || semantic, "{}", path.display());
+                    let service_accepts = if !schema_accepts {
+                        None
+                    } else {
+                        Some(match fixture_name {
+                            "environment-policy-update" => value["allowed_origins"]
+                                .as_array()
+                                .map(|origins| {
+                                    let origins = origins
+                                        .iter()
+                                        .filter_map(Value::as_str)
+                                        .map(str::to_owned)
+                                        .collect::<Vec<_>>();
+                                    super::validate_policy_origins(&origins).is_ok()
+                                })
+                                .unwrap_or(false),
+                            "capability-update" => {
+                                super::validate_capability_dependencies(&value).is_ok()
+                            }
+                            "conversion-funnel-definition-set-update" => {
+                                super::validate_definition_set(&value).is_ok()
+                            }
+                            _ => unreachable!(),
+                        })
+                    };
+                    assert_eq!(
+                        service_accepts,
+                        schema_accepts.then_some(!semantic),
+                        "{}",
+                        path.display()
+                    );
+                    println!(
+                        "M24_FIXTURE_RESULT\t{fixture_name}/{kind}/{filename}\tschema={}\tservice={}",
+                        if schema_accepts { "accept" } else { "reject" },
+                        match service_accepts {
+                            Some(true) => "accept",
+                            Some(false) => "reject",
+                            None => "not-reached",
+                        }
+                    );
+                }
+            }
+        }
+    }
+
     #[tokio::test]
     async fn canonical_semantic_fixtures_preserve_service_rules_and_error_mapping() {
         let validators = ConfigurationValidators::new().unwrap();
