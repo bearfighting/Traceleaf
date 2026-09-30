@@ -1,3 +1,7 @@
+#[allow(dead_code)]
+#[path = "generated/environment_policy.rs"]
+mod generated_environment_policy;
+
 use std::{
     collections::{HashMap, HashSet},
     sync::{Arc, Mutex},

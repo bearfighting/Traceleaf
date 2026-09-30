@@ -48,18 +48,18 @@ This checklist turns the M2 roadmap item into reviewable implementation slices. 
 
 ### M2.3 — Integrate pinned configuration type generation
 
-- [ ] Pin the selected `json-schema-to-typescript` version and lockfile for stored policy and in-scope TypeScript configuration contracts.
-- [ ] Pin `typify` and the Rust toolchain/dependency inputs for Stored Environment Policy structures.
-- [ ] Before generating additional contracts, record a per-contract type-source decision (generated or hand-maintained, target language, and public consumer entry point) for stored capabilities and each in-scope update request; do not infer these choices from the Stored Environment Policy decision in ADR-016.
-- [ ] Add deterministic generation commands that consume repository Schemas and their references without hand-editing generated output.
-- [ ] Commit generated files at the paths selected by ADR-016 and expose them only through the intended package/crate public entry points.
-- [ ] Add a generator `--check` (or equivalent) that fails when committed output is stale; verify it detects a deliberately changed generated file in an isolated copy.
-- [ ] Compile/typecheck generated outputs with the actual consumer packages/crates.
-- [ ] Keep Schema Transformation Toolkit out of the production generation path until its documented acceptance gates pass.
+- [x] Record a per-contract type-source decision for Stored Environment Policy, Stored Site Capabilities, and the three in-scope update requests, including language, generated/hand-maintained choice, consumer entry point, and rationale in [ADR-016](decisions/ADR-016-contract-type-sources-and-generation.md).
+- [x] Pin json-schema-to-typescript 16.0.0 in packages/protocol-ts/package.json and pnpm-lock.yaml; pin cargo-typify 0.8.0 using its release lockfile and repository Rust toolchain 1.98.1.
+- [x] Generate all five M2 configuration TypeScript contracts and the Stored Environment Policy Rust structure from the repository Schemas without hand edits.
+- [x] Add generated files under packages/protocol-ts/src/generated/ and services/collector/src/generated/; expose TypeScript types only through the @web-analytics/protocol-ts package root, and compile the Rust module through Collector.
+- [x] Add deterministic generation and --check commands. Verify a deliberately modified TypeScript artifact in an isolated artifact-root copy fails with Generated file is stale.
+- [x] Narrow the generated capabilities settings types for the Schema maxProperties: 0 rule with deterministic generation-time refinement; compile-time probes cover empty-object acceptance and rejection of strings, arrays, and non-empty objects.
+- [x] Typecheck/build the protocol package and compile/lint the Collector consumer crate.
+- [x] Keep Schema Transformation Toolkit out of production generation pending its documented acceptance gates.
 
 **Exit criteria:** generation is reproducible from a clean checkout, output drift is detected, and generated types compile through supported consumer entry points.
 
-**Evidence:** _Add exact commands, tool versions, output paths, and results._
+**Evidence:** pnpm --filter @web-analytics/protocol-ts generate:configuration; pnpm --filter @web-analytics/protocol-ts check:configuration; pnpm --filter @web-analytics/protocol-ts typecheck; pnpm --filter @web-analytics/protocol-ts build; cargo install cargo-typify --version 0.8.0 --locked; cargo fmt --all -- --check; cargo check -p collector; cargo clippy -p collector --all-targets -- -D warnings; pnpm protocol:validate. The generated-file drift check passed, and the isolated mutation probe exited 1 on a stale TS artifact. Protocol package typecheck includes the settings constraint probes. Generator/tool pins, commands, paths, and the intentionally unused policy output are documented in ADR-016. Runtime policy migration and explicit typify constraints remain M2.4 work.
 
 ### M2.4 — Add explicit constraints and shared fixture parity
 
