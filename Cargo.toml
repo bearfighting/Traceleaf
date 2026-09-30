@@ -5,6 +5,7 @@ members = [
     "services/collector",
     "services/processor",
     "tools/db-migrator",
+    "tools/site-registry-importer",
 ]
 resolver = "3"
 

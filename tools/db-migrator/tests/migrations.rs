@@ -87,6 +87,11 @@ const EXPECTED_MIGRATIONS: &[(i64, &str, &str)] = &[
         "create definition revisions",
         "839b94316e4f515bedf89e7031df1c36ad6f0f47ad56f0f33fb5ed38084451edc23624aa43b424a108b3562d1ef44996",
     ),
+    (
+        20260930001800,
+        "create site registry",
+        "6ef7e1d4ceb78b2e38fde53b643aff28c7762bea94efadecd8b7de9674828f1ff6dc8342392d992d6709720f88dcdf42",
+    ),
 ];
 
 #[tokio::test]

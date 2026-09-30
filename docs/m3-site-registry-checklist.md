@@ -92,12 +92,21 @@ Before implementation, enumerate all site-scoped fact tables from migrations and
 
 ### M3.3 — Idempotent importer
 
-- [ ] Dry-run and apply use the same candidate collection and reconciliation logic.
-- [ ] Import the union of approved identity sources; never synthesize IDs from name, URL, Origin, runtime heartbeat, or transient processing progress. Use processing metadata only to reconcile candidate sources.
-- [ ] Approve explicit metadata precedence; report conflicts rather than silently choosing disputed values.
-- [ ] Flag incomplete metadata without changing existing effective policy.
-- [ ] Repeated runs do not duplicate sites, downgrade confirmed metadata, or change unchanged rows.
-- [ ] Record per-source counts and outcomes; make partial failure retryable. Enforce a single-run lock if concurrent execution is unsupported.
+- [x] Dry-run and apply use the same candidate collection and reconciliation logic.
+- [x] Import the union of approved identity sources; never synthesize IDs from name, URL, Origin, runtime heartbeat, or transient processing progress. Use processing metadata only to reconcile candidate sources.
+- [x] Preserve existing Registry metadata; report metadata conflicts and block apply rather than silently choosing disputed values. The inventoried legacy inputs provide IDs and comparison evidence, not authoritative names or canonical URLs, so imports create identity rows only.
+- [x] Report incomplete name/URL metadata without changing existing effective policy. Never infer Website URL from an Origin.
+- [x] Repeated runs do not duplicate sites, overwrite confirmed metadata, or update unchanged rows.
+- [x] Record per-source row/distinct-ID counts, overlap, source-only IDs, policy/environment coverage, local Origin comparison evidence, processing cross-check IDs, and disposition outcomes. A transaction-scoped advisory lock serializes importer runs; a failed apply rolls back as one transaction.
+
+#### M3.3 implementation and disposable validation
+
+- Added the independent Rust CLI in tools/site-registry-importer. It requires an explicit DATABASE_URL, explicit configured/not-configured status for each static source, and a local report path outside the repository. It does not read .env or Compose files and does not run migrations.
+- The report reads all 23 durable direct-Site tables, configuration_audit.resource.site_id, existing Registry rows and metadata, Collector policy environments/Origins, and explicit Dashboard values, Collector TOML, definitions file, DEV_SEED_SITE_ID, and DEV_SEED_ORIGINS associated with the development environment. Processing metadata IDs are reported as cross-checks only; runtime-state tables are never queried.
+- Test/fixture-shaped and static-only candidates require a local JSON disposition. Persisted database identities cannot be excluded. Origin or metadata conflicts stop apply. Plaintext ingest-key values are discarded; only whether the configured key list is non-empty is retained. Detailed per-ID reports include Origins as manual comparison clues and must remain outside version control.
+- Added the missing M3.2 migration-history checksum assertion for version 20260930001800; the migration regression test now validates it on an isolated PostgreSQL database.
+- Unit tests and clippy pass. On a separate disposable PostgreSQL container, migration application and migration regression passed; importer dry-run, initial apply, same-input rerun with zero new rows, preservation of existing metadata, blocking of a three-source Origin conflict, and an induced mid-transaction failure/rollback were verified. No shared development or deployment database was changed.
+- No deployment target was imported. Before any target apply or later FK rollout, run the target-specific read-only preflight and resolve blocking source/Origin conflicts and required dispositions.
 
 **Exit:** dry-run predicts apply; apply and repeat apply converge to identical identities and reconciliation totals.
 
@@ -142,7 +151,7 @@ Before implementation, enumerate all site-scoped fact tables from migrations and
 1. Exact Registry columns/constraints and whether the ADR-013-derived setup status is cached; its derivation remains authoritative.
 2. Foreign-key rollout and handling of any orphan IDs found during preflight.
 3. Metadata provenance and precedence for Dashboard environment values, TOML and dev-seed inputs.
-4. Importer form (CLI, migration companion or reusable admin tool); preflight remains read-only and apply explicit.
+4. Importer form is resolved in M3.3: independent Rust CLI; preflight is read-only and apply is explicit.
 5. Whether data volume requires batches and a resumable progress marker.
 6. Operator rollback: define backup restore versus reviewed compensating migration. Never automatically delete Registry or analytics rows as rollback.
 
