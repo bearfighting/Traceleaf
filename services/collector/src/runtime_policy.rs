@@ -11,7 +11,6 @@ use std::{
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use getrandom::fill as random_fill;
 use jsonschema::{Draft, Validator};
-use serde::Deserialize;
 use serde_json::Value;
 use sqlx::PgPool;
 
@@ -38,27 +37,7 @@ pub fn stored_policy_validator() -> Result<Validator, String> {
         .map_err(|error| error.to_string())
 }
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct StoredPolicy {
-    schema_version: u32,
-    site_id: String,
-    environment: String,
-    version: i64,
-    updated_at: String,
-    enabled: bool,
-    allowed_origins: Vec<String>,
-    ingest_keys: Vec<StoredKey>,
-    rate_limit_per_minute: i64,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct StoredKey {
-    key_id: String,
-    sha256_digest: String,
-    created_at: String,
-}
+use configuration_runtime::EnvironmentPolicyView as StoredPolicy;
 
 #[derive(Debug, Clone)]
 struct DatabasePolicy {
@@ -364,16 +343,8 @@ fn parse_database_policy(
     if validator.iter_errors(value).next().is_some() {
         return Err(());
     }
-    let stored: StoredPolicy = serde_json::from_value(value.clone()).map_err(|_| ())?;
-    if stored.schema_version != 1
-        || stored.site_id != site_id
-        || stored.environment != environment
-        || stored.version != version
-        || version < 1
-        || stored.rate_limit_per_minute < 1
-    {
-        return Err(());
-    }
+    let stored =
+        StoredPolicy::parse_validated(value, site_id, environment, version).map_err(|_| ())?;
     let _updated_at_is_validated_by_schema = stored.updated_at;
     let mut digests = Vec::with_capacity(stored.ingest_keys.len());
     for key in stored.ingest_keys {

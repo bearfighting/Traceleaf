@@ -233,6 +233,8 @@ mod tests {
     fn validates_definitions_and_uses_type_sensitive_scalar_matching() {
         let definitions: AnalyticsDefinitions = serde_json::from_value(json!({"version":"2026-09-23.1","sites":[{"site_id":"site_a","conversions":[{"id":"purchase","name":"Purchase","event_name":"purchase","properties":{"currency":"CAD","confirmed":true}}],"funnels":[{"id":"checkout","name":"Checkout","steps":[{"event_name":"cart"},{"event_name":"purchase"}]}]}]})).unwrap();
         definitions.validate().unwrap();
+        assert!(definitions.sites[0].conversions[0].active);
+        assert!(definitions.sites[0].funnels[0].active);
         let expected = serde_json::from_value(json!({"currency":"CAD","confirmed":true})).unwrap();
         assert!(matches(
             "purchase",

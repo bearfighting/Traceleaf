@@ -80,17 +80,17 @@ This checklist turns the M2 roadmap item into reviewable implementation slices. 
 
 ### M2.5 — Establish static runtime views and capability registry
 
-- [ ] Define minimal typed runtime views for the configuration fields each of Collector, Processor, and Analytics actually consumes.
-- [ ] Parse and validate untrusted JSONB/HTTP input at the boundary before constructing runtime views; do not treat compile-time types as runtime validation.
-- [ ] Define capability registry source-of-truth fields and distinguish runtime behavior fields from descriptive metadata.
-- [ ] Validate capability IDs, dependency references, duplicates, and supported-state combinations against the manifest and consumers.
-- [ ] Add a drift check so manifest IDs/dependencies and the runtime registry cannot diverge silently.
-- [ ] Migrate consumers by contract while retaining documented compatibility behavior for persisted documents and existing HTTP responses.
-- [ ] Keep new Site creation request types and Site Registry persistence work in their assigned M5/M3 milestones.
+- [x] Define minimal typed runtime views for the configuration fields each of Collector, Processor, and Analytics actually consumes.
+- [x] Parse and validate untrusted JSONB/HTTP input at the boundary before constructing runtime views; do not treat compile-time types as runtime validation.
+- [x] Define capability registry source-of-truth fields and distinguish runtime behavior fields from descriptive metadata.
+- [x] Validate capability IDs, dependency references, duplicates, and supported-state combinations against the manifest and consumers.
+- [x] Add a drift check so manifest IDs/dependencies and the runtime registry cannot diverge silently.
+- [x] Migrate consumers by contract while retaining documented compatibility behavior for persisted documents and existing HTTP responses.
+- [x] Keep new Site creation request types and Site Registry persistence work in their assigned M5/M3 milestones.
 
-**Exit criteria:** consumers depend on the smallest validated static view they need; capability references are checked and drift-gated; JSONB and HTTP inputs still receive full runtime validation.
+**Exit criteria:** consumers depend on the smallest validated static view they need; capability references are checked and drift-gated; JSONB and HTTP inputs still receive full runtime validation. M2.5 implementation and targeted tests are complete; the cross-slice workspace verification below is still pending.
 
-**Evidence:** _Add the registry source, consumer map, drift command, and targeted test results._
+**Evidence:** [M2.5 runtime views and Registry](m2.5-runtime-views.md); shared Registry tests in `crates/configuration-runtime/src/registry.rs`; typed view tests in `crates/configuration-runtime/src/views.rs`; manifest validation command `pnpm capabilities:validate`. M2.4 deployment date audits remain outstanding, so strict timestamp validation is still gated.
 
 ## Cross-slice verification and completion
 

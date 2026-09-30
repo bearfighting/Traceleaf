@@ -2,7 +2,9 @@ use crate::{
     analytics::state::AnalyticsState,
     site_management::{auth::AdminTokens, state::SiteManagementState},
 };
+use configuration_runtime::CapabilityRegistry;
 use sqlx::PgPool;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -14,9 +16,10 @@ pub fn state_with_definition_version(
     pool: PgPool,
     definition_version: String,
 ) -> Result<AppState, String> {
+    let registry = Arc::new(CapabilityRegistry::canonical().map_err(|error| error.to_string())?);
     Ok(AppState {
-        analytics: AnalyticsState::new(pool.clone(), definition_version)?,
-        site_management: SiteManagementState::new(pool)?,
+        analytics: AnalyticsState::new(pool.clone(), definition_version, registry.clone())?,
+        site_management: SiteManagementState::new(pool, registry)?,
     })
 }
 

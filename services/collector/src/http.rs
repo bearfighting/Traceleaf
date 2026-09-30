@@ -14,7 +14,7 @@ use ipnet::IpNet;
 use serde::Serialize;
 use serde_json::Value;
 
-use configuration_runtime::{CapabilityRuntime, CapabilitySnapshot};
+use configuration_runtime::{CapabilityId, CapabilityRuntime, CapabilitySnapshot};
 
 use crate::{
     geo::{GeoEnrichment, GeoLookup, client_ip},
@@ -235,7 +235,7 @@ async fn events(State(state): State<AppState>, request: Request<Body>) -> Respon
             // In production, no snapshot is fail-closed and must not trigger enrichment.
             Some(_) => capabilities
                 .as_ref()
-                .is_some_and(|capabilities| capabilities.enabled("geo")),
+                .is_some_and(|capabilities| capabilities.enabled(CapabilityId::Geo)),
         })
         .map(|lookup| {
             let client_ip = client_ip(
@@ -287,9 +287,15 @@ async fn validate_batch(
         }
         let capabilities = capabilities.as_ref().expect("checked above");
         if batch.events.iter().any(|event| match &event.event {
-            crate::protocol::AnalyticsEvent::Custom(_) => !capabilities.enabled("custom_events"),
-            crate::protocol::AnalyticsEvent::WebVital(_) => !capabilities.enabled("web_vitals"),
-            crate::protocol::AnalyticsEvent::PageView(_) => !capabilities.enabled("page_views"),
+            crate::protocol::AnalyticsEvent::Custom(_) => {
+                !capabilities.enabled(CapabilityId::CustomEvents)
+            }
+            crate::protocol::AnalyticsEvent::WebVital(_) => {
+                !capabilities.enabled(CapabilityId::WebVitals)
+            }
+            crate::protocol::AnalyticsEvent::PageView(_) => {
+                !capabilities.enabled(CapabilityId::PageViews)
+            }
         }) {
             return with_cors(
                 ApiError::capability_disabled().into_response(),
@@ -319,16 +325,18 @@ async fn validate_batch(
             let capability = capabilities.as_ref();
             match &mut event.event {
                 crate::protocol::AnalyticsEvent::PageView(page_view) => {
-                    if capability.is_some_and(|caps| !caps.enabled("browser_context")) {
+                    if capability.is_some_and(|caps| !caps.enabled(CapabilityId::BrowserContext)) {
                         page_view.context = None;
                         page_view.context_schema_version = None;
                     }
-                    if capability.is_some_and(|caps| !caps.enabled("anonymous_visitors")) {
+                    if capability.is_some_and(|caps| !caps.enabled(CapabilityId::AnonymousVisitors))
+                    {
                         page_view.visitor_id = None;
                     }
                 }
                 crate::protocol::AnalyticsEvent::Custom(custom) => {
-                    if capability.is_some_and(|caps| !caps.enabled("anonymous_visitors")) {
+                    if capability.is_some_and(|caps| !caps.enabled(CapabilityId::AnonymousVisitors))
+                    {
                         custom.visitor_id = None;
                     }
                 }
@@ -337,11 +345,11 @@ async fn validate_batch(
             let is_page_view = matches!(event.event, crate::protocol::AnalyticsEvent::PageView(_));
             let mut payload = event.payload;
             if let Some(object) = payload.as_object_mut() {
-                if capability.is_some_and(|caps| !caps.enabled("browser_context")) {
+                if capability.is_some_and(|caps| !caps.enabled(CapabilityId::BrowserContext)) {
                     object.remove("context");
                     object.remove("context_schema_version");
                 }
-                if capability.is_some_and(|caps| !caps.enabled("anonymous_visitors")) {
+                if capability.is_some_and(|caps| !caps.enabled(CapabilityId::AnonymousVisitors)) {
                     object.remove("visitor_id");
                 }
             }

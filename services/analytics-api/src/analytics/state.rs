@@ -1,5 +1,6 @@
-use configuration_runtime::CapabilityRuntime;
+use configuration_runtime::{CapabilityRegistry, CapabilityRuntime};
 use sqlx::PgPool;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub(crate) struct AnalyticsState {
@@ -9,9 +10,17 @@ pub(crate) struct AnalyticsState {
 }
 
 impl AnalyticsState {
-    pub(crate) fn new(pool: PgPool, definition_version: String) -> Result<Self, String> {
+    pub(crate) fn new(
+        pool: PgPool,
+        definition_version: String,
+        registry: Arc<CapabilityRegistry>,
+    ) -> Result<Self, String> {
         Ok(Self {
-            capabilities: CapabilityRuntime::new(pool.clone(), "analytics_api")?,
+            capabilities: CapabilityRuntime::with_registry(
+                pool.clone(),
+                "analytics_api",
+                registry,
+            )?,
             pool,
             definition_version,
         })

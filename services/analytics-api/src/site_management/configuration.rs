@@ -21,9 +21,6 @@ use crate::site_management::{
     state::SiteManagementState,
 };
 
-const CAPABILITY_MANIFEST: &str =
-    include_str!("../../../../protocol/capabilities/capabilities.json");
-
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct CapabilityUpdate {
@@ -36,23 +33,6 @@ struct PolicyUpdate {
     enabled: bool,
     allowed_origins: Vec<String>,
     rate_limit_per_minute: i64,
-}
-
-#[derive(Deserialize)]
-struct CapabilityManifest {
-    capabilities: Vec<ManifestCapability>,
-}
-
-#[derive(Deserialize)]
-struct ManifestCapability {
-    id: String,
-    depends_on: Vec<String>,
-}
-
-#[derive(Deserialize)]
-struct KeyDocument {
-    key_id: String,
-    created_at: String,
 }
 
 fn response_with_etag(status: StatusCode, version: i64, body: Value) -> Response {
@@ -118,9 +98,10 @@ fn validate_schema(
     Ok(())
 }
 
-fn validate_capability_dependencies(value: &Value) -> Result<(), ConfigurationApiError> {
-    let manifest: CapabilityManifest = serde_json::from_str(CAPABILITY_MANIFEST)
-        .map_err(|_| ConfigurationApiError::Unavailable)?;
+fn validate_capability_dependencies(
+    value: &Value,
+    registry: &configuration_runtime::CapabilityRegistry,
+) -> Result<(), ConfigurationApiError> {
     let capabilities = &value["capabilities"];
     if capabilities["page_views"]["enabled"] != true {
         return Err(ConfigurationApiError::validation(
@@ -129,14 +110,22 @@ fn validate_capability_dependencies(value: &Value) -> Result<(), ConfigurationAp
             "Page Views must remain enabled.",
         ));
     }
-    for capability in manifest.capabilities {
-        if capabilities[&capability.id]["enabled"] != true {
+    for capability in registry.ids() {
+        let id = capability.as_str();
+        if capabilities[id]["enabled"] != true {
             continue;
         }
-        for dependency in capability.depends_on {
-            if capabilities[&dependency]["enabled"] != true {
+        if !registry.is_implemented(capability) {
+            return Err(ConfigurationApiError::validation(
+                format!("/capabilities/{id}/enabled"),
+                "unsupported_capability",
+                "A planned capability cannot be enabled.",
+            ));
+        }
+        for dependency in registry.dependencies(capability) {
+            if capabilities[dependency.as_str()]["enabled"] != true {
                 return Err(ConfigurationApiError::validation(
-                    format!("/capabilities/{}/{}/enabled", capability.id, dependency),
+                    format!("/capabilities/{}/{}/enabled", id, dependency.as_str()),
                     "missing_dependency",
                     "An enabled capability requires this dependency.",
                 ));
@@ -229,29 +218,93 @@ async fn policy_effective_state(pool: &sqlx::PgPool, row: &ConfigurationRow) -> 
     })
 }
 
-async fn policy_response(pool: &sqlx::PgPool, row: &ConfigurationRow) -> Value {
-    let keys = row.document["ingest_keys"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter_map(|value| serde_json::from_value::<KeyDocument>(value.clone()).ok())
-        .map(|key| json!({"key_id": key.key_id, "created_at": key.created_at}))
-        .collect::<Vec<_>>();
-    json!({
-        "policy": {
-            "site_id": row.document["site_id"],
-            "environment": row.document["environment"],
-            "version": row.version,
-            "enabled": row.document["enabled"],
-            "allowed_origins": row.document["allowed_origins"],
-            "keys": keys,
-            "rate_limit_per_minute": row.document["rate_limit_per_minute"],
-        },
-        "effective_state": policy_effective_state(pool, row).await,
-    })
+fn validate_stored_policy(
+    row: &ConfigurationRow,
+    state: &SiteManagementState,
+    site_id: &str,
+    environment: &str,
+) -> Result<configuration_runtime::EnvironmentPolicyView, ConfigurationApiError> {
+    if state
+        .validators
+        .stored_policy
+        .iter_errors(&row.document)
+        .next()
+        .is_some()
+        || row.document["site_id"].as_str() != Some(site_id)
+        || row.document["environment"].as_str() != Some(environment)
+        || row.document["version"].as_i64() != Some(row.version)
+    {
+        return Err(ConfigurationApiError::Unavailable);
+    }
+    configuration_runtime::EnvironmentPolicyView::parse_validated(
+        &row.document,
+        site_id,
+        environment,
+        row.version,
+    )
+    .map_err(|_| ConfigurationApiError::Unavailable)
 }
 
-async fn capability_response(pool: &sqlx::PgPool, row: &ConfigurationRow) -> Value {
+async fn policy_response(
+    pool: &sqlx::PgPool,
+    row: &ConfigurationRow,
+    state: &SiteManagementState,
+) -> Result<Value, ConfigurationApiError> {
+    let view = validate_stored_policy(
+        row,
+        state,
+        row.document["site_id"].as_str().unwrap_or_default(),
+        row.document["environment"].as_str().unwrap_or_default(),
+    )?;
+    let keys = view
+        .ingest_keys
+        .into_iter()
+        .map(|key| json!({"key_id": key.key_id, "created_at": key.created_at}))
+        .collect::<Vec<_>>();
+    Ok(json!({
+        "policy": {
+            "site_id": view.site_id,
+            "environment": view.environment,
+            "version": view.version,
+            "enabled": view.enabled,
+            "allowed_origins": view.allowed_origins,
+            "keys": keys,
+            "rate_limit_per_minute": view.rate_limit_per_minute,
+        },
+        "effective_state": policy_effective_state(pool, row).await,
+    }))
+}
+
+fn validate_stored_capabilities(
+    row: &ConfigurationRow,
+    state: &SiteManagementState,
+    site_id: &str,
+) -> Result<(), ConfigurationApiError> {
+    if state
+        .validators
+        .stored_capabilities
+        .iter_errors(&row.document)
+        .next()
+        .is_some()
+        || row.document["site_id"].as_str() != Some(site_id)
+        || row.document["version"].as_i64() != Some(row.version)
+        || validate_capability_dependencies(&row.document, &state.capabilities).is_err()
+    {
+        return Err(ConfigurationApiError::Unavailable);
+    }
+    Ok(())
+}
+
+async fn capability_response(
+    pool: &sqlx::PgPool,
+    row: &ConfigurationRow,
+    state: &SiteManagementState,
+) -> Result<Value, ConfigurationApiError> {
+    validate_stored_capabilities(
+        row,
+        state,
+        row.document["site_id"].as_str().unwrap_or_default(),
+    )?;
     let site_id = row.document["site_id"].as_str().unwrap_or_default();
     let collector =
         config_store::capability_applied_state(pool, "collector", site_id, row.version).await;
@@ -286,7 +339,7 @@ async fn capability_response(pool: &sqlx::PgPool, row: &ConfigurationRow) -> Val
     } else {
         "current"
     };
-    json!({
+    Ok(json!({
         "configuration": row.document,
         "effective_state": {
             "status": status,
@@ -297,7 +350,7 @@ async fn capability_response(pool: &sqlx::PgPool, row: &ConfigurationRow) -> Val
                 "analytics_api": analytics_api.applied_version,
             }
         }
-    })
+    }))
 }
 
 fn validate_identity(
@@ -331,10 +384,13 @@ pub(crate) async fn get_capabilities(
         .await
         .map_err(map_store_error)?
         .ok_or(ConfigurationApiError::NotFound)?;
+    if row.document["site_id"].as_str() != Some(site_id.as_str()) {
+        return Err(ConfigurationApiError::Unavailable);
+    }
     Ok(response_with_etag(
         StatusCode::OK,
         row.version,
-        capability_response(&state.pool, &row).await,
+        capability_response(&state.pool, &row, &state).await?,
     ))
 }
 
@@ -352,15 +408,21 @@ pub(crate) async fn put_capabilities(
     let request: CapabilityUpdate = serde_json::from_value(request).map_err(|_| {
         ConfigurationApiError::validation("", "invalid_body", "Request body is invalid.")
     })?;
-    validate_capability_dependencies(&json!({"capabilities":request.capabilities}))?;
+    validate_capability_dependencies(
+        &json!({"capabilities":request.capabilities}),
+        &state.capabilities,
+    )?;
     let row =
         config_store::update_capabilities(&state.pool, &site_id, version, request.capabilities)
             .await
             .map_err(map_store_error)?;
+    if row.document["site_id"].as_str() != Some(site_id.as_str()) {
+        return Err(ConfigurationApiError::Unavailable);
+    }
     Ok(response_with_etag(
         StatusCode::OK,
         row.version,
-        capability_response(&state.pool, &row).await,
+        capability_response(&state.pool, &row, &state).await?,
     ))
 }
 
@@ -374,10 +436,11 @@ pub(crate) async fn get_ingest_policy(
         .await
         .map_err(map_store_error)?
         .ok_or(ConfigurationApiError::NotFound)?;
+    validate_stored_policy(&row, &state, &site_id, &environment)?;
     Ok(response_with_etag(
         StatusCode::OK,
         row.version,
-        policy_response(&state.pool, &row).await,
+        policy_response(&state.pool, &row, &state).await?,
     ))
 }
 
@@ -409,7 +472,7 @@ pub(crate) async fn create_ingest_policy(
     Ok(response_with_etag(
         StatusCode::CREATED,
         row.version,
-        policy_response(&state.pool, &row).await,
+        policy_response(&state.pool, &row, &state).await?,
     ))
 }
 
@@ -439,10 +502,11 @@ pub(crate) async fn put_ingest_policy(
     )
     .await
     .map_err(map_store_error)?;
+    validate_stored_policy(&row, &state, &site_id, &environment)?;
     Ok(response_with_etag(
         StatusCode::OK,
         row.version,
-        policy_response(&state.pool, &row).await,
+        policy_response(&state.pool, &row, &state).await?,
     ))
 }
 
@@ -516,10 +580,11 @@ pub(crate) async fn revoke_ingest_key(
         config_store::revoke_ingest_key(&state.pool, &site_id, &environment, version, &key_id)
             .await
             .map_err(map_store_error)?;
+    validate_stored_policy(&row, &state, &site_id, &environment)?;
     Ok(response_with_etag(
         StatusCode::OK,
         row.version,
-        policy_response(&state.pool, &row).await,
+        policy_response(&state.pool, &row, &state).await?,
     ))
 }
 
@@ -596,6 +661,32 @@ fn validate_definition_set(definitions: &Value) -> Result<(), ConfigurationApiEr
     Ok(())
 }
 
+fn validate_stored_definition_set(
+    row: &ConfigurationRow,
+    state: &SiteManagementState,
+    site_id: &str,
+) -> Result<(), ConfigurationApiError> {
+    let view = configuration_runtime::DefinitionRevisionView::parse(
+        &row.document,
+        site_id,
+        Some(row.version),
+        None,
+    )
+    .map_err(|_| ConfigurationApiError::Unavailable)?;
+    let definitions = json!({"conversions": view.conversions, "funnels": view.funnels});
+    if state
+        .validators
+        .definition_set
+        .iter_errors(&definitions)
+        .next()
+        .is_some()
+        || validate_definition_set(&definitions).is_err()
+    {
+        return Err(ConfigurationApiError::Unavailable);
+    }
+    Ok(())
+}
+
 pub(crate) async fn get_definition_set(
     _auth: AdminAuth,
     State(state): State<SiteManagementState>,
@@ -606,6 +697,7 @@ pub(crate) async fn get_definition_set(
         .await
         .map_err(map_store_error)?
         .ok_or(ConfigurationApiError::NotFound)?;
+    validate_stored_definition_set(&row, &state, &site_id)?;
     Ok(response_with_etag(
         StatusCode::OK,
         row.version,
@@ -666,6 +758,73 @@ mod validator_tests {
         configuration::validate_schema, validation::ConfigurationValidators,
     };
 
+    #[tokio::test]
+    async fn invalid_stored_documents_map_to_unavailable_before_get_response_projection() {
+        use super::{
+            validate_stored_capabilities, validate_stored_definition_set, validate_stored_policy,
+        };
+        use crate::site_management::{config_store::ConfigurationRow, state::SiteManagementState};
+        use sqlx::postgres::PgPoolOptions;
+
+        let pool = PgPoolOptions::new()
+            .connect_lazy("postgres://analytics:analytics@127.0.0.1:1/analytics")
+            .unwrap();
+        let state = SiteManagementState::new(
+            pool,
+            std::sync::Arc::new(configuration_runtime::CapabilityRegistry::canonical().unwrap()),
+        )
+        .unwrap();
+        let policy = ConfigurationRow {
+            version: 1,
+            document: serde_json::json!({"site_id":"site_a","environment":"production","version":1,"unexpected":true}),
+        };
+        assert!(matches!(
+            validate_stored_policy(&policy, &state, "site_a", "production"),
+            Err(super::ConfigurationApiError::Unavailable)
+        ));
+        let capabilities = ConfigurationRow {
+            version: 1,
+            document: serde_json::json!({"site_id":"site_a","version":1,"unexpected":true}),
+        };
+        assert!(matches!(
+            validate_stored_capabilities(&capabilities, &state, "site_a"),
+            Err(super::ConfigurationApiError::Unavailable)
+        ));
+        let definitions = ConfigurationRow {
+            version: 1,
+            document: serde_json::json!({"site_id":"site_a","revision":1,"definition_version":"r1-token","unexpected":true}),
+        };
+        assert!(matches!(
+            validate_stored_definition_set(&definitions, &state, "site_a"),
+            Err(super::ConfigurationApiError::Unavailable)
+        ));
+    }
+
+    #[test]
+    fn management_updates_reject_enabled_planned_capabilities() {
+        let mut manifest: Value = serde_json::from_str(include_str!(
+            "../../../../protocol/capabilities/capabilities.json"
+        ))
+        .unwrap();
+        let geo = manifest["capabilities"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|entry| entry["id"] == "geo")
+            .unwrap();
+        geo["status"] = serde_json::json!("planned");
+        geo["api"]["query_surface"] = serde_json::json!("future_report");
+        geo["api"]["routes"] = serde_json::json!([]);
+        geo["dashboard"]["surface"] = serde_json::json!("future_report");
+        let registry =
+            configuration_runtime::CapabilityRegistry::from_json(&manifest.to_string()).unwrap();
+        let value: Value = serde_json::from_str(include_str!("../../../../protocol/contracts/configuration/current/fixtures/capability-update/valid/all-enabled.json")).unwrap();
+        assert!(matches!(
+            super::validate_capability_dependencies(&value, &registry),
+            Err(super::ConfigurationApiError::Validation(_))
+        ));
+    }
+
     #[test]
     fn canonical_update_fixtures_match_management_schema_boundaries() {
         let validators = ConfigurationValidators::new().unwrap();
@@ -714,9 +873,11 @@ mod validator_tests {
                                     super::validate_policy_origins(&origins).is_ok()
                                 })
                                 .unwrap_or(false),
-                            "capability-update" => {
-                                super::validate_capability_dependencies(&value).is_ok()
-                            }
+                            "capability-update" => super::validate_capability_dependencies(
+                                &value,
+                                &configuration_runtime::CapabilityRegistry::canonical().unwrap(),
+                            )
+                            .is_ok(),
                             "conversion-funnel-definition-set-update" => {
                                 super::validate_definition_set(&value).is_ok()
                             }
@@ -751,7 +912,11 @@ mod validator_tests {
         )).unwrap();
         capability["capabilities"]["anonymous_visitors"]["enabled"] = serde_json::json!(false);
         assert!(validate_schema(&validators.capabilities, &capability, "").is_ok());
-        let dependency_error = super::validate_capability_dependencies(&capability).unwrap_err();
+        let dependency_error = super::validate_capability_dependencies(
+            &capability,
+            &configuration_runtime::CapabilityRegistry::canonical().unwrap(),
+        )
+        .unwrap_err();
         let dependency_response = dependency_error.into_response();
         assert_eq!(
             dependency_response.status(),
@@ -771,7 +936,13 @@ mod validator_tests {
         );
         capability["capabilities"]["browser_context"]["enabled"] = serde_json::json!(true);
         capability["capabilities"]["sessions"]["enabled"] = serde_json::json!(false);
-        assert!(super::validate_capability_dependencies(&capability).is_ok());
+        assert!(
+            super::validate_capability_dependencies(
+                &capability,
+                &configuration_runtime::CapabilityRegistry::canonical().unwrap()
+            )
+            .is_ok()
+        );
 
         let mut policy_update: Value = serde_json::from_str(include_str!(
             "../../../../protocol/contracts/configuration/current/fixtures/environment-policy-update/valid/production.json"

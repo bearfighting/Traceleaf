@@ -86,6 +86,12 @@ impl Processor {
         &self,
         definitions: &serde_json::Value,
     ) -> Result<u64, ProcessorError> {
+        let validated: crate::definitions::AnalyticsDefinitions =
+            serde_json::from_value(definitions.clone())
+                .map_err(|error| ProcessorError::InvalidDefinitions(error.to_string()))?;
+        validated
+            .validate()
+            .map_err(|error| ProcessorError::InvalidDefinitions(error.to_string()))?;
         let version = definitions
             .get("version")
             .and_then(serde_json::Value::as_str)
@@ -149,11 +155,21 @@ impl Processor {
         site_id: &str,
         version: &str,
     ) -> Result<u64, ProcessorError> {
-        let document = sqlx::query_scalar::<_, serde_json::Value>("SELECT document FROM site_definition_revisions WHERE site_id=$1 AND definition_version=$2").bind(site_id).bind(version).fetch_optional(&self.pool).await?.ok_or_else(|| ProcessorError::InvalidDefinitions(format!("definition version {version} does not exist for site {site_id}")))?;
-        let site = serde_json::json!({"site_id":site_id,"conversions":document.get("conversions").cloned().unwrap_or_else(|| serde_json::json!([])),"funnels":document.get("funnels").cloned().unwrap_or_else(|| serde_json::json!([]))});
-        let definitions =
+        let (row_revision, document) = sqlx::query_as::<_, (i64, serde_json::Value)>("SELECT revision, document FROM site_definition_revisions WHERE site_id=$1 AND definition_version=$2").bind(site_id).bind(version).fetch_optional(&self.pool).await?.ok_or_else(|| ProcessorError::InvalidDefinitions(format!("definition version {version} does not exist for site {site_id}")))?;
+        let revision = configuration_runtime::DefinitionRevisionView::parse(
+            &document,
+            site_id,
+            Some(row_revision),
+            Some(version),
+        )
+        .map_err(ProcessorError::InvalidDefinitions)?;
+        let site = serde_json::json!({"site_id":site_id,"conversions":revision.conversions,"funnels":revision.funnels});
+        let definitions: crate::definitions::AnalyticsDefinitions =
             serde_json::from_value(serde_json::json!({"version":version,"sites":[site]}))
                 .map_err(|error| ProcessorError::InvalidDefinitions(error.to_string()))?;
+        definitions
+            .validate()
+            .map_err(|error| ProcessorError::InvalidDefinitions(error.to_string()))?;
         let mut processor = self.clone();
         processor.definitions = definitions;
         processor.database_definitions = false;
@@ -164,7 +180,7 @@ impl Processor {
         if !self
             .current_capabilities(site_id)
             .await?
-            .enabled("custom_events")
+            .enabled(crate::CapabilityId::CustomEvents)
         {
             return Err(ProcessorError::CapabilityDisabled(site_id.to_owned()));
         }
@@ -214,12 +230,14 @@ impl Processor {
         explicit_backfill: bool,
     ) -> Result<u64, ProcessorError> {
         let capabilities = self.current_capabilities(site_id).await?;
-        if !capabilities.enabled("conversions") && !capabilities.enabled("funnels") {
+        if !capabilities.enabled(crate::CapabilityId::Conversions)
+            && !capabilities.enabled(crate::CapabilityId::Funnels)
+        {
             return Ok(0);
         }
         let mut tx = self.pool.begin().await?;
         lock_site(&mut tx, site_id).await?;
-        if capabilities.enabled("conversions") {
+        if capabilities.enabled(crate::CapabilityId::Conversions) {
             if explicit_backfill {
                 sqlx::query(
                     "DELETE FROM conversion_facts WHERE site_id=$1 AND definition_version=$2",
@@ -228,13 +246,15 @@ impl Processor {
                 .bind(&self.definitions.version)
                 .execute(&mut *tx)
                 .await?;
-            } else if let Some(enabled_since) = capabilities.enabled_since("conversions") {
+            } else if let Some(enabled_since) =
+                capabilities.enabled_since(crate::CapabilityId::Conversions)
+            {
                 sqlx::query("DELETE FROM conversion_facts f USING raw_events r WHERE f.site_id=$1 AND f.definition_version=$2 AND r.site_id=f.site_id AND r.event_id=f.event_id AND r.received_at >= $3")
                     .bind(site_id).bind(&self.definitions.version).bind(enabled_since)
                     .execute(&mut *tx).await?;
             }
         }
-        if capabilities.enabled("funnels") {
+        if capabilities.enabled(crate::CapabilityId::Funnels) {
             if explicit_backfill {
                 sqlx::query(
                     "DELETE FROM funnel_step_facts WHERE site_id=$1 AND definition_version=$2",
@@ -243,7 +263,9 @@ impl Processor {
                 .bind(&self.definitions.version)
                 .execute(&mut *tx)
                 .await?;
-            } else if let Some(enabled_since) = capabilities.enabled_since("funnels") {
+            } else if let Some(enabled_since) =
+                capabilities.enabled_since(crate::CapabilityId::Funnels)
+            {
                 sqlx::query("DELETE FROM funnel_step_facts f USING raw_events r WHERE f.site_id=$1 AND f.definition_version=$2 AND r.site_id=f.site_id AND r.event_id=f.event_id AND r.received_at >= $3")
                     .bind(site_id).bind(&self.definitions.version).bind(enabled_since)
                     .execute(&mut *tx).await?;
@@ -254,7 +276,7 @@ impl Processor {
             .bind(site_id).fetch_all(&mut *tx).await?;
         let mut count = 0_u64;
         for (id, event_id, occurred_at, received_at, visitor_id, payload) in events {
-            let session_id = if capabilities.enabled("sessions") {
+            let session_id = if capabilities.enabled(crate::CapabilityId::Sessions) {
                 if let Some(visitor_id) = visitor_id.as_deref() {
                     sqlx::query_scalar::<_, String>("SELECT se.session_id::text FROM session_events se JOIN analytics_generations g ON g.generation_id=se.generation_id AND g.site_id=se.site_id AND g.status='active' WHERE se.site_id=$1 AND se.visitor_id=$2::uuid AND se.occurred_at <= $3 AND se.occurred_at > $3 - INTERVAL '30 minutes' AND (se.occurred_at AT TIME ZONE 'UTC')::date=($3 AT TIME ZONE 'UTC')::date ORDER BY se.occurred_at DESC LIMIT 1")
                     .bind(site_id).bind(visitor_id).bind(occurred_at).fetch_optional(&mut *tx).await?
@@ -264,7 +286,7 @@ impl Processor {
             } else {
                 None
             };
-            if capabilities.enabled("sessions") {
+            if capabilities.enabled(crate::CapabilityId::Sessions) {
                 sqlx::query("UPDATE custom_event_facts SET session_id=$3::uuid WHERE site_id=$1 AND event_id=$2")
                     .bind(site_id).bind(&event_id).bind(session_id.as_deref()).execute(&mut *tx).await?;
             }
@@ -302,7 +324,11 @@ impl Processor {
     }
 
     pub async fn rebuild_geo_country_facts(&self, site_id: &str) -> Result<u64, ProcessorError> {
-        if !self.current_capabilities(site_id).await?.enabled("geo") {
+        if !self
+            .current_capabilities(site_id)
+            .await?
+            .enabled(crate::CapabilityId::Geo)
+        {
             return Err(ProcessorError::CapabilityDisabled(site_id.to_owned()));
         }
         let mut tx = self.pool.begin().await?;
@@ -329,7 +355,7 @@ impl Processor {
         if !self
             .current_capabilities(site_id)
             .await?
-            .enabled("web_vitals")
+            .enabled(crate::CapabilityId::WebVitals)
         {
             return Err(ProcessorError::CapabilityDisabled(site_id.to_owned()));
         }
@@ -419,10 +445,10 @@ impl Processor {
         // Do not claim work while every capability that feeds this generation is disabled.
         // Keeping the row pending makes this a safe pause instead of a failed rebuild.
         let capabilities = self.current_capabilities(&site_id).await?;
-        if !(capabilities.enabled("anonymous_visitors")
-            || capabilities.enabled("sessions")
-            || capabilities.enabled("browser_context")
-            || capabilities.enabled("dimensions"))
+        if !(capabilities.enabled(crate::CapabilityId::AnonymousVisitors)
+            || capabilities.enabled(crate::CapabilityId::Sessions)
+            || capabilities.enabled(crate::CapabilityId::BrowserContext)
+            || capabilities.enabled(crate::CapabilityId::Dimensions))
         {
             transaction.rollback().await?;
             return Ok(false);
@@ -543,10 +569,10 @@ impl Processor {
             return Ok(summary);
         }
         let capabilities = self.current_capabilities(site_id).await?;
-        if !capabilities.enabled("anonymous_visitors")
-            && !capabilities.enabled("sessions")
-            && !capabilities.enabled("browser_context")
-            && !capabilities.enabled("dimensions")
+        if !capabilities.enabled(crate::CapabilityId::AnonymousVisitors)
+            && !capabilities.enabled(crate::CapabilityId::Sessions)
+            && !capabilities.enabled(crate::CapabilityId::BrowserContext)
+            && !capabilities.enabled(crate::CapabilityId::Dimensions)
         {
             return Err(ProcessorError::CapabilityDisabled(site_id.to_owned()));
         }
@@ -719,10 +745,10 @@ impl Processor {
                 .capabilities
                 .snapshot(&request.site_id)
                 .is_some_and(|caps| {
-                    caps.enabled("anonymous_visitors")
-                        || caps.enabled("sessions")
-                        || caps.enabled("browser_context")
-                        || caps.enabled("dimensions")
+                    caps.enabled(crate::CapabilityId::AnonymousVisitors)
+                        || caps.enabled(crate::CapabilityId::Sessions)
+                        || caps.enabled(crate::CapabilityId::BrowserContext)
+                        || caps.enabled(crate::CapabilityId::Dimensions)
                 });
             if !enabled {
                 sqlx::query(
@@ -939,7 +965,7 @@ async fn refresh_generation_rollups(
 fn event_is_before_activation(
     event: &RawEvent,
     capabilities: &crate::CapabilitySnapshot,
-    capability: &str,
+    capability: crate::CapabilityId,
 ) -> bool {
     capabilities
         .enabled_since(capability)
@@ -959,11 +985,11 @@ async fn process_event(
         .get("type")
         .and_then(serde_json::Value::as_str);
     if (event_type == Some("custom_event")
-        && (!capabilities.enabled("custom_events")
-            || event_is_before_activation(event, capabilities, "custom_events")))
+        && (!capabilities.enabled(crate::CapabilityId::CustomEvents)
+            || event_is_before_activation(event, capabilities, crate::CapabilityId::CustomEvents)))
         || (event_type == Some("web_vital")
-            && (!capabilities.enabled("web_vitals")
-                || event_is_before_activation(event, capabilities, "web_vitals")))
+            && (!capabilities.enabled(crate::CapabilityId::WebVitals)
+                || event_is_before_activation(event, capabilities, crate::CapabilityId::WebVitals)))
     {
         if !queries::mark_processed(transaction, event.id).await? {
             return Err(ProcessorError::RawEventNotUpdated(event.id));
@@ -987,7 +1013,7 @@ async fn process_event(
                 .and_then(serde_json::Value::as_str)
                 .ok_or_else(|| ProcessorError::InvalidCustomEvent(event.event_id.clone()))?;
             lock_site(transaction, &event.site_id).await?;
-            let session_id = if capabilities.enabled("sessions") {
+            let session_id = if capabilities.enabled(crate::CapabilityId::Sessions) {
                 if let Some(visitor_id) = event.visitor_id.as_deref() {
                     sqlx::query_scalar::<_, String>("SELECT se.session_id::text FROM session_events se JOIN analytics_generations g ON g.generation_id=se.generation_id AND g.site_id=se.site_id AND g.status='active' WHERE se.site_id=$1 AND se.visitor_id=$2::uuid AND se.occurred_at <= $3 AND se.occurred_at > $3 - INTERVAL '30 minutes' AND (se.occurred_at AT TIME ZONE 'UTC')::date=($3 AT TIME ZONE 'UTC')::date ORDER BY se.occurred_at DESC LIMIT 1")
                     .bind(&event.site_id).bind(visitor_id).bind(event.occurred_at).fetch_optional(&mut **transaction).await?
@@ -1077,10 +1103,10 @@ async fn process_event(
     queries::upsert_route(transaction, &event.site_id, day, &event.path).await?;
     queries::upsert_total(transaction, &event.site_id).await?;
 
-    if capabilities.enabled("anonymous_visitors")
-        || capabilities.enabled("sessions")
-        || capabilities.enabled("browser_context")
-        || capabilities.enabled("dimensions")
+    if capabilities.enabled(crate::CapabilityId::AnonymousVisitors)
+        || capabilities.enabled(crate::CapabilityId::Sessions)
+        || capabilities.enabled(crate::CapabilityId::BrowserContext)
+        || capabilities.enabled(crate::CapabilityId::Dimensions)
     {
         lock_site(transaction, &event.site_id).await?;
         if let Some(visitor_id) = event.visitor_id.as_deref() {
@@ -1102,7 +1128,9 @@ async fn process_event(
         }
     }
 
-    if capabilities.enabled("geo") && !event_is_before_activation(event, capabilities, "geo") {
+    if capabilities.enabled(crate::CapabilityId::Geo)
+        && !event_is_before_activation(event, capabilities, crate::CapabilityId::Geo)
+    {
         sqlx::query(
         "INSERT INTO geo_country_facts(raw_event_id,site_id,country_code,occurred_at)
          SELECT m.raw_event_id,m.site_id,m.country_code,r.occurred_at
@@ -1135,8 +1163,9 @@ async fn record_conversion_and_funnel_facts(
         return Ok(());
     };
     let properties = event.payload.get("properties").cloned().unwrap_or_default();
-    if capabilities.enabled("conversions")
-        && (explicit_backfill || !event_is_before_activation(event, capabilities, "conversions"))
+    if capabilities.enabled(crate::CapabilityId::Conversions)
+        && (explicit_backfill
+            || !event_is_before_activation(event, capabilities, crate::CapabilityId::Conversions))
     {
         for conversion in &site.conversions {
             if !conversion.active {
@@ -1153,8 +1182,9 @@ async fn record_conversion_and_funnel_facts(
             }
         }
     }
-    if !capabilities.enabled("funnels")
-        || (!explicit_backfill && event_is_before_activation(event, capabilities, "funnels"))
+    if !capabilities.enabled(crate::CapabilityId::Funnels)
+        || (!explicit_backfill
+            && event_is_before_activation(event, capabilities, crate::CapabilityId::Funnels))
     {
         return Ok(());
     }
@@ -1172,7 +1202,7 @@ async fn record_conversion_and_funnel_facts(
         let funnel_enabled_since = if explicit_backfill {
             None
         } else {
-            capabilities.enabled_since("funnels")
+            capabilities.enabled_since(crate::CapabilityId::Funnels)
         };
         let session_events = sqlx::query_as::<_, (String, DateTime<Utc>, String, serde_json::Value)>("SELECT f.event_id,f.occurred_at,f.event_name,COALESCE(r.payload->'properties','{}'::jsonb) FROM custom_event_facts f JOIN raw_events r ON r.id=f.raw_event_id WHERE f.site_id=$1 AND f.session_id=$2::uuid AND ($3::timestamptz IS NULL OR r.received_at >= $3) AND ($4::boolean OR (r.received_at >= COALESCE((SELECT effective_at FROM site_definition_revisions WHERE site_id=$1 AND definition_version=$5), '-infinity'::timestamptz) AND r.received_at < COALESCE((SELECT MIN(next.effective_at) FROM site_definition_revisions current JOIN site_definition_revisions next ON next.site_id=current.site_id AND next.revision>current.revision WHERE current.site_id=$1 AND current.definition_version=$5), 'infinity'::timestamptz))) ORDER BY f.occurred_at,f.event_id")
             .bind(&event.site_id).bind(&session_id).bind(funnel_enabled_since).bind(explicit_backfill).bind(&definitions.version).fetch_all(&mut **transaction).await?;
@@ -1341,18 +1371,24 @@ async fn copy_disabled_generation_facts(
     let Some(previous_generation) = previous_generation else {
         return Ok(());
     };
-    let groups: &[(&str, &str)] = &[
-        ("browser_context", "normalized_event_context"),
-        ("anonymous_visitors", "visitor_event_facts"),
-        ("sessions", "sessions"),
-        ("sessions", "session_events"),
-        ("dimensions", "dimension_event_facts"),
+    let groups: &[(crate::CapabilityId, &str)] = &[
+        (
+            crate::CapabilityId::BrowserContext,
+            "normalized_event_context",
+        ),
+        (
+            crate::CapabilityId::AnonymousVisitors,
+            "visitor_event_facts",
+        ),
+        (crate::CapabilityId::Sessions, "sessions"),
+        (crate::CapabilityId::Sessions, "session_events"),
+        (crate::CapabilityId::Dimensions, "dimension_event_facts"),
     ];
     for (capability, table) in groups {
         let activation_cutoff = capabilities
-            .enabled_since(capability)
+            .enabled_since(*capability)
             .filter(|since| since.timestamp() > 0);
-        if capabilities.enabled(capability) && (explicit_backfill || activation_cutoff.is_none()) {
+        if capabilities.enabled(*capability) && (explicit_backfill || activation_cutoff.is_none()) {
             continue;
         }
         let sql = match *table {
@@ -1391,13 +1427,13 @@ async fn write_derived_results(
     capabilities: &crate::CapabilitySnapshot,
     explicit_backfill: bool,
 ) -> Result<(), ProcessorError> {
-    let include = |event: &RawEvent, capability: &str| {
+    let include = |event: &RawEvent, capability: crate::CapabilityId| {
         explicit_backfill || !event_is_before_activation(event, capabilities, capability)
     };
     let mut normalized_by_event_id: HashMap<i64, NormalizedContext> = HashMap::new();
     for event in events.iter().filter(|event| {
-        capabilities.enabled("browser_context")
-            && include(event, "browser_context")
+        capabilities.enabled(crate::CapabilityId::BrowserContext)
+            && include(event, crate::CapabilityId::BrowserContext)
             && event.context_schema_version == Some(1)
     }) {
         let context = event.payload.get("context");
@@ -1413,8 +1449,8 @@ async fn write_derived_results(
     let visitor_events: Vec<&RawEvent> = events
         .iter()
         .filter(|event| {
-            capabilities.enabled("anonymous_visitors")
-                && include(event, "anonymous_visitors")
+            capabilities.enabled(crate::CapabilityId::AnonymousVisitors)
+                && include(event, crate::CapabilityId::AnonymousVisitors)
                 && event.visitor_id.is_some()
         })
         .collect();
@@ -1436,10 +1472,10 @@ async fn write_derived_results(
     }
 
     let mut grouped: HashMap<(String, String), Vec<SessionInput>> = HashMap::new();
-    for event in visitor_events
-        .iter()
-        .filter(|event| capabilities.enabled("sessions") && include(event, "sessions"))
-    {
+    for event in visitor_events.iter().filter(|event| {
+        capabilities.enabled(crate::CapabilityId::Sessions)
+            && include(event, crate::CapabilityId::Sessions)
+    }) {
         let visitor_id = event.visitor_id.as_deref().expect("filtered above");
         grouped
             .entry((event.site_id.clone(), visitor_id.to_owned()))
@@ -1453,7 +1489,7 @@ async fn write_derived_results(
     }
 
     let mut sessions: Vec<SessionOutput> = Vec::new();
-    if capabilities.enabled("sessions") {
+    if capabilities.enabled(crate::CapabilityId::Sessions) {
         for group in grouped.values() {
             sessions.extend(sessionize(group, generation_id));
         }
@@ -1502,10 +1538,10 @@ async fn write_derived_results(
         }
     }
 
-    if capabilities.enabled("dimensions") {
+    if capabilities.enabled(crate::CapabilityId::Dimensions) {
         let dimension_events = events
             .iter()
-            .filter(|event| include(event, "dimensions"))
+            .filter(|event| include(event, crate::CapabilityId::Dimensions))
             .cloned()
             .collect::<Vec<_>>();
         write_dimension_results(
@@ -1742,21 +1778,28 @@ async fn load_definition_revision(
     site_id: &str,
     received_at: DateTime<Utc>,
 ) -> Result<crate::definitions::AnalyticsDefinitions, ProcessorError> {
-    let document = sqlx::query_scalar::<_, serde_json::Value>("SELECT document FROM site_definition_revisions WHERE site_id=$1 AND (effective_at IS NULL OR effective_at <= $2) ORDER BY effective_at DESC NULLS LAST, revision DESC LIMIT 1")
+    let stored = sqlx::query_as::<_, (i64, String, serde_json::Value)>("SELECT revision, definition_version, document FROM site_definition_revisions WHERE site_id=$1 AND (effective_at IS NULL OR effective_at <= $2) ORDER BY effective_at DESC NULLS LAST, revision DESC LIMIT 1")
         .bind(site_id).bind(received_at).fetch_optional(&mut **transaction).await?;
-    let Some(document) = document else {
+    let Some((row_revision, row_version, document)) = stored else {
         return Ok(crate::definitions::AnalyticsDefinitions {
             version: "none".to_owned(),
             sites: Vec::new(),
         });
     };
-    let version = document
-        .get("definition_version")
-        .and_then(serde_json::Value::as_str)
-        .unwrap_or("none");
-    let site = serde_json::json!({"site_id":site_id,"conversions":document.get("conversions").cloned().unwrap_or_else(|| serde_json::json!([])),"funnels":document.get("funnels").cloned().unwrap_or_else(|| serde_json::json!([]))});
-    let definitions: crate::definitions::AnalyticsDefinitions =
-        serde_json::from_value(serde_json::json!({"version":version,"sites":[site]}))
-            .map_err(|error| ProcessorError::InvalidDefinitions(error.to_string()))?;
+    let revision = configuration_runtime::DefinitionRevisionView::parse(
+        &document,
+        site_id,
+        Some(row_revision),
+        Some(&row_version),
+    )
+    .map_err(ProcessorError::InvalidDefinitions)?;
+    let site = serde_json::json!({"site_id":site_id,"conversions":revision.conversions,"funnels":revision.funnels});
+    let definitions: crate::definitions::AnalyticsDefinitions = serde_json::from_value(
+        serde_json::json!({"version":revision.definition_version,"sites":[site]}),
+    )
+    .map_err(|error| ProcessorError::InvalidDefinitions(error.to_string()))?;
+    definitions
+        .validate()
+        .map_err(|error| ProcessorError::InvalidDefinitions(error.to_string()))?;
     Ok(definitions)
 }

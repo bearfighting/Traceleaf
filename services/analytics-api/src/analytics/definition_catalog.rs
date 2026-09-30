@@ -8,6 +8,13 @@ pub(crate) struct DefinitionRevision {
     pub(crate) effective_at: Option<DateTime<Utc>>,
 }
 
+impl DefinitionRevision {
+    pub(crate) fn is_valid(&self) -> bool {
+        self.revision > 0
+            && configuration_runtime::is_valid_definition_version(&self.definition_version)
+    }
+}
+
 pub(crate) async fn list_revisions(
     pool: &PgPool,
     site_id: &str,

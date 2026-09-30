@@ -4,6 +4,11 @@ use serde_json::Value;
 const CAPABILITY_SCHEMA: &str = include_str!(
     "../../../../protocol/contracts/configuration/current/capability-update.schema.json"
 );
+const STORED_CAPABILITY_SCHEMA: &str =
+    include_str!("../../../../protocol/contracts/configuration/current/capabilities.schema.json");
+const STORED_POLICY_SCHEMA: &str = include_str!(
+    "../../../../protocol/contracts/configuration/current/environment-policy.schema.json"
+);
 const POLICY_UPDATE_SCHEMA: &str = include_str!(
     "../../../../protocol/contracts/configuration/current/environment-policy-update.schema.json"
 );
@@ -14,6 +19,8 @@ const DEFINITION_SET_UPDATE_SCHEMA: &str = include_str!(
 #[derive(Clone)]
 pub(crate) struct ConfigurationValidators {
     pub(crate) capabilities: Validator,
+    pub(crate) stored_capabilities: Validator,
+    pub(crate) stored_policy: Validator,
     pub(crate) environment_policy: Validator,
     pub(crate) definition_set: Validator,
 }
@@ -34,6 +41,8 @@ impl ConfigurationValidators {
     ) -> Result<Self, String> {
         Ok(Self {
             capabilities: compile(capabilities)?,
+            stored_capabilities: compile(STORED_CAPABILITY_SCHEMA)?,
+            stored_policy: compile(STORED_POLICY_SCHEMA)?,
             environment_policy: compile(environment_policy)?,
             definition_set: compile(definition_set)?,
         })
@@ -51,6 +60,27 @@ fn compile(schema_text: &str) -> Result<Validator, String> {
 #[cfg(test)]
 mod tests {
     use super::ConfigurationValidators;
+
+    #[test]
+    fn stored_configuration_validators_keep_date_time_compatibility_until_rollout_gate_closes() {
+        let validators = ConfigurationValidators::new().unwrap();
+        let policy: serde_json::Value = serde_json::from_str(include_str!("../../../../protocol/contracts/configuration/current/fixtures/environment-policy/invalid/invalid-updated-at-date-time.json")).unwrap();
+        let capability: serde_json::Value = serde_json::from_str(include_str!("../../../../protocol/contracts/configuration/current/fixtures/capabilities/invalid/invalid-updated-at-date-time.json")).unwrap();
+        assert!(
+            validators
+                .stored_policy
+                .iter_errors(&policy)
+                .next()
+                .is_none()
+        );
+        assert!(
+            validators
+                .stored_capabilities
+                .iter_errors(&capability)
+                .next()
+                .is_none()
+        );
+    }
 
     #[test]
     fn schema_initialization_failure_is_returned_to_the_startup_boundary() {
