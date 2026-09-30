@@ -1,6 +1,6 @@
 # M2 Implementation Plan: Configuration Models and Capability Registry
 
-- Status: in progress
+- Status: complete for the current local-development environment (2026-09-30)
 - Prerequisites: M0a, M0b, M1
 - Scope: stored configuration contracts, existing management API contracts, runtime configuration views, capability registry validation, and Schema validator lifecycle
 - Out of scope: Site Registry migrations and Site creation API (M3/M5), event wire model migration (M9), and adoption of Schema Transformation Toolkit before it passes its project-specific acceptance gates
@@ -26,10 +26,10 @@ This checklist turns the M2 roadmap item into reviewable implementation slices. 
 - [x] Select Schema-strict behavior for stored policy `updated_at` and `ingest_keys[].created_at`; see [ADR-017](decisions/ADR-017-policy-date-time-compatibility.md).
 - [x] Record compatibility behavior: invalid policies are stale and retain last-good state; without last-good, they are not applied.
 - [x] Add the read-only preflight, require an explicit `DATABASE_URL` with a database name and one explicit hostname, reject multi-host URLs, require a writable primary, ignore inherited libpq routing variables and `PGOPTIONS`, reject URL `options` and `target_session_attrs`, and verify its canonical fixture mode.
-- [ ] Before M2.4 enables format assertion, run the preflight against every deployment database and repair findings; record environment, date, result, and remediation evidence without timestamp values.
+- [x] Run the preflight against the current local-development database before enabling format assertions; record environment, date, document counts, result, and remediation evidence without timestamp values. Any future environment with existing data must pass the preflight before rollout.
 - [x] Record migration order in the [inventory](m2-configuration-contract-inventory.md): stored policy, capabilities/registry, definition revisions, then each update contract with its stored consumer.
 
-**Exit criteria:** in-scope contracts and consumers are recorded; date-time behavior and deployment gate are explicit; production behavior remains unchanged. Database audit remains a per-environment gate before M2.4 enables strict format assertion.
+**Exit criteria:** in-scope contracts and consumers are recorded; date-time behavior and deployment gate are explicit; M2.1 recorded the original compatibility behavior; M2.4 enabled strict format assertion only after the current-environment audit passed.
 
 **Evidence:** [contract inventory](m2-configuration-contract-inventory.md), [ADR-017](decisions/ADR-017-policy-date-time-compatibility.md), [M2.1 completion record](m2.1-scope-and-compatibility.md), and `node scripts/audit-policy-datetimes.mjs --fixtures`.
 
@@ -67,16 +67,16 @@ This checklist turns the M2 roadmap item into reviewable implementation slices. 
 - [x] Add a repeatable Schema fixture runner: `node scripts/m2-configuration-parity.mjs`; it distinguishes Schema-valid/service-invalid semantic fixtures and strict date-time candidates.
 - [x] Exercise stored fixtures through Rust parsing and explicit rules, and all management update fixtures through production Schema and service rules; see the M2.4 parity assessment for the per-fixture outcome matrix.
 - [x] Extend `node scripts/audit-policy-datetimes.mjs` to inspect both stored policy and capability tables in read-only transactions; fixture mode covers the capability date-time candidate. Executed both result paths against disposable PostgreSQL 18.6 tables; see the parity report.
-- [ ] Run that preflight against every deployment and record remediation.
-- [x] Record strict Stored Capabilities updated_at behavior in [ADR-018](decisions/ADR-018-capability-date-time-compatibility.md); assertions remain disabled until deployment evidence is complete.
+- [x] Run the preflight against the only current environment (local development); both tables passed with no remediation. Future deployments with existing data must pass before rollout.
+- [x] Record strict Stored Capabilities updated_at behavior in [ADR-018](decisions/ADR-018-capability-date-time-compatibility.md); assertions are enabled after the current-environment audit passed.
 - [x] Record policy integer bounds as an implementation-range exception without changing Schema or wire format.
 - [x] Add representative TypeScript positive/negative probes for non-empty Origins, schema version, date-time string limits, funnel step minimum, and unconstrained definition IDs; package typecheck passes.
 - [x] Check the production policy creation, capability replacement, ingest-key addition, and definition revision serialization paths against their stored/update Schemas; revisions have no standalone stored Schema.
 - [x] Keep Schema unchanged and document known differences in the parity assessment.
 
-**Exit criteria:** fixture outcomes match or have a documented exception; unknown-field/version behavior is explicit; strict format assertions remain gated until policy and capability preflight evidence is complete. Current status: in progress.
+**Exit criteria:** fixture outcomes match or have documented exceptions; unknown-field/version behavior is explicit; current-environment policy and capability preflight passed before strict format assertions were enabled. Current status: complete for the current local-development environment.
 
-**Evidence:** [M2.4 parity assessment](m2.4-configuration-parity.md), [ADR-017](decisions/ADR-017-policy-date-time-compatibility.md), [ADR-018](decisions/ADR-018-capability-date-time-compatibility.md), `node scripts/m2-configuration-parity.mjs`. Per-deployment database audit results remain outstanding and block M2.4 closure; generated TypeScript probes prove static assignability only.
+**Evidence:** [M2.4 parity assessment](m2.4-configuration-parity.md), [ADR-017](decisions/ADR-017-policy-date-time-compatibility.md), [ADR-018](decisions/ADR-018-capability-date-time-compatibility.md), `node scripts/m2-configuration-parity.mjs`. The local-development audit passed on 2026-09-30 (1 policy document, 7 capability documents, 0 invalid fields); future environments with existing data require a pre-rollout audit. Generated TypeScript probes prove static assignability only.
 
 ### M2.5 — Establish static runtime views and capability registry
 
@@ -88,18 +88,18 @@ This checklist turns the M2 roadmap item into reviewable implementation slices. 
 - [x] Migrate consumers by contract while retaining documented compatibility behavior for persisted documents and existing HTTP responses.
 - [x] Keep new Site creation request types and Site Registry persistence work in their assigned M5/M3 milestones.
 
-**Exit criteria:** consumers depend on the smallest validated static view they need; capability references are checked and drift-gated; JSONB and HTTP inputs still receive full runtime validation. M2.5 implementation and targeted tests are complete; the cross-slice workspace verification below is still pending.
+**Exit criteria:** consumers depend on the smallest validated static view they need; capability references are checked and drift-gated; JSONB and HTTP inputs still receive full runtime validation. M2.5 implementation and targeted tests are complete; cross-slice workspace verification passed locally on 2026-09-30.
 
-**Evidence:** [M2.5 runtime views and Registry](m2.5-runtime-views.md); shared Registry tests in `crates/configuration-runtime/src/registry.rs`; typed view tests in `crates/configuration-runtime/src/views.rs`; manifest validation command `pnpm capabilities:validate`. M2.4 deployment date audits remain outstanding, so strict timestamp validation is still gated.
+**Evidence:** [M2.5 runtime views and Registry](m2.5-runtime-views.md); shared Registry tests in `crates/configuration-runtime/src/registry.rs`; typed view tests in `crates/configuration-runtime/src/views.rs`; manifest validation command `pnpm capabilities:validate`. Strict timestamp validation is enabled after the current local-development database audit passed; future environments with existing data require a pre-rollout audit.
 
 ## Cross-slice verification and completion
 
-- [ ] `pnpm protocol:validate` passes for all in-scope Schemas and canonical fixtures.
-- [ ] Generated TypeScript package typecheck/tests pass.
-- [ ] Rust generation check, formatting, clippy, and targeted crate tests pass through repository scripts.
-- [ ] Shared Schema/TypeScript/Rust/consumer parity results are recorded and all differences are explained.
-- [ ] CI runs generator drift checks, compile/type checks, Schema fixture validation, and relevant parity tests.
-- [ ] Roadmap and this checklist agree on completed work and any deferred contracts.
+- [x] `pnpm protocol:validate` passes for all in-scope Schemas and canonical fixtures.
+- [x] Generated TypeScript package typecheck/tests and TypeScript/Rust artifact drift checks pass.
+- [x] Rust generation check, formatting, clippy, workspace tests, and the PostgreSQL-backed integration suite pass locally.
+- [x] Shared Schema/TypeScript/Rust/consumer parity results are recorded and all differences are explained.
+- [x] CI runs generator drift checks, compile/type checks, Schema fixture validation, and relevant parity tests through `pnpm check` and `pnpm test`.
+- [x] Roadmap and this checklist agree on completed work and any deferred contracts.
 
 **M2 completion gate:** every in-scope persisted or HTTP document is runtime-validated at its boundary; runtime validators are reused rather than compiled in hot paths; generated artifacts are reproducible and checked for drift; configuration consumers use validated static views; capability references cannot silently drift; and compatibility exceptions are documented with tests.
 

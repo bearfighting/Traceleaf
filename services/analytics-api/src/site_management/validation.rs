@@ -41,8 +41,8 @@ impl ConfigurationValidators {
     ) -> Result<Self, String> {
         Ok(Self {
             capabilities: compile(capabilities)?,
-            stored_capabilities: compile(STORED_CAPABILITY_SCHEMA)?,
-            stored_policy: compile(STORED_POLICY_SCHEMA)?,
+            stored_capabilities: compile_stored(STORED_CAPABILITY_SCHEMA)?,
+            stored_policy: compile_stored(STORED_POLICY_SCHEMA)?,
             environment_policy: compile(environment_policy)?,
             definition_set: compile(definition_set)?,
         })
@@ -57,12 +57,21 @@ fn compile(schema_text: &str) -> Result<Validator, String> {
         .map_err(|error| error.to_string())
 }
 
+fn compile_stored(schema_text: &str) -> Result<Validator, String> {
+    let schema: Value = serde_json::from_str(schema_text).map_err(|error| error.to_string())?;
+    jsonschema::options()
+        .with_draft(Draft::Draft202012)
+        .should_validate_formats(true)
+        .build(&schema)
+        .map_err(|error| error.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::ConfigurationValidators;
 
     #[test]
-    fn stored_configuration_validators_keep_date_time_compatibility_until_rollout_gate_closes() {
+    fn stored_configuration_validators_reject_invalid_date_time_after_preflight() {
         let validators = ConfigurationValidators::new().unwrap();
         let policy: serde_json::Value = serde_json::from_str(include_str!("../../../../protocol/contracts/configuration/current/fixtures/environment-policy/invalid/invalid-updated-at-date-time.json")).unwrap();
         let capability: serde_json::Value = serde_json::from_str(include_str!("../../../../protocol/contracts/configuration/current/fixtures/capabilities/invalid/invalid-updated-at-date-time.json")).unwrap();
@@ -71,14 +80,22 @@ mod tests {
                 .stored_policy
                 .iter_errors(&policy)
                 .next()
-                .is_none()
+                .is_some()
+        );
+        let invalid_key_created_at: serde_json::Value = serde_json::from_str(include_str!("../../../../protocol/contracts/configuration/current/fixtures/environment-policy/invalid/invalid-key-created-at-date-time.json")).unwrap();
+        assert!(
+            validators
+                .stored_policy
+                .iter_errors(&invalid_key_created_at)
+                .next()
+                .is_some()
         );
         assert!(
             validators
                 .stored_capabilities
                 .iter_errors(&capability)
                 .next()
-                .is_none()
+                .is_some()
         );
     }
 

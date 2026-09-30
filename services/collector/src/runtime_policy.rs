@@ -33,6 +33,7 @@ pub fn stored_policy_validator() -> Result<Validator, String> {
     let schema: Value = serde_json::from_str(POLICY_SCHEMA).map_err(|error| error.to_string())?;
     jsonschema::options()
         .with_draft(Draft::Draft202012)
+        .should_validate_formats(true)
         .build(&schema)
         .map_err(|error| error.to_string())
 }
@@ -462,14 +463,7 @@ mod tests {
                     .file_name()
                     .and_then(|name| name.to_str())
                     .unwrap_or("");
-                let expected_current_service_result = match filename {
-                    // Current Collector policy validation does not assert Schema date-time formats,
-                    // and the stored model keeps these values as strings. This is an intentional
-                    // parity finding, not a production behavior change in the M0b experiment.
-                    "invalid-updated-at-date-time.json"
-                    | "invalid-key-created-at-date-time.json" => true,
-                    _ => expected_valid,
-                };
+                let expected_current_service_result = expected_valid;
                 assert_eq!(
                     accepted,
                     expected_current_service_result,

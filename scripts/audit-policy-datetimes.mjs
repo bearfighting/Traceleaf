@@ -224,6 +224,7 @@ COMMIT;`;
     return;
   }
   const findings = [];
+  const auditedDocuments = { policy: 0, capabilities: 0 };
   for (const [kind, table, makeQuery] of [
     ["policy", tables.get("site_environment_policies"), policyQuery],
     ["capabilities", tables.get("site_capability_configurations"), capabilityQuery],
@@ -246,6 +247,7 @@ COMMIT;`;
     try {
       for (const line of result.stdout.split(/\r?\n/).filter(Boolean)) {
         const row = JSON.parse(line);
+        auditedDocuments[kind] += 1;
         const fields =
           kind === "policy" ? violations(row.document) : capabilityViolations(row.document);
         for (const field of fields)
@@ -263,11 +265,15 @@ COMMIT;`;
         `INVALID kind=${finding.kind} site_id=${JSON.stringify(finding.site_id)}${finding.environment ? ` environment=${JSON.stringify(finding.environment)}` : ""} field=${finding.field}`,
       );
     }
-    console.log(`found ${findings.length} invalid date-time field(s); no data was modified`);
+    console.log(
+      `audited policy_documents=${auditedDocuments.policy} capability_documents=${auditedDocuments.capabilities}; found ${findings.length} invalid date-time field(s); no data was modified`,
+    );
     process.exitCode = 1;
     return;
   }
-  console.log("all stored policy and capability date-time fields are valid; no data was modified");
+  console.log(
+    `all stored policy and capability date-time fields are valid; policy_documents=${auditedDocuments.policy} capability_documents=${auditedDocuments.capabilities} invalid_fields=0; no data was modified`,
+  );
 }
 
 if (process.argv.slice(2).includes("--fixtures")) fixtureMode();

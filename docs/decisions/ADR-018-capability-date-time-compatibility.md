@@ -6,17 +6,17 @@
 
 ## Context
 
-The Stored Site Capabilities Schema declares `updated_at` as `format: date-time`. The database stores this value in a `TIMESTAMPTZ` column and verifies it with the shared database timestamp predicate, while the runtime JSON Schema validator currently does not assert formats. Existing storage has not been audited across all deployment databases for strict JSON Schema compatibility.
+The Stored Site Capabilities Schema declares `updated_at` as `format: date-time`. The database stores this value in a `TIMESTAMPTZ` column and verifies it with the shared database timestamp predicate, while the runtime JSON Schema validator did not assert formats at decision time. The current local-development database passed the date-time preflight on 2026-09-30 before strict format validation was enabled.
 
 ## Decision
 
-Treat Stored Site Capabilities `updated_at` as requiring JSON Schema `date-time` validation, consistent with the stored Environment Policy decision in ADR-017. Before enabling strict format assertions in production, run the read-only M2 preflight against `site_capability_configurations` in every deployment database, alongside the policy table checks. Record target identifier, date, aggregate result/counts and remediation status; do not record credentials or timestamp values. Repair any invalid rows through the supported configuration write path.
+Treat Stored Site Capabilities `updated_at` as requiring JSON Schema `date-time` validation, consistent with the stored Environment Policy decision in ADR-017. Before enabling strict assertions, the local-development audit passed on 2026-09-30. Before any future deployment with existing data, run the read-only M2 preflight against `site_capability_configurations` in every deployment database, alongside the policy table checks. Record target identifier, date, aggregate result/counts and remediation status; do not record credentials or timestamp values. Repair any invalid rows through the supported configuration write path.
 
-Until every deployment has evidence, keep production validators' current format behavior. An invalid capability document continues through existing failure handling (the capability refresh must not replace the last good snapshot). This ADR does not change Schema, wire format, HTTP errors, or database constraints.
+Strict format assertions are enabled for the current implementation. An invalid capability document continues through existing failure handling (the capability refresh must not replace the last good snapshot). This ADR does not change Schema, wire format, HTTP errors, or database constraints.
 
 ## Consequences
 
 - The strict candidate fixture is `protocol/contracts/configuration/current/fixtures/capabilities/invalid/invalid-updated-at-date-time.json`.
-- M2.4's format tests distinguish strict Schema rejection from current production behavior.
-- Deployment preflight implementation must inspect both policy timestamps and capability `updated_at` before strict assertions are enabled.
-- This ADR chooses the contract; it does not certify that stored data in any deployment is clean.
+- M2.4's format tests assert that production stored-document consumers reject malformed date-time values.
+- The preflight inspects both policy timestamps and capability `updated_at` before strict assertions are enabled in a new environment.
+- This ADR records the current local-development audit result; it does not certify future environments before their own pre-rollout audit.

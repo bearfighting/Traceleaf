@@ -879,6 +879,7 @@ mod serialization_schema_tests {
         let document: Value = serde_json::from_str(text).unwrap();
         jsonschema::options()
             .with_draft(jsonschema::Draft::Draft202012)
+            .should_validate_formats(true)
             .build(&document)
             .unwrap()
     }
