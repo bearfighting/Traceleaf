@@ -31,3 +31,5 @@ Configuration audit rows expire after one year. Compose deployments using the `s
 - `20260925001600_add_capability_runtime_state.sql` records capability configuration versions by site and service instance for Collector, Processor, and Analytics API. Capability convergence heartbeats are separate from PR4 environment-policy heartbeats; inactive capability runtime rows expire after one day.
 
 - `20260926001700_create_definition_revisions.sql` stores immutable site-scoped Conversion/Funnel revisions and per-revision processor watermarks; it extends redacted configuration audit metadata for definition updates.
+
+- `20260930001800_create_site_registry.sql` adds stable Site identity and optional metadata storage plus a derived setup-status view. It intentionally does not backfill identities or add references; those steps require the M3 importer and target-specific orphan preflight first.

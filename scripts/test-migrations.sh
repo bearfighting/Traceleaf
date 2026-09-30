@@ -518,7 +518,8 @@ DECLARE
     20260925001400,
     20260925001500,
     20260925001600,
-    20260926001700
+    20260926001700,
+    20260930001800
   ];
   actual_migrations bigint[];
 BEGIN
@@ -563,7 +564,8 @@ DECLARE
     'configuration_runtime_instances',
     'configuration_capability_runtime_instances',
     'configuration_capability_runtime_state',
-    'site_capability_activation_windows'
+    'site_capability_activation_windows',
+    'site_registry'
   ];
   missing_table text;
 BEGIN
@@ -578,6 +580,131 @@ BEGIN
   END IF;
 END
 $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+      FROM information_schema.views
+     WHERE table_schema = 'public'
+       AND table_name = 'site_registry_setup_status'
+  ) THEN
+    RAISE EXCEPTION 'Site Registry setup-status view is missing';
+  END IF;
+END
+$$;
+
+BEGIN;
+DO $registry_setup_status_test$
+DECLARE
+  site_prefix TEXT := 'm3status_' || txid_current()::TEXT;
+  timestamp_value TIMESTAMPTZ := clock_timestamp();
+  timestamp_text TEXT := to_char(timestamp_value AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"');
+  key_document JSONB := jsonb_build_array(jsonb_build_object(
+    'key_id', 'ik_12345678',
+    'sha256_digest', repeat('0', 64),
+    'created_at', to_char(timestamp_value AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+  ));
+  capability_document JSONB := jsonb_build_object(
+    'page_views', jsonb_build_object('enabled', TRUE, 'settings', '{}'::JSONB),
+    'browser_context', jsonb_build_object('enabled', TRUE, 'settings', '{}'::JSONB),
+    'anonymous_visitors', jsonb_build_object('enabled', TRUE, 'settings', '{}'::JSONB),
+    'sessions', jsonb_build_object('enabled', TRUE, 'settings', '{}'::JSONB),
+    'dimensions', jsonb_build_object('enabled', TRUE, 'settings', '{}'::JSONB),
+    'custom_events', jsonb_build_object('enabled', TRUE, 'settings', '{}'::JSONB),
+    'web_vitals', jsonb_build_object('enabled', TRUE, 'settings', '{}'::JSONB),
+    'conversions', jsonb_build_object('enabled', TRUE, 'settings', '{}'::JSONB),
+    'funnels', jsonb_build_object('enabled', TRUE, 'settings', '{}'::JSONB),
+    'geo', jsonb_build_object('enabled', TRUE, 'settings', '{}'::JSONB)
+  );
+  candidate_site TEXT;
+BEGIN
+  INSERT INTO site_registry (site_id, display_name, website_url)
+  VALUES (site_prefix || '_incomplete', NULL, NULL);
+
+  INSERT INTO site_registry (site_id, display_name, website_url, lifecycle_status)
+  SELECT candidate, 'Migration regression fixture', 'https://example.com',
+         CASE WHEN candidate = site_prefix || '_archived' THEN 'archived' ELSE 'active' END
+    FROM unnest(ARRAY[
+      site_prefix || '_ready',
+      site_prefix || '_archived',
+      site_prefix || '_keyless',
+      site_prefix || '_disabled',
+      site_prefix || '_no_page_views'
+    ]) AS candidates(candidate);
+
+  FOREACH candidate_site IN ARRAY ARRAY[
+    site_prefix || '_ready',
+    site_prefix || '_archived',
+    site_prefix || '_keyless',
+    site_prefix || '_disabled',
+    site_prefix || '_no_page_views'
+  ] LOOP
+    INSERT INTO site_capability_configurations (site_id, version, updated_at, document)
+    VALUES (
+      candidate_site, 1, timestamp_value,
+      jsonb_build_object(
+        'schema_version', 1,
+        'site_id', candidate_site,
+        'version', 1,
+        'updated_at', timestamp_text,
+        'capabilities',
+          CASE WHEN candidate_site = site_prefix || '_no_page_views'
+               THEN jsonb_set(capability_document, '{page_views,enabled}', 'false'::JSONB)
+               ELSE capability_document
+          END,
+        'consent_policy', 'required',
+        'privacy_constraints', jsonb_build_array('no_ip_persistence', 'no_fingerprinting', 'consent_required')
+      )
+    );
+
+    INSERT INTO site_environment_policies (site_id, environment, version, updated_at, document)
+    VALUES (
+      candidate_site, 'test', 1, timestamp_value,
+      jsonb_build_object(
+        'schema_version', 1,
+        'site_id', candidate_site,
+        'environment', 'test',
+        'version', 1,
+        'updated_at', timestamp_text,
+        'enabled', candidate_site <> site_prefix || '_disabled',
+        'allowed_origins', jsonb_build_array('https://example.com'),
+        'ingest_keys', CASE WHEN candidate_site = site_prefix || '_keyless'
+                            THEN '[]'::JSONB
+                            ELSE key_document
+                       END,
+        'rate_limit_per_minute', 600
+      )
+    );
+  END LOOP;
+
+  IF (SELECT setup_status FROM site_registry_setup_status
+       WHERE site_id = site_prefix || '_incomplete') IS DISTINCT FROM 'needs_attention' THEN
+    RAISE EXCEPTION 'incomplete Site should need attention';
+  END IF;
+  IF (SELECT setup_status FROM site_registry_setup_status
+       WHERE site_id = site_prefix || '_ready') IS DISTINCT FROM 'ready' THEN
+    RAISE EXCEPTION 'configured active Site should be ready';
+  END IF;
+  IF (SELECT setup_status FROM site_registry_setup_status
+       WHERE site_id = site_prefix || '_archived') IS DISTINCT FROM 'ready' THEN
+    RAISE EXCEPTION 'archiving must not rewrite setup status';
+  END IF;
+  IF (SELECT setup_status FROM site_registry_setup_status
+       WHERE site_id = site_prefix || '_keyless') IS DISTINCT FROM 'needs_attention' THEN
+    RAISE EXCEPTION 'Site without an ingest-key digest should need attention';
+  END IF;
+  IF (SELECT setup_status FROM site_registry_setup_status
+       WHERE site_id = site_prefix || '_disabled') IS DISTINCT FROM 'needs_attention' THEN
+    RAISE EXCEPTION 'Site with a disabled policy should need attention';
+  END IF;
+  IF (SELECT setup_status FROM site_registry_setup_status
+       WHERE site_id = site_prefix || '_no_page_views') IS DISTINCT FROM 'needs_attention' THEN
+    RAISE EXCEPTION 'Site without required Page Views should need attention';
+  END IF;
+END
+$registry_setup_status_test$;
+ROLLBACK;
 
 DO $$
 BEGIN
