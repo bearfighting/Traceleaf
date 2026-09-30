@@ -514,6 +514,80 @@ mod tests {
     }
 
     #[test]
+    fn typify_policy_structure_and_explicit_rules_cover_canonical_and_semantic_cases() {
+        use super::generated_environment_policy::SiteEnvironmentIngestPolicy;
+        use std::collections::HashSet;
+
+        let fixtures = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../protocol/contracts/configuration/current/fixtures/environment-policy");
+        for name in ["empty-ingest-keys.json", "production.json"] {
+            let value: Value =
+                serde_json::from_slice(&std::fs::read(fixtures.join("valid").join(name)).unwrap())
+                    .unwrap();
+            let typed: SiteEnvironmentIngestPolicy = serde_json::from_value(value).unwrap();
+            assert_eq!(typed.schema_version, serde_json::json!(1));
+            assert!(!typed.allowed_origins.is_empty());
+            assert_eq!(
+                typed.allowed_origins.iter().collect::<HashSet<_>>().len(),
+                typed.allowed_origins.len()
+            );
+        }
+
+        let mut base: Value =
+            serde_json::from_slice(&std::fs::read(fixtures.join("valid/production.json")).unwrap())
+                .unwrap();
+        for (name, mutation) in [
+            (
+                "unsupported schema_version",
+                serde_json::json!({"schema_version": 2}),
+            ),
+            ("empty origins", serde_json::json!({"allowed_origins": []})),
+            (
+                "duplicate origins",
+                serde_json::json!({"allowed_origins": ["https://example.com", "https://example.com"]}),
+            ),
+        ] {
+            let mut candidate = base.clone();
+            for (key, value) in mutation.as_object().unwrap() {
+                candidate[key] = value.clone();
+            }
+            let typed: SiteEnvironmentIngestPolicy = serde_json::from_value(candidate).unwrap();
+            let unique = typed.allowed_origins.iter().collect::<HashSet<_>>().len()
+                == typed.allowed_origins.len();
+            let explicit_valid = typed.schema_version == serde_json::json!(1)
+                && !typed.allowed_origins.is_empty()
+                && unique;
+            assert!(!explicit_valid, "explicit policy rule must reject {name}");
+        }
+        base["unexpected"] = serde_json::json!(true);
+        assert!(
+            serde_json::from_value::<SiteEnvironmentIngestPolicy>(base).is_err(),
+            "Typify structure rejects unknown root fields"
+        );
+    }
+
+    #[test]
+    fn schema_unbounded_policy_integers_exceed_collector_i64_range() {
+        let validator = stored_policy_validator().unwrap();
+        let base: Value = serde_json::from_str(include_str!(
+            "../../../protocol/contracts/configuration/current/fixtures/environment-policy/valid/empty-ingest-keys.json"
+        )).unwrap();
+        for field in ["version", "rate_limit_per_minute"] {
+            let mut document = base.clone();
+            document[field] = serde_json::json!(1e30);
+            assert!(
+                validator.iter_errors(&document).next().is_none(),
+                "Schema should accept the unbounded integer probe for {field}"
+            );
+            assert!(
+                parse_database_policy(&validator, "site_playground", "preview", 1, &document)
+                    .is_err(),
+                "Collector i64 parsing rejects out-of-range {field}"
+            );
+        }
+    }
+
+    #[test]
     fn rejects_database_identity_and_version_mismatches() {
         let validator = stored_policy_validator().unwrap();
         let mut document: Value = serde_json::from_str(include_str!(

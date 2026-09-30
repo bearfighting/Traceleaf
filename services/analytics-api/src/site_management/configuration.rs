@@ -667,6 +667,84 @@ mod validator_tests {
     };
 
     #[tokio::test]
+    async fn canonical_semantic_fixtures_preserve_service_rules_and_error_mapping() {
+        let validators = ConfigurationValidators::new().unwrap();
+        let mut capability: Value = serde_json::from_str(include_str!(
+            "../../../../protocol/contracts/configuration/current/fixtures/capability-update/valid/all-enabled.json"
+        )).unwrap();
+        capability["capabilities"]["anonymous_visitors"]["enabled"] = serde_json::json!(false);
+        assert!(validate_schema(&validators.capabilities, &capability, "").is_ok());
+        let dependency_error = super::validate_capability_dependencies(&capability).unwrap_err();
+        let dependency_response = dependency_error.into_response();
+        assert_eq!(
+            dependency_response.status(),
+            axum::http::StatusCode::UNPROCESSABLE_ENTITY
+        );
+        let dependency_body = axum::body::to_bytes(dependency_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let dependency_body: Value = serde_json::from_slice(&dependency_body).unwrap();
+        assert_eq!(
+            dependency_body["error"]["code"],
+            "configuration_validation_failed"
+        );
+        assert_eq!(
+            dependency_body["error"]["details"][0]["code"],
+            "missing_dependency"
+        );
+        capability["capabilities"]["browser_context"]["enabled"] = serde_json::json!(true);
+        capability["capabilities"]["sessions"]["enabled"] = serde_json::json!(false);
+        assert!(super::validate_capability_dependencies(&capability).is_ok());
+
+        let mut policy_update: Value = serde_json::from_str(include_str!(
+            "../../../../protocol/contracts/configuration/current/fixtures/environment-policy-update/valid/production.json"
+        ))
+        .unwrap();
+        policy_update["allowed_origins"] =
+            serde_json::json!(["https://example.com:443/", "https://example.com"]);
+        assert!(validate_schema(&validators.environment_policy, &policy_update, "").is_ok());
+        let origins = policy_update["allowed_origins"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|origin| origin.as_str().unwrap().to_owned())
+            .collect::<Vec<_>>();
+        let origin_error = super::validate_policy_origins(&origins).unwrap_err();
+        match origin_error {
+            crate::site_management::errors::ConfigurationApiError::Validation(details) => {
+                assert_eq!(details[0].code, "duplicate_origin")
+            }
+            other => panic!("expected duplicate origin validation error, got {other:?}"),
+        }
+
+        let duplicate_ids: Value = serde_json::from_str(include_str!(
+            "../../../../protocol/contracts/configuration/current/fixtures/conversion-funnel-definition-set-update/invalid/duplicate-ids.json"
+        )).unwrap();
+        assert!(validate_schema(&validators.definition_set, &duplicate_ids, "").is_ok());
+        let duplicate_error = super::validate_definition_set(&duplicate_ids).unwrap_err();
+        match duplicate_error {
+            crate::site_management::errors::ConfigurationApiError::Validation(details) => {
+                assert_eq!(details[0].code, "duplicate_definition_id")
+            }
+            other => panic!("expected duplicate ID validation error, got {other:?}"),
+        }
+
+        let mut sensitive: Value = serde_json::from_str(include_str!(
+            "../../../../protocol/contracts/configuration/current/fixtures/conversion-funnel-definition-set-update/valid/definitions.json"
+        )).unwrap();
+        sensitive["conversions"][0]["properties"] =
+            serde_json::json!({"email": "person@example.com"});
+        assert!(validate_schema(&validators.definition_set, &sensitive, "").is_ok());
+        let privacy_error = super::validate_definition_set(&sensitive).unwrap_err();
+        match privacy_error {
+            crate::site_management::errors::ConfigurationApiError::Validation(details) => {
+                assert_eq!(details[0].code, "sensitive_property_forbidden")
+            }
+            other => panic!("expected privacy validation error, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
     async fn injected_management_validators_preserve_schema_error_responses() {
         let validators = ConfigurationValidators::new().unwrap();
         let cases = [

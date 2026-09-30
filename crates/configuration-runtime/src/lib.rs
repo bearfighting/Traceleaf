@@ -428,6 +428,46 @@ mod tests {
     }
 
     #[test]
+    fn current_runtime_accepts_invalid_capability_date_time_until_rollout_gate_closes() {
+        let validator = validator();
+        let invalid_date: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../protocol/contracts/configuration/current/fixtures/capabilities/invalid/invalid-updated-at-date-time.json"
+        ))
+        .unwrap();
+        assert!(
+            CapabilitySnapshot::from_document(&validator, "site_playground", 1, &invalid_date)
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn canonical_capability_fixtures_match_current_runtime_semantics() {
+        let validator = validator();
+        let fixture_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../protocol/contracts/configuration/current/fixtures/capabilities");
+        for (directory, expected_valid) in [("valid", true), ("invalid", false)] {
+            for entry in std::fs::read_dir(fixture_root.join(directory)).unwrap() {
+                let path = entry.unwrap().path();
+                if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+                    continue;
+                }
+                let name = path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or_default();
+                let document: serde_json::Value =
+                    serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+                let accepted =
+                    CapabilitySnapshot::from_document(&validator, "site_playground", 1, &document)
+                        .is_ok();
+                let expected_current =
+                    expected_valid || name == "invalid-updated-at-date-time.json";
+                assert_eq!(accepted, expected_current, "fixture: {}", path.display());
+            }
+        }
+    }
+
+    #[test]
     fn rejects_schema_invalid_documents_with_the_injected_validator() {
         let validator = validator();
         let mut invalid = document();

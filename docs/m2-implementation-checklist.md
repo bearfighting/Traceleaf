@@ -63,16 +63,20 @@ This checklist turns the M2 roadmap item into reviewable implementation slices. 
 
 ### M2.4 — Add explicit constraints and shared fixture parity
 
-- [ ] Implement explicit Stored Environment Policy rules not guaranteed by generated structures or Serde: supported `schema_version`, non-empty origins, and unique origins.
-- [ ] Apply date-time behavior according to the M2.1 decision; keep the corresponding fixture outcomes synchronized with the Schema contract.
-- [ ] Identify constraints for each remaining configuration/management contract that static types cannot express, including formats, bounds, unknown-field policy, and cross-field rules.
-- [ ] Run canonical valid/invalid fixtures through Schema, generated-type parsing plus explicit validation, and the production consumer where applicable.
-- [ ] Check serialized wire JSON as well as parse acceptance wherever the consumer writes configuration documents.
-- [ ] Explain every disagreement before declaring parity; do not weaken a Schema or fixture silently to make the implementation pass.
+- [x] Document per-contract constraints and consumer/type boundaries, including revisions without a stored Schema, in [M2.4 parity assessment](m2.4-configuration-parity.md).
+- [x] Add a repeatable Schema fixture runner: `node scripts/m2-configuration-parity.mjs`; it distinguishes Schema-valid/service-invalid semantic fixtures and strict date-time candidates.
+- [ ] Exercise canonical fixtures through generated Rust parsing plus explicit rules and production consumer paths; see the assessment for remaining evidence.
+- [x] Extend `node scripts/audit-policy-datetimes.mjs` to inspect both stored policy and capability tables in read-only transactions; fixture mode covers the capability date-time candidate. Executed both result paths against disposable PostgreSQL 18.6 tables; see the parity report.
+- [ ] Run that preflight against every deployment and record remediation.
+- [x] Record strict Stored Capabilities updated_at behavior in [ADR-018](decisions/ADR-018-capability-date-time-compatibility.md); assertions remain disabled until deployment evidence is complete.
+- [x] Record policy integer bounds as an implementation-range exception without changing Schema or wire format.
+- [x] Add representative TypeScript positive/negative probes for non-empty Origins, schema version, date-time string limits, funnel step minimum, and unconstrained definition IDs; package typecheck passes.
+- [ ] Check serialized wire JSON against Schema for each writing consumer.
+- [x] Keep Schema unchanged and document known differences in the parity assessment.
 
-**Exit criteria:** all in-scope fixture outcomes match the agreed contract or have an approved, documented compatibility exception; unknown-field and version behavior is explicit.
+**Exit criteria:** fixture outcomes match or have a documented exception; unknown-field/version behavior is explicit; strict format assertions remain gated until policy and capability preflight evidence is complete. Current status: in progress.
 
-**Evidence:** _Add a per-fixture result matrix and test commands/results._
+**Evidence:** [M2.4 parity assessment](m2.4-configuration-parity.md), [ADR-017](decisions/ADR-017-policy-date-time-compatibility.md), [ADR-018](decisions/ADR-018-capability-date-time-compatibility.md), `node scripts/m2-configuration-parity.mjs`. Full Rust/TS consumer parity and per-deployment database results remain outstanding.
 
 ### M2.5 — Establish static runtime views and capability registry
 

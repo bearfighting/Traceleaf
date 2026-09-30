@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "site_id": "site_playground",
+  "version": 1,
+  "updated_at": "not-a-date-time",
+  "capabilities": {
+    "page_views": { "enabled": true, "settings": {} },
+    "browser_context": { "enabled": true, "settings": {} },
+    "anonymous_visitors": { "enabled": true, "settings": {} },
+    "sessions": { "enabled": true, "settings": {} },
+    "dimensions": { "enabled": true, "settings": {} },
+    "custom_events": { "enabled": true, "settings": {} },
+    "web_vitals": { "enabled": true, "settings": {} },
+    "conversions": { "enabled": true, "settings": {} },
+    "funnels": { "enabled": true, "settings": {} },
+    "geo": { "enabled": true, "settings": {} }
+  },
+  "consent_policy": "required",
+  "privacy_constraints": ["no_ip_persistence", "no_fingerprinting", "consent_required"]
+}
