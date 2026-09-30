@@ -9,12 +9,11 @@ pub(crate) struct AnalyticsState {
 }
 
 impl AnalyticsState {
-    pub(crate) fn new(pool: PgPool, definition_version: String) -> Self {
-        Self {
-            capabilities: CapabilityRuntime::new(pool.clone(), "analytics_api")
-                .expect("embedded capability schema must compile"),
+    pub(crate) fn new(pool: PgPool, definition_version: String) -> Result<Self, String> {
+        Ok(Self {
+            capabilities: CapabilityRuntime::new(pool.clone(), "analytics_api")?,
             pool,
             definition_version,
-        }
+        })
     }
 }

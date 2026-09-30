@@ -45,13 +45,13 @@ impl CapabilitySnapshot {
         Ok(self)
     }
 
-    pub fn from_document(site_id: &str, version: i64, document: &Value) -> Result<Self, String> {
-        let schema: Value = serde_json::from_str(SCHEMA).map_err(|error| error.to_string())?;
-        let validator = jsonschema::options()
-            .with_draft(Draft::Draft202012)
-            .build(&schema)
-            .map_err(|error| error.to_string())?;
-        if let Some(error) = validator.iter_errors(document).next() {
+    pub fn from_document(
+        validator: &CapabilitySchemaValidator,
+        site_id: &str,
+        version: i64,
+        document: &Value,
+    ) -> Result<Self, String> {
+        if let Some(error) = validator.validator.iter_errors(document).next() {
             return Err(error.to_string());
         }
         let stored: StoredCapability =
@@ -93,6 +93,22 @@ impl CapabilitySnapshot {
     }
 }
 
+#[derive(Clone)]
+pub struct CapabilitySchemaValidator {
+    validator: Validator,
+}
+
+impl CapabilitySchemaValidator {
+    pub fn new() -> Result<Self, String> {
+        let schema: Value = serde_json::from_str(SCHEMA).map_err(|error| error.to_string())?;
+        let validator = jsonschema::options()
+            .with_draft(Draft::Draft202012)
+            .build(&schema)
+            .map_err(|error| error.to_string())?;
+        Ok(Self { validator })
+    }
+}
+
 #[derive(Deserialize)]
 struct StoredCapability {
     site_id: String,
@@ -110,7 +126,7 @@ pub struct CapabilityRuntime {
     pool: PgPool,
     service: &'static str,
     instance_id: String,
-    validator: Arc<Validator>,
+    validator: Arc<CapabilitySchemaValidator>,
     snapshots: Arc<RwLock<HashMap<String, CapabilitySnapshot>>>,
     stale_sites: Arc<RwLock<HashSet<String>>>,
     last_prune: Arc<std::sync::Mutex<Instant>>,
@@ -121,11 +137,7 @@ impl CapabilityRuntime {
         if !SERVICES.contains(&service) {
             return Err("unsupported configuration runtime service".into());
         }
-        let schema: Value = serde_json::from_str(SCHEMA).map_err(|error| error.to_string())?;
-        let validator = jsonschema::options()
-            .with_draft(Draft::Draft202012)
-            .build(&schema)
-            .map_err(|error| error.to_string())?;
+        let validator = CapabilitySchemaValidator::new()?;
         let instance_id = format!(
             "{service}-{}-{}",
             std::process::id(),
@@ -247,15 +259,10 @@ impl CapabilityRuntime {
         let mut stale_sites = HashSet::new();
         for (site_id, version, document) in rows {
             let activation_windows = windows.remove(&site_id).unwrap_or_default();
-            let parsed = CapabilitySnapshot::from_document(&site_id, version, &document)
-                .and_then(|snapshot| snapshot.with_activation_windows(activation_windows));
-            match parsed.and_then(|snapshot| {
-                if self.validator.iter_errors(&document).next().is_none() {
-                    Ok(snapshot)
-                } else {
-                    Err("document failed schema validation".to_owned())
-                }
-            }) {
+            let parsed =
+                CapabilitySnapshot::from_document(&self.validator, &site_id, version, &document)
+                    .and_then(|snapshot| snapshot.with_activation_windows(activation_windows));
+            match parsed {
                 Ok(snapshot) => {
                     reports.push((site_id.clone(), Some(version), "current"));
                     next.insert(site_id, snapshot);
@@ -382,7 +389,11 @@ mod tests {
     use sqlx::postgres::PgPoolOptions;
     use std::time::Duration;
 
-    use super::{CapabilityRuntime, CapabilitySnapshot};
+    use super::{CapabilityRuntime, CapabilitySchemaValidator, CapabilitySnapshot};
+
+    fn validator() -> CapabilitySchemaValidator {
+        CapabilitySchemaValidator::new().unwrap()
+    }
 
     fn document() -> serde_json::Value {
         json!({
@@ -407,12 +418,21 @@ mod tests {
 
     #[test]
     fn validates_identity_and_exposes_per_site_flags() {
-        let snapshot = CapabilitySnapshot::from_document("site_a", 3, &document()).unwrap();
+        let snapshot =
+            CapabilitySnapshot::from_document(&validator(), "site_a", 3, &document()).unwrap();
         assert!(snapshot.enabled("page_views"));
         assert!(!snapshot.enabled("anonymous_visitors"));
         assert!(!snapshot.enabled("unknown"));
-        assert!(CapabilitySnapshot::from_document("site_b", 3, &document()).is_err());
-        assert!(CapabilitySnapshot::from_document("site_a", 2, &document()).is_err());
+        assert!(CapabilitySnapshot::from_document(&validator(), "site_b", 3, &document()).is_err());
+        assert!(CapabilitySnapshot::from_document(&validator(), "site_a", 2, &document()).is_err());
+    }
+
+    #[test]
+    fn rejects_schema_invalid_documents_with_the_injected_validator() {
+        let validator = validator();
+        let mut invalid = document();
+        invalid["unexpected"] = serde_json::json!(true);
+        assert!(CapabilitySnapshot::from_document(&validator, "site_a", 3, &invalid).is_err());
     }
 
     #[tokio::test]
@@ -425,7 +445,8 @@ mod tests {
 
         for service in ["processor", "analytics_api"] {
             let runtime = CapabilityRuntime::new(pool.clone(), service).unwrap();
-            let snapshot = CapabilitySnapshot::from_document("site_a", 3, &document()).unwrap();
+            let snapshot =
+                CapabilitySnapshot::from_document(&validator(), "site_a", 3, &document()).unwrap();
             let windows = snapshot
                 .enabled
                 .keys()
@@ -449,7 +470,8 @@ mod tests {
 
     #[test]
     fn activation_windows_are_required_for_enabled_capabilities() {
-        let snapshot = CapabilitySnapshot::from_document("site_a", 3, &document()).unwrap();
+        let snapshot =
+            CapabilitySnapshot::from_document(&validator(), "site_a", 3, &document()).unwrap();
         assert!(
             snapshot
                 .clone()

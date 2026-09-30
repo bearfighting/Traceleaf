@@ -55,8 +55,15 @@ async fn serve(args: ServeArgs) -> Result<(), CollectorError> {
         std::env::var("DATABASE_URL").map_err(|_| CollectorError::MissingDatabaseUrl)?;
     let sink = PostgresSink::connect(&database_url).await?;
     let policy = collector::security::KeyPolicy::new(SiteRegistry::from_runtime_sites(Vec::new())?);
-    let runtime = RuntimePolicyManager::new(sink.pool(), registry, policy.clone())
-        .map_err(|error| CollectorError::RuntimeConfiguration(error.to_string()))?;
+    let policy_validator =
+        collector::runtime_policy::stored_policy_validator().map_err(|error| {
+            CollectorError::RuntimeConfiguration(format!(
+                "invalid embedded environment policy schema: {error}"
+            ))
+        })?;
+    let runtime =
+        RuntimePolicyManager::new(sink.pool(), registry, policy.clone(), policy_validator)
+            .map_err(|error| CollectorError::RuntimeConfiguration(error.to_string()))?;
     let geo_path = std::env::var("GEOIP_DATABASE_PATH").map_err(|_| {
         CollectorError::GeoConfiguration(
             "GEOIP_DATABASE_PATH must point to a supported local GeoLite2 Country or DB-IP City Lite MMDB".to_owned(),

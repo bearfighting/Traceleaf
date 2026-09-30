@@ -21,12 +21,6 @@ use crate::site_management::{
     state::SiteManagementState,
 };
 
-const CAPABILITY_SCHEMA: &str = include_str!(
-    "../../../../protocol/contracts/configuration/current/capability-update.schema.json"
-);
-const POLICY_UPDATE_SCHEMA: &str = include_str!(
-    "../../../../protocol/contracts/configuration/current/environment-policy-update.schema.json"
-);
 const CAPABILITY_MANIFEST: &str =
     include_str!("../../../../protocol/capabilities/capabilities.json");
 
@@ -108,16 +102,10 @@ fn require_if_none_match(headers: &HeaderMap) -> Result<(), ConfigurationApiErro
 }
 
 fn validate_schema(
-    schema_text: &str,
+    validator: &jsonschema::Validator,
     value: &Value,
     path: &'static str,
 ) -> Result<(), ConfigurationApiError> {
-    let schema: Value =
-        serde_json::from_str(schema_text).map_err(|_| ConfigurationApiError::Unavailable)?;
-    let validator = jsonschema::options()
-        .with_draft(jsonschema::Draft::Draft202012)
-        .build(&schema)
-        .map_err(|_| ConfigurationApiError::Unavailable)?;
     if let Some(error) = validator.iter_errors(value).next() {
         return Err(ConfigurationApiError::Validation(vec![
             ConfigurationValidationDetail {
@@ -360,7 +348,7 @@ pub(crate) async fn put_capabilities(
     validate_identity(&site_id, None)?;
     let version = parse_if_match(&headers)?;
     let Json(request) = request.map_err(ConfigurationApiError::from)?;
-    validate_schema(CAPABILITY_SCHEMA, &request, "")?;
+    validate_schema(&state.validators.capabilities, &request, "")?;
     let request: CapabilityUpdate = serde_json::from_value(request).map_err(|_| {
         ConfigurationApiError::validation("", "invalid_body", "Request body is invalid.")
     })?;
@@ -403,7 +391,7 @@ pub(crate) async fn create_ingest_policy(
     validate_identity(&site_id, Some(&environment))?;
     require_if_none_match(&headers)?;
     let Json(request) = request.map_err(ConfigurationApiError::from)?;
-    validate_schema(POLICY_UPDATE_SCHEMA, &request, "")?;
+    validate_schema(&state.validators.environment_policy, &request, "")?;
     let request: PolicyUpdate = serde_json::from_value(request).map_err(|_| {
         ConfigurationApiError::validation("", "invalid_body", "Request body is invalid.")
     })?;
@@ -435,7 +423,7 @@ pub(crate) async fn put_ingest_policy(
     validate_identity(&site_id, Some(&environment))?;
     let version = parse_if_match(&headers)?;
     let Json(request) = request.map_err(ConfigurationApiError::from)?;
-    validate_schema(POLICY_UPDATE_SCHEMA, &request, "")?;
+    validate_schema(&state.validators.environment_policy, &request, "")?;
     let request: PolicyUpdate = serde_json::from_value(request).map_err(|_| {
         ConfigurationApiError::validation("", "invalid_body", "Request body is invalid.")
     })?;
@@ -534,10 +522,6 @@ pub(crate) async fn revoke_ingest_key(
         policy_response(&state.pool, &row).await,
     ))
 }
-
-const DEFINITION_SET_UPDATE_SCHEMA: &str = include_str!(
-    "../../../../protocol/contracts/configuration/current/conversion-funnel-definition-set-update.schema.json"
-);
 
 fn validate_definition_set(definitions: &Value) -> Result<(), ConfigurationApiError> {
     const FORBIDDEN: [&str; 21] = [
@@ -639,7 +623,7 @@ pub(crate) async fn create_definition_set(
     validate_identity(&site_id, None)?;
     require_if_none_match(&headers)?;
     let Json(request) = request.map_err(ConfigurationApiError::from)?;
-    validate_schema(DEFINITION_SET_UPDATE_SCHEMA, &request, "")?;
+    validate_schema(&state.validators.definition_set, &request, "")?;
     validate_definition_set(&request)?;
     let row = config_store::create_definition_set(&state.pool, &site_id, None, request, None)
         .await
@@ -661,7 +645,7 @@ pub(crate) async fn put_definition_set(
     validate_identity(&site_id, None)?;
     let revision = parse_if_match(&headers)?;
     let Json(request) = request.map_err(ConfigurationApiError::from)?;
-    validate_schema(DEFINITION_SET_UPDATE_SCHEMA, &request, "")?;
+    validate_schema(&state.validators.definition_set, &request, "")?;
     validate_definition_set(&request)?;
     let row = config_store::update_definition_set(&state.pool, &site_id, revision, request)
         .await
@@ -671,4 +655,72 @@ pub(crate) async fn put_definition_set(
         row.version,
         row.document,
     ))
+}
+
+#[cfg(test)]
+mod validator_tests {
+    use axum::response::IntoResponse;
+    use serde_json::Value;
+
+    use crate::site_management::{
+        configuration::validate_schema, validation::ConfigurationValidators,
+    };
+
+    #[tokio::test]
+    async fn injected_management_validators_preserve_schema_error_responses() {
+        let validators = ConfigurationValidators::new().unwrap();
+        let cases = [
+            (
+                &validators.capabilities,
+                include_str!(
+                    "../../../../protocol/contracts/configuration/current/fixtures/capability-update/valid/all-enabled.json"
+                ),
+                include_str!(
+                    "../../../../protocol/contracts/configuration/current/fixtures/capability-update/invalid/unknown-capability.json"
+                ),
+            ),
+            (
+                &validators.environment_policy,
+                include_str!(
+                    "../../../../protocol/contracts/configuration/current/fixtures/environment-policy-update/valid/production.json"
+                ),
+                include_str!(
+                    "../../../../protocol/contracts/configuration/current/fixtures/environment-policy-update/invalid/duplicate-origins.json"
+                ),
+            ),
+            (
+                &validators.definition_set,
+                include_str!(
+                    "../../../../protocol/contracts/configuration/current/fixtures/conversion-funnel-definition-set-update/valid/definitions.json"
+                ),
+                include_str!(
+                    "../../../../protocol/contracts/configuration/current/fixtures/conversion-funnel-definition-set-update/invalid/missing-active.json"
+                ),
+            ),
+        ];
+
+        for (validator, valid, invalid) in cases {
+            let valid: Value = serde_json::from_str(valid).unwrap();
+            assert!(validate_schema(validator, &valid, "").is_ok());
+
+            let invalid: Value = serde_json::from_str(invalid).unwrap();
+            let error = validate_schema(validator, &invalid, "").unwrap_err();
+            let response = error.into_response();
+            assert_eq!(
+                response.status(),
+                axum::http::StatusCode::UNPROCESSABLE_ENTITY
+            );
+            let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body: Value = serde_json::from_slice(&bytes).unwrap();
+            assert_eq!(body["error"]["code"], "configuration_validation_failed");
+            assert_eq!(body["error"]["message"], "Configuration failed validation.");
+            assert_eq!(body["error"]["details"][0]["code"], "schema_validation");
+            assert_eq!(
+                body["error"]["details"][0]["message"],
+                "Value does not match the configuration schema."
+            );
+        }
+    }
 }

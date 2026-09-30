@@ -975,7 +975,13 @@ mod tests {
             "consent_policy": "required",
             "privacy_constraints": ["no_ip_persistence", "no_fingerprinting", "consent_required"]
         });
-        let capabilities = CapabilitySnapshot::from_document("site_example", 1, &document).unwrap();
+        let capabilities = CapabilitySnapshot::from_document(
+            &configuration_runtime::CapabilitySchemaValidator::new().unwrap(),
+            "site_example",
+            1,
+            &document,
+        )
+        .unwrap();
         let database = PgPoolOptions::new()
             .connect_lazy("postgres://analytics:analytics@127.0.0.1:5432/unused")
             .unwrap();

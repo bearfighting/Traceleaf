@@ -8,21 +8,21 @@ pub use state::{AppState, state, state_with_admin_tokens, state_with_definition_
 
 use sqlx::postgres::PgPoolOptions;
 
-pub fn connect(database_url: &str) -> Result<AppState, sqlx::Error> {
+pub fn connect(database_url: &str) -> anyhow::Result<AppState> {
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect_lazy(database_url)?;
-    Ok(state(pool))
+    state(pool).map_err(anyhow::Error::msg)
 }
 
 pub fn connect_with_definition_version(
     database_url: &str,
     definition_version: String,
-) -> Result<AppState, sqlx::Error> {
+) -> anyhow::Result<AppState> {
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect_lazy(database_url)?;
-    Ok(state_with_definition_version(pool, definition_version))
+    state_with_definition_version(pool, definition_version).map_err(anyhow::Error::msg)
 }
 
 pub fn router(state: AppState) -> axum::Router {

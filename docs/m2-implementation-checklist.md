@@ -1,6 +1,6 @@
 # M2 Implementation Plan: Configuration Models and Capability Registry
 
-- Status: planned
+- Status: in progress
 - Prerequisites: M0a, M0b, M1
 - Scope: stored configuration contracts, existing management API contracts, runtime configuration views, capability registry validation, and Schema validator lifecycle
 - Out of scope: Site Registry migrations and Site creation API (M3/M5), event wire model migration (M9), and adoption of Schema Transformation Toolkit before it passes its project-specific acceptance gates
@@ -26,25 +26,25 @@ This checklist turns the M2 roadmap item into reviewable implementation slices. 
 - [x] Select Schema-strict behavior for stored policy `updated_at` and `ingest_keys[].created_at`; see [ADR-017](decisions/ADR-017-policy-date-time-compatibility.md).
 - [x] Record compatibility behavior: invalid policies are stale and retain last-good state; without last-good, they are not applied.
 - [x] Add the read-only preflight, require an explicit `DATABASE_URL` with a database name and one explicit hostname, reject multi-host URLs, require a writable primary, ignore inherited libpq routing variables and `PGOPTIONS`, reject URL `options` and `target_session_attrs`, and verify its canonical fixture mode.
-- [ ] Before M2.2/M2.4 enables format assertion, run the preflight against every deployment database and repair findings; record environment, date, result, and remediation evidence without timestamp values.
+- [ ] Before M2.4 enables format assertion, run the preflight against every deployment database and repair findings; record environment, date, result, and remediation evidence without timestamp values.
 - [x] Record migration order in the [inventory](m2-configuration-contract-inventory.md): stored policy, capabilities/registry, definition revisions, then each update contract with its stored consumer.
 
-**Exit criteria:** in-scope contracts and consumers are recorded; date-time behavior and deployment gate are explicit; production behavior remains unchanged. Database audit remains a per-environment gate before M2.2.
+**Exit criteria:** in-scope contracts and consumers are recorded; date-time behavior and deployment gate are explicit; production behavior remains unchanged. Database audit remains a per-environment gate before M2.4 enables strict format assertion.
 
 **Evidence:** [contract inventory](m2-configuration-contract-inventory.md), [ADR-017](decisions/ADR-017-policy-date-time-compatibility.md), [M2.1 completion record](m2.1-scope-and-compatibility.md), and `node scripts/audit-policy-datetimes.mjs --fixtures`.
 
 ### M2.2 — Construct and reuse runtime Schema validators
 
-- [ ] Construct the Collector policy validator once during process startup and hold/inject it for policy loads and refreshes.
-- [ ] Ensure refresh loops and request handlers do not load, parse, or compile Schema documents.
-- [ ] Find and remove duplicate Schema validator construction in configuration runtime paths, reusing the validator owned by the application/runtime boundary.
-- [ ] Construct existing management API validators at application startup and share them with handlers.
-- [ ] Preserve current outward error semantics: invalid event batches keep their existing error response; invalid policy updates retain last-good configuration and stale state.
-- [ ] Add or update lifecycle tests that demonstrate reuse across repeated refreshes/requests and retain malformed-policy handling tests.
+- [x] Construct the Collector policy validator once during process startup and inject it into `RuntimePolicyManager`; refresh reuses it (`services/collector/src/main.rs`, `runtime_policy.rs`).
+- [x] Ensure refresh loops and request handlers do not load, parse, or compile Schema documents; policy refresh and management handlers only call compiled validators.
+- [x] Remove duplicate capability Schema compilation and duplicate per-document validation; `CapabilityRuntime` owns one `CapabilitySchemaValidator` and supplies it to `CapabilitySnapshot::from_document`.
+- [x] Construct the capability, environment-policy update, and definition-set update validators at Analytics API state composition and share them through `SiteManagementState`. `state`, `state_with_definition_version`, and `connect` are fallible, so initialization errors stop startup before listener binding.
+- [x] Preserve outward behavior: event validation was untouched; invalid stored policy retains last-good and reports stale; management request error mapping remains unchanged. Strict policy `date-time` assertions remain deferred to M2.4.
+- [x] Retain canonical malformed-policy fixture assertions; test the startup-built policy validator rejecting a schema-invalid document, Collector last-good/stale and no-last-good behavior, CapabilityRuntime schema rejection and stale snapshot retention, management validator initialization failure, and database-free valid/invalid fixture responses for all three management validators.
 
 **Exit criteria:** every in-scope runtime validator is constructed at startup or an equivalent composition boundary, injected/owned by its consumer, and never compiled in a hot path; existing API and policy failure behavior is unchanged.
 
-**Evidence:** _Add code references and targeted test commands/results._
+**Evidence:** startup and injection: `services/collector/src/main.rs`, `services/collector/src/runtime_policy.rs`, `crates/configuration-runtime/src/lib.rs`, `services/analytics-api/src/site_management/{validation,state}.rs`, `services/analytics-api/src/{state,lib}.rs`. Verified with `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets --all-features -- -D warnings`, `cargo test -p configuration-runtime`, `cargo test -p collector runtime_policy::tests`, `cargo test -p analytics-api --lib`, `cargo test -p analytics-api --test http`, and `./scripts/test.sh`. PostgreSQL-backed tests are ignored without a migrated database. The Collector policy lifecycle test is included in `pnpm test:integration`; both PostgreSQL test binaries compile here, but their ignored cases were not executed without a configured test database. `./scripts/check.sh` reached formatting and failed on eight pre-existing protocol fixture formatting warnings; no production schema or fixture was changed in M2.2.
 
 ### M2.3 — Integrate pinned configuration type generation
 

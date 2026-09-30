@@ -5,6 +5,7 @@ use axum::{
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use chrono::{DateTime, Utc};
+use configuration_runtime::CapabilityRuntime;
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::{env, time::Duration};
 use tower::ServiceExt;
@@ -124,7 +125,7 @@ async fn reset_phase6(pool: &PgPool, site_id: &str) {
 }
 
 fn app(pool: PgPool) -> axum::Router {
-    router(state(pool))
+    router(state(pool).expect("embedded schemas compile"))
 }
 
 #[tokio::test]
@@ -838,7 +839,10 @@ async fn geo_country_report_includes_unknown_and_is_site_scoped() {
 
 fn admin_app(pool: PgPool, token: &str) -> axum::Router {
     let configured = AdminTokens::parse(&format!("[\"{token}\"]")).unwrap();
-    router(state_with_admin_tokens(state(pool), Some(configured)))
+    router(state_with_admin_tokens(
+        state(pool).expect("embedded schemas compile"),
+        Some(configured),
+    ))
 }
 
 fn capability_document(site_id: &str) -> (DateTime<Utc>, serde_json::Value) {
@@ -913,7 +917,7 @@ async fn configuration_admin_routes_reject_missing_and_invalid_credentials_befor
         .connect_lazy("postgres://invalid:invalid@127.0.0.1:1/invalid")
         .unwrap();
     let route = "/v1/admin/sites/no_such_site/capabilities";
-    let no_token = router(state(pool.clone()))
+    let no_token = router(state(pool.clone()).expect("embedded schemas compile"))
         .oneshot(Request::get(route).body(axum::body::Body::empty()).unwrap())
         .await
         .unwrap();
@@ -1716,4 +1720,69 @@ async fn definition_sets_append_immutable_revisions_with_etags_and_reject_remova
     let audit_count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM configuration_audit WHERE resource->>'site_id'=$1 AND resource->>'kind'='conversion_funnel_definitions'").bind(site_id).fetch_one(&pool).await.unwrap();
     assert_eq!(audit_count, 2);
     clear_configuration_site(&pool, site_id).await;
+}
+
+#[tokio::test]
+#[ignore = "requires migrated PostgreSQL; run pnpm test:integration"]
+async fn capability_runtime_reuses_validator_and_retains_last_good_snapshot_on_invalid_refresh() {
+    let pool = pool().await;
+    let site_id = "m2b_capability_refresh_test";
+    sqlx::query("DELETE FROM configuration_capability_runtime_instances WHERE service = 'analytics_api' AND instance_id IN (SELECT instance_id FROM configuration_capability_runtime_state WHERE site_id = $1)")
+        .bind(site_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM configuration_capability_runtime_state WHERE site_id = $1")
+        .bind(site_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM site_capability_configurations WHERE site_id = $1")
+        .bind(site_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    seed_capabilities(&pool, site_id).await;
+    let runtime = CapabilityRuntime::new(pool.clone(), "analytics_api").unwrap();
+    assert!(runtime.refresh_once().await);
+    let last_good = runtime
+        .snapshot(site_id)
+        .expect("initial document is valid");
+    assert!(!runtime.is_stale(site_id));
+
+    sqlx::query("DELETE FROM site_capability_activation_windows WHERE site_id = $1 AND capability_id = 'web_vitals'")
+        .bind(site_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    assert!(runtime.refresh_once().await);
+    assert_eq!(runtime.snapshot(site_id), Some(last_good.clone()));
+    assert!(runtime.is_stale(site_id));
+
+    let (applied_version, refresh_status): (Option<i64>, String) = sqlx::query_as(
+        "SELECT applied_version, refresh_status FROM configuration_capability_runtime_state WHERE service = 'analytics_api' AND site_id = $1 ORDER BY last_seen_at DESC LIMIT 1",
+    )
+    .bind(site_id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(applied_version, Some(last_good.version));
+    assert_eq!(refresh_status, "stale");
+
+    sqlx::query("DELETE FROM configuration_capability_runtime_state WHERE site_id = $1")
+        .bind(site_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM configuration_capability_runtime_instances WHERE service = 'analytics_api' AND instance_id = $1")
+        .bind(runtime.instance_id())
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM site_capability_configurations WHERE site_id = $1")
+        .bind(site_id)
+        .execute(&pool)
+        .await
+        .unwrap();
 }

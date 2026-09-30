@@ -4,3 +4,4 @@ pub(crate) mod configuration;
 pub(crate) mod errors;
 pub(crate) mod routes;
 pub(crate) mod state;
+pub(crate) mod validation;

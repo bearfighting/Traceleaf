@@ -23,7 +23,7 @@ async fn main() -> anyhow::Result<()> {
     let database_url = std::env::var("DATABASE_URL").context("DATABASE_URL must be configured")?;
     let admin_tokens = AdminTokens::from_environment()?;
     let state = state_with_admin_tokens(
-        connect(&database_url).context("failed to configure PostgreSQL pool")?,
+        connect(&database_url).context("failed to initialize Analytics API state")?,
         admin_tokens,
     );
     let listener =
