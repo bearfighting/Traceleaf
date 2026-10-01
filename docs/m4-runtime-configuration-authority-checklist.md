@@ -1,8 +1,8 @@
 # M4 Runtime Configuration Authority Checklist
 
-- Status: M4.1 complete for the local development target; M4.2–M4.5 and runtime authority cutover remain open
+- Status: M4.1 and M4.2 complete for the local development target; M4.3–M4.5 and runtime authority cutover remain open
 - Prerequisites: M3 local-development target complete; ADR-014 accepted
-- Related: [Platform improvement roadmap](platform-improvement-roadmap.md), [M3 Site Registry checklist](m3-site-registry-checklist.md), [ADR-014](decisions/ADR-014-runtime-configuration-authority.md), [Site Onboarding and Settings Design](site-onboarding-settings-design.md)
+- Related: [M4.2 Local Policy Reconciliation](m4.2-local-policy-reconciliation-plan.md), [Platform improvement roadmap](platform-improvement-roadmap.md), [M3 Site Registry checklist](m3-site-registry-checklist.md), [ADR-014](decisions/ADR-014-runtime-configuration-authority.md), [Site Onboarding and Settings Design](site-onboarding-settings-design.md)
 
 ## Goal and scope
 
@@ -76,18 +76,18 @@ M4 does not implement Site list/create APIs or onboarding UI (M5/M6), change his
 - Definitions disposition: explicitly import `config/analytics-definitions.json` for `site_playground`; revision version `2026-09-23.1`, one Conversion, one Funnel, one audit record; rerun was idempotent.
 - Key handling: configured local development seed and Playground keys each matched the corresponding stored digest. No plaintext key or digest was written to evidence.
 - Policy disposition and owner: retain `site_example/development`; exclude `site_example/production` and `site_disabled/production` from the local DB migration, leaving TOML examples as evidence pending M4.4 cutover. Requester owns the eventual cutover approval.
-- Scope boundary: M4.1 preparation is complete for local development. M4.2 reconciliation and M4.3–M4.5 implementation/acceptance remain outstanding; no runtime source-of-truth behavior has been switched.
+- Scope boundary: M4.1 preparation and M4.2 policy reconciliation are complete for local development. M4.3–M4.5 implementation/acceptance remain outstanding; no runtime source-of-truth behavior has been switched.
 
 ## M4.2 — Reconcile required runtime configuration
 
-- [ ] For every retained environment, ensure the intended enabled/disabled state, Allowed Origins, rate limits and Ingest Key digests are represented in the DB policy.
-- [ ] For any key whose plaintext cannot be securely matched to the stored digest, plan an explicit key rotation and update the client configuration through the approved secret-handling path; do not copy it into migration reports.
-- [ ] Confirm archived Sites have no enabled policy that would permit new ingestion; preserve their history and audit data.
-- [ ] Confirm intentionally absent policies remain absent and have no TOML path that can reactivate them.
-- [ ] Apply changes through the existing authenticated configuration API or a reviewed migration procedure with audit and version/ETag checks; preserve optimistic concurrency semantics.
-- [ ] Re-run read-only postflight and compare policy versions, Origins, key-digest counts, enabled state and audit changes to the approved plan.
+- [x] For every retained local environment, ensure the intended enabled/disabled state, Allowed Origins, rate limits and key-presence state are represented in the DB policy.
+- [x] Secret-safe comparison confirmed configured local keys match the stored digest; no rotation is required for this target. Any later mismatch requires an explicit rotation plan through the approved secret-handling path.
+- [x] Confirm no archived Site has an enabled policy that would permit new ingestion; preserve its history and audit data.
+- [x] Confirm intentionally absent local policies remain absent in PostgreSQL; record current TOML fallback paths for closure in M4.4.
+- [x] Determine whether policy changes are required. None were needed; any future changes must use the authenticated configuration API with audit and version/ETag checks, preserving optimistic concurrency semantics.
+- [x] Re-run read-only postflight and compare policy versions, Origins, key counts, enabled state and audit evidence to the approved local state.
 
-**Exit:** DB policies are complete for every Site/environment intended to collect; each changed row has expected version/audit evidence; no secret material was exposed.
+**Exit:** DB policies are complete for every local Site/environment intended to collect; each changed row has expected version/audit evidence; intentionally absent DB policies are recorded with any TOML fallback route deferred to M4.4; no secret material was exposed. This exit does not claim that the current Collector runtime already fails closed for missing policies.
 
 ## M4.3 — Close definitions-file migration path
 
@@ -125,6 +125,6 @@ M4 does not implement Site list/create APIs or onboarding UI (M5/M6), change his
 
 - M3 completed the local Registry import and reference rollout, but did not switch runtime authority.
 - The M3 checklist records that local `site_example/development` DB policy Origins were aligned with the three Compose development Origins and the matching Collector development TOML entry. Reconfirm current state before cutover.
-- Local TOML `site_example/production` and TOML-only disabled `site_disabled` remain explicit M4 reconciliation items. The latter was intentionally excluded from the M3 Registry import.
+- M4.2 confirmed that `site_example/production` and TOML-only disabled `site_disabled/production` have no DB policy. Their TOML entries remain pending M4.4 fallback removal; `site_disabled` was intentionally excluded from the M3 Registry import.
 - M4.1 has re-inventoried the local development target and recorded the dispositions above. Re-inventory before any later cutover; do not rely on this result for another target.
 - M4.1 added a restore-safety forward migration; it does not change runtime policy authority. No M4 runtime cutover has been applied.
