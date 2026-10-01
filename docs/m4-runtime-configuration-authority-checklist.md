@@ -104,7 +104,7 @@ M4 does not implement Site list/create APIs or onboarding UI (M5/M6), change his
 - `ANALYTICS_DEFINITIONS_FILE` is no longer injected into the regular Processor service or advertised in `.env.example`. The Processor reads it only inside the explicit `--import-definitions-if-empty` branch; the CLI flag and default path remain for the legacy migration operation.
 - The explicit Compose migration command is `docker compose --profile processing run --rm --no-deps --entrypoint cargo processor run -p processor -- --import-definitions-if-empty`. Run it only after migrations and required capability configuration; pass a custom path with a one-command `-e ANALYTICS_DEFINITIONS_FILE=/workspace/path/to/file` override. `--no-deps` avoids starting database migration or development seed dependencies, so the target database must already be ready.
 - The local import recorded in the M4.1 inventory is retained: `site_playground`, definition version `2026-09-23.1`, one Conversion, one Funnel, revision 1 and one audit record. M4.3 does not rerun the import or modify that database history.
-- Processor CLI integration coverage now starts ordinary `--once` processing with `ANALYTICS_DEFINITIONS_FILE` set to a nonexistent path and checks that processing succeeds without adding a definition revision or import audit record.
+- Processor CLI integration coverage now checks ordinary `--once` processing with an invalid definitions path against complete before/after revision and audit snapshots, and checks explicit CLI import plus idempotent repeat using a temporary definitions file.
 - Detailed command boundary and verification notes: [M4.3 definitions import closeout](m4.3-definitions-import-closeout.md).
 
 ## M4.4 — Remove Collector TOML policy fallback
