@@ -129,9 +129,13 @@ flowchart LR
 
 ### M4：切换平台运行配置权威
 
-**前置**：M3。**交付**：核对数据库与 Collector TOML 的站点策略；显式迁入仍需保留的 Origin/key；移除隐式 TOML site policy fallback 或收窄为明确启用的应急模式。核对 `ANALYTICS_DEFINITIONS_FILE` 导入过的 revisions，随后将 Processor 的显式文件导入限定为历史迁移工具，常规启动与 Site 管理不再通过文件产生 definitions。Collector 对 DB 中停用、归档或缺失的策略表现必须确定。保留基础设施 TOML/环境变量。
+**前置**：M3。**状态（2026-10-01）：M4.1–M4.5 已完成本地开发目标实现与兼容验收；其他部署目标 rollout 尚未完成。** M4 面向单个部署目标逐一执行；本地开发目标记录不替代其他环境的预检、备份和审批。M4.3 closeout 见 [M4.3 Definitions Import Closeout](m4.3-definitions-import-closeout.md)，M4.4 closeout 见 [M4.4 Local DB-only Policy Closeout](m4.4-local-db-only-policy-closeout.md)，本地 M4.5 验收见 [M4 Runtime Configuration Authority Checklist](m4-runtime-configuration-authority-checklist.md)。
 
-**完成条件**：数据库配置缺失不会让 TOML 里的旧 Site/key 重新生效；常规 Processor 启动不导入或覆盖 definitions；Collector、Processor 和 Analytics 能报告配置已保存与已应用的状态；旧站点仍能按预期采集和查询。
+**执行顺序**：先完成目标环境备份和秘密安全的来源盘点；逐 Site/environment 核对数据库策略与旧 Collector TOML，保留必要 Origin/key/rate limit，必要时明确轮换无法验证的 key；核查 definitions 文件已导入 revisions；限定 Processor 文件导入并将 Collector Site policy 切为 PostgreSQL 唯一来源；最后执行配置状态、Collector、Processor 和 Analytics 的端到端验收。临时数据库故障的 last-known-good/stale 状态必须与策略明确缺失、停用或归档区分。本地对账记录见 [M4.2 Local Policy Reconciliation](m4.2-local-policy-reconciliation-plan.md)，运行时切换记录见 [M4.4 Local DB-only Policy Closeout](m4.4-local-db-only-policy-closeout.md)。
+
+**交付**：数据库成为 Site identity、capability、environment policy、Origin、key digest 和 definition revision 的唯一运行时权威；TOML 保留基础设施设置，不再隐式授权 Site；definitions 文件仅能通过显式历史迁移操作读取；保留配置应用状态、审计、历史 Analytics 和可恢复的部署流程。详细切片和验收项见 [M4 runtime configuration authority checklist](m4-runtime-configuration-authority-checklist.md)。
+
+**完成条件**：数据库配置缺失不会让 TOML 里的旧 Site/key 重新生效；停用和归档 Site 拒绝新事件；仅暂时数据库故障可使用带 stale 状态的 last-known-good；常规 Processor 启动不导入或覆盖 definitions；Collector、Processor 和 Analytics 能报告配置保存、应用及 stale 状态；保留的旧站点仍能按预期采集，历史报告可查询。
 
 ### M5：交付 Site Management 后端闭环
 

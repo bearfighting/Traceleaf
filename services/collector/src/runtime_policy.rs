@@ -55,7 +55,6 @@ struct Report {
 
 pub struct RuntimePolicyManager {
     pool: PgPool,
-    fallback_sites: Vec<SiteConfig>,
     policy: KeyPolicy,
     validator: Validator,
     instance_id: String,
@@ -66,7 +65,6 @@ pub struct RuntimePolicyManager {
 impl RuntimePolicyManager {
     pub fn new(
         pool: PgPool,
-        fallback_registry: SiteRegistry,
         policy: KeyPolicy,
         validator: Validator,
     ) -> Result<Arc<Self>, getrandom::Error> {
@@ -74,7 +72,6 @@ impl RuntimePolicyManager {
         random_fill(&mut instance_bytes)?;
         Ok(Arc::new(Self {
             pool,
-            fallback_sites: fallback_registry.all_sites(),
             policy,
             validator,
             instance_id: URL_SAFE_NO_PAD.encode(instance_bytes),
@@ -95,14 +92,20 @@ impl RuntimePolicyManager {
 
     pub async fn refresh_once(&self) -> bool {
         let rows = match sqlx::query_as::<_, (String, String, i64, Value)>(
-            "SELECT site_id, environment, version, document FROM site_environment_policies ORDER BY site_id, environment",
+            "SELECT policy.site_id, policy.environment, policy.version, policy.document
+             FROM site_environment_policies AS policy
+             JOIN site_registry AS site USING (site_id)
+             WHERE site.lifecycle_status = 'active'
+             ORDER BY policy.site_id, policy.environment",
         )
         .fetch_all(&self.pool)
         .await
         {
             Ok(rows) => rows,
             Err(_) => {
-                tracing::warn!("configuration refresh failed; retaining last valid Collector policy");
+                tracing::warn!(
+                    "configuration refresh failed; retaining last valid Collector policy"
+                );
                 self.report_last_database_as_stale().await;
                 self.write_instance_status("stale").await;
                 return false;
@@ -132,87 +135,12 @@ impl RuntimePolicyManager {
             .lock()
             .expect("policy state lock poisoned")
             .clone();
-        let mut database = HashMap::new();
-        for policy in parsed {
-            database.insert(policy.identity(), policy);
-        }
-        let mut fallback: HashMap<Identity, SiteConfig> = self
-            .fallback_sites
-            .iter()
-            .cloned()
-            .map(|site| ((site.site_id.clone(), site.environment.clone()), site))
+        let (next_database, reports, removed) =
+            reconcile_snapshot(&previous, parsed, invalid, &present);
+        let mut effective_sites: Vec<_> = next_database
+            .values()
+            .map(|policy| policy.site.clone())
             .collect();
-        let mut reports = Vec::with_capacity(database.len() + invalid.len());
-
-        for identity in invalid.iter() {
-            if let Some(last) = previous.get(identity) {
-                fallback.insert(identity.clone(), last.site.clone());
-                reports.push(Report {
-                    identity: identity.clone(),
-                    applied_version: Some(last.version),
-                    stale: true,
-                });
-            } else {
-                fallback.remove(identity);
-                reports.push(Report {
-                    identity: identity.clone(),
-                    applied_version: None,
-                    stale: true,
-                });
-            }
-        }
-
-        let mut accepted = HashMap::new();
-        let mut rejected_previous = HashMap::new();
-        let mut ordered: Vec<_> = database.into_iter().collect();
-        ordered.sort_by(|a, b| a.0.cmp(&b.0));
-        for (identity, candidate) in ordered {
-            fallback.remove(&identity);
-            let mut candidate_sites: Vec<_> = fallback.values().cloned().collect();
-            candidate_sites.extend(
-                accepted
-                    .values()
-                    .map(|row: &DatabasePolicy| row.site.clone()),
-            );
-            candidate_sites.push(candidate.site.clone());
-            match SiteRegistry::from_runtime_sites(candidate_sites) {
-                Ok(_) => {
-                    accepted.insert(identity.clone(), candidate.clone());
-                    reports.push(Report {
-                        identity,
-                        applied_version: Some(candidate.version),
-                        stale: false,
-                    });
-                }
-                Err(_) => {
-                    tracing::warn!(
-                        "environment policy conflicts with another effective Origin or key; retaining last valid policy"
-                    );
-                    if let Some(last) = previous.get(&identity) {
-                        fallback.insert(identity.clone(), last.site.clone());
-                        rejected_previous.insert(identity.clone(), last.clone());
-                        reports.push(Report {
-                            identity,
-                            applied_version: Some(last.version),
-                            stale: true,
-                        });
-                    } else {
-                        reports.push(Report {
-                            identity,
-                            applied_version: None,
-                            stale: true,
-                        });
-                    }
-                }
-            }
-        }
-
-        // Rows that disappeared from storage are no longer DB managed; use the explicit TOML fallback.
-        let mut effective: HashMap<Identity, SiteConfig> = fallback;
-        for (identity, policy) in &accepted {
-            effective.insert(identity.clone(), policy.site.clone());
-        }
-        let mut effective_sites: Vec<_> = effective.into_values().collect();
         effective_sites.sort_by(|a, b| {
             (a.site_id.as_str(), a.environment.as_str())
                 .cmp(&(b.site_id.as_str(), b.environment.as_str()))
@@ -227,20 +155,14 @@ impl RuntimePolicyManager {
             }
         }
 
-        let mut next_database = accepted;
-        next_database.extend(rejected_previous);
-        for identity in invalid {
-            if let Some(last) = previous.get(&identity) {
-                next_database.insert(identity, last.clone());
-            }
-        }
-        // A row that is present but rejected without a prior snapshot remains absent from last-good state.
-        next_database.retain(|identity, _| present.contains(identity));
         *self
             .last_database
             .lock()
             .expect("policy state lock poisoned") = next_database;
 
+        for identity in removed {
+            self.clear_report(&identity).await;
+        }
         for report in reports {
             self.write_report(&report).await;
         }
@@ -279,6 +201,26 @@ impl RuntimePolicyManager {
         .await;
         if result.is_err() {
             tracing::warn!("Collector applied-version report unavailable");
+        }
+    }
+
+    async fn clear_report(&self, identity: &Identity) {
+        let result = sqlx::query(
+            "DELETE FROM configuration_runtime_state WHERE instance_id = $1 AND service = 'collector' AND site_id = $2 AND environment = $3",
+        )
+        .bind(&self.instance_id)
+        .bind(&identity.0)
+        .bind(&identity.1)
+        .execute(&self.pool)
+        .await;
+        if result.is_err() {
+            tracing::warn!("removed Collector policy status cleanup failed");
+            self.write_report(&Report {
+                identity: identity.clone(),
+                applied_version: None,
+                stale: true,
+            })
+            .await;
         }
     }
 
@@ -334,6 +276,89 @@ impl DatabasePolicy {
     }
 }
 
+fn reconcile_snapshot(
+    previous: &HashMap<Identity, DatabasePolicy>,
+    parsed: Vec<DatabasePolicy>,
+    invalid: HashSet<Identity>,
+    present: &HashSet<Identity>,
+) -> (
+    HashMap<Identity, DatabasePolicy>,
+    Vec<Report>,
+    Vec<Identity>,
+) {
+    let mut database = HashMap::new();
+    for policy in parsed {
+        database.insert(policy.identity(), policy);
+    }
+    let mut retained_previous: HashMap<Identity, DatabasePolicy> = previous
+        .iter()
+        .filter(|(identity, _)| present.contains(*identity))
+        .map(|(identity, last)| (identity.clone(), last.clone()))
+        .collect();
+    let mut reports = Vec::with_capacity(database.len() + invalid.len());
+
+    let removed: Vec<_> = previous
+        .keys()
+        .filter(|identity| !present.contains(*identity))
+        .cloned()
+        .collect();
+
+    for identity in invalid {
+        reports.push(Report {
+            identity: identity.clone(),
+            applied_version: previous.get(&identity).map(|last| last.version),
+            stale: true,
+        });
+    }
+
+    let mut accepted = HashMap::new();
+    let mut ordered: Vec<_> = database.into_iter().collect();
+    ordered.sort_by(|a, b| a.0.cmp(&b.0));
+    for (identity, candidate) in ordered {
+        retained_previous.remove(&identity);
+        let mut candidate_sites: Vec<_> = retained_previous
+            .values()
+            .map(|row| row.site.clone())
+            .collect();
+        candidate_sites.extend(
+            accepted
+                .values()
+                .map(|row: &DatabasePolicy| row.site.clone()),
+        );
+        candidate_sites.push(candidate.site.clone());
+        match SiteRegistry::from_runtime_sites(candidate_sites) {
+            Ok(_) => {
+                accepted.insert(identity.clone(), candidate.clone());
+                reports.push(Report {
+                    identity,
+                    applied_version: Some(candidate.version),
+                    stale: false,
+                });
+            }
+            Err(_) => {
+                tracing::warn!(
+                    "environment policy conflicts with another effective Origin or key; retaining last valid policy"
+                );
+                let last = previous.get(&identity);
+                if let Some(last) = last {
+                    retained_previous.insert(identity.clone(), last.clone());
+                }
+                reports.push(Report {
+                    identity,
+                    applied_version: last.map(|policy| policy.version),
+                    stale: true,
+                });
+            }
+        }
+    }
+
+    // A successful refresh replaces the snapshot; missing or archived rows cannot survive it.
+    let mut next_database = accepted;
+    next_database.extend(retained_previous);
+    next_database.retain(|identity, _| present.contains(identity));
+    (next_database, reports, removed)
+}
+
 fn parse_database_policy(
     validator: &Validator,
     site_id: &str,
@@ -385,15 +410,152 @@ fn decode_digest(value: &str) -> Option<[u8; 32]> {
 #[cfg(test)]
 mod tests {
     use super::{
-        CONFIG_REFRESH_INTERVAL, STATUS_HEARTBEAT_TTL, decode_digest, parse_database_policy,
-        stored_policy_validator,
+        CONFIG_REFRESH_INTERVAL, DatabasePolicy, Identity, Report, STATUS_HEARTBEAT_TTL,
+        decode_digest, parse_database_policy, reconcile_snapshot, stored_policy_validator,
     };
+    use crate::config::SiteConfig;
     use serde_json::Value;
+    use std::collections::{HashMap, HashSet};
+
+    fn database_policy(
+        site_id: &str,
+        environment: &str,
+        version: i64,
+        key_digest: [u8; 32],
+    ) -> DatabasePolicy {
+        DatabasePolicy {
+            site: SiteConfig {
+                site_id: site_id.to_owned(),
+                environment: environment.to_owned(),
+                enabled: true,
+                allowed_origins: vec![format!("https://{site_id}.example.test")],
+                ingest_keys: Vec::new(),
+                rate_limit_per_minute: 600,
+                ingest_key_digests: vec![key_digest],
+            },
+            version,
+        }
+    }
+
+    fn report_for<'a>(reports: &'a [Report], identity: &Identity) -> &'a Report {
+        reports
+            .iter()
+            .find(|report| &report.identity == identity)
+            .expect("snapshot reconciliation should report every invalid or parsed policy")
+    }
 
     #[test]
     fn refresh_and_heartbeat_intervals_match_the_configuration_contract() {
         assert_eq!(CONFIG_REFRESH_INTERVAL.as_secs(), 5);
         assert_eq!(STATUS_HEARTBEAT_TTL.as_secs(), 15);
+    }
+
+    #[test]
+    fn invalid_policy_retains_last_good_and_first_time_invalid_policy_fails_closed() {
+        let good_identity = ("site_good".to_owned(), "production".to_owned());
+        let invalid_identity = ("site_new".to_owned(), "production".to_owned());
+        let previous = HashMap::from([(
+            good_identity.clone(),
+            database_policy("site_good", "production", 3, [3; 32]),
+        )]);
+        let present = HashSet::from([good_identity.clone(), invalid_identity.clone()]);
+        let invalid = HashSet::from([good_identity.clone(), invalid_identity.clone()]);
+
+        let (snapshot, reports, removed) =
+            reconcile_snapshot(&previous, Vec::new(), invalid, &present);
+
+        assert_eq!(snapshot.get(&good_identity).map(|row| row.version), Some(3));
+        assert!(!snapshot.contains_key(&invalid_identity));
+        assert!(removed.is_empty());
+        assert_eq!(
+            report_for(&reports, &good_identity).applied_version,
+            Some(3)
+        );
+        assert!(report_for(&reports, &good_identity).stale);
+        assert_eq!(
+            report_for(&reports, &invalid_identity).applied_version,
+            None
+        );
+        assert!(report_for(&reports, &invalid_identity).stale);
+    }
+
+    #[test]
+    fn removed_policy_is_returned_for_applied_state_cleanup() {
+        let removed_identity = ("site_archived".to_owned(), "production".to_owned());
+        let previous = HashMap::from([(
+            removed_identity.clone(),
+            database_policy("site_archived", "production", 2, [4; 32]),
+        )]);
+
+        let (snapshot, reports, removed) =
+            reconcile_snapshot(&previous, Vec::new(), HashSet::new(), &HashSet::new());
+
+        assert!(!snapshot.contains_key(&removed_identity));
+        assert!(reports.is_empty());
+        assert_eq!(removed, vec![removed_identity]);
+    }
+
+    #[test]
+    fn conflicting_first_time_policy_fails_closed_and_reports_stale() {
+        let existing_identity = ("site_existing".to_owned(), "production".to_owned());
+        let conflicting_identity = ("site_new".to_owned(), "production".to_owned());
+        let previous = HashMap::new();
+        let parsed = vec![
+            database_policy("site_existing", "production", 1, [7; 32]),
+            database_policy("site_new", "production", 1, [7; 32]),
+        ];
+        let present = HashSet::from([existing_identity.clone(), conflicting_identity.clone()]);
+
+        let (snapshot, reports, removed) =
+            reconcile_snapshot(&previous, parsed, HashSet::new(), &present);
+
+        assert!(removed.is_empty());
+        assert_eq!(
+            snapshot.get(&existing_identity).map(|row| row.version),
+            Some(1)
+        );
+        assert!(!snapshot.contains_key(&conflicting_identity));
+        assert_eq!(
+            report_for(&reports, &conflicting_identity).applied_version,
+            None
+        );
+        assert!(report_for(&reports, &conflicting_identity).stale);
+    }
+
+    #[test]
+    fn conflicting_policy_retains_its_last_good_snapshot_and_reports_stale() {
+        let existing_identity = ("site_existing".to_owned(), "production".to_owned());
+        let changed_identity = ("site_changed".to_owned(), "production".to_owned());
+        let previous = HashMap::from([
+            (
+                existing_identity.clone(),
+                database_policy("site_existing", "production", 4, [7; 32]),
+            ),
+            (
+                changed_identity.clone(),
+                database_policy("site_changed", "production", 1, [8; 32]),
+            ),
+        ]);
+        let parsed = vec![
+            database_policy("site_changed", "production", 2, [7; 32]),
+            database_policy("site_existing", "production", 4, [7; 32]),
+        ];
+        let present = HashSet::from([existing_identity, changed_identity.clone()]);
+
+        let (snapshot, reports, removed) =
+            reconcile_snapshot(&previous, parsed, HashSet::new(), &present);
+
+        assert!(removed.is_empty());
+        let retained = snapshot
+            .get(&changed_identity)
+            .expect("conflicting update should keep its last-good policy");
+        assert_eq!(retained.version, 1);
+        assert_eq!(retained.site.ingest_key_digests, vec![[8; 32]]);
+        assert_eq!(
+            report_for(&reports, &changed_identity).applied_version,
+            Some(1)
+        );
+        assert!(report_for(&reports, &changed_identity).stale);
     }
 
     #[test]

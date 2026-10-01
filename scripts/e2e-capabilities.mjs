@@ -1,6 +1,8 @@
 import { buildCapabilityConfigurationSeedSql } from "./capability-seed.mjs";
 
 export function seedE2ECapabilityConfigurations(runCompose) {
+  const siteIds = ["site_playground", "site_alpha", "site_beta", "site_unknown"];
+  const sites = siteIds.map((siteId) => `('${siteId}')`).join(", ");
   runCompose([
     "exec",
     "-T",
@@ -13,11 +15,20 @@ export function seedE2ECapabilityConfigurations(runCompose) {
     "-v",
     "ON_ERROR_STOP=1",
     "-c",
-    buildCapabilityConfigurationSeedSql([
-      "site_playground",
-      "site_alpha",
-      "site_beta",
-      "site_unknown",
-    ]),
+    `INSERT INTO site_registry (site_id) VALUES ${sites} ON CONFLICT (site_id) DO UPDATE SET lifecycle_status='active', updated_at=CASE WHEN site_registry.lifecycle_status='archived' THEN NOW() ELSE site_registry.updated_at END`,
+  ]);
+  runCompose([
+    "exec",
+    "-T",
+    "postgres",
+    "psql",
+    "-U",
+    "analytics",
+    "-d",
+    "analytics",
+    "-v",
+    "ON_ERROR_STOP=1",
+    "-c",
+    buildCapabilityConfigurationSeedSql(siteIds),
   ]);
 }

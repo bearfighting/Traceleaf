@@ -973,17 +973,84 @@ async fn once_cli_processes_the_backlog() {
     let day = Utc::now();
     insert_raw_event(&pool, "01J00000000000000000000016", "site_cli", day, "/cli").await;
 
+    let revisions_before: serde_json::Value = sqlx::query_scalar(
+        "SELECT COALESCE(jsonb_agg(jsonb_build_object(
+            'site_id', site_id,
+            'revision', revision,
+            'definition_version', definition_version,
+            'effective_at', effective_at,
+            'created_at', created_at,
+            'document', document
+        ) ORDER BY site_id, revision), '[]'::jsonb) FROM site_definition_revisions",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    let audit_before: serde_json::Value = sqlx::query_scalar(
+        "SELECT COALESCE(jsonb_agg(jsonb_build_object(
+            'resource', resource,
+            'version', version,
+            'operation', operation,
+            'actor_kind', actor_kind,
+            'changed_fields', changed_fields,
+            'created_at', created_at,
+            'expires_at', expires_at,
+            'audit_id', audit_id
+        ) ORDER BY audit_id), '[]'::jsonb)
+         FROM configuration_audit WHERE resource->>'kind'='conversion_funnel_definitions'",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+
     let status = std::process::Command::new(env!("CARGO_BIN_EXE_processor"))
         .env("DATABASE_URL", database_url())
         .env(
             "ANALYTICS_DEFINITIONS_FILE",
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("../../config/analytics-definitions.json"),
+            "/path/that/must/not/be-read/analytics-definitions.json",
         )
         .arg("--once")
         .status()
         .expect("processor binary should start");
     assert!(status.success());
+
+    let revisions_after: serde_json::Value = sqlx::query_scalar(
+        "SELECT COALESCE(jsonb_agg(jsonb_build_object(
+            'site_id', site_id,
+            'revision', revision,
+            'definition_version', definition_version,
+            'effective_at', effective_at,
+            'created_at', created_at,
+            'document', document
+        ) ORDER BY site_id, revision), '[]'::jsonb) FROM site_definition_revisions",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    let audit_after: serde_json::Value = sqlx::query_scalar(
+        "SELECT COALESCE(jsonb_agg(jsonb_build_object(
+            'resource', resource,
+            'version', version,
+            'operation', operation,
+            'actor_kind', actor_kind,
+            'changed_fields', changed_fields,
+            'created_at', created_at,
+            'expires_at', expires_at,
+            'audit_id', audit_id
+        ) ORDER BY audit_id), '[]'::jsonb)
+         FROM configuration_audit WHERE resource->>'kind'='conversion_funnel_definitions'",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        revisions_after, revisions_before,
+        "ordinary processing must not add or modify any definition revision"
+    );
+    assert_eq!(
+        audit_after, audit_before,
+        "ordinary processing must not add or modify definition import audit records"
+    );
 
     let processed = sqlx::query(
         "SELECT processed_at FROM raw_events WHERE event_id = '01J00000000000000000000016'",
@@ -1163,4 +1230,111 @@ async fn imports_definitions_once_and_processes_events_by_received_at_revision()
             ),
         ]
     );
+}
+
+#[tokio::test]
+#[ignore = "requires PostgreSQL; run pnpm test:integration"]
+async fn explicit_import_definitions_cli_reads_file_and_is_idempotent() {
+    let (_processor, pool) = setup().await;
+    let site_id = format!("site_cli_import_{}", std::process::id());
+    sqlx::query(
+        "DELETE FROM configuration_audit WHERE resource->>'kind'='conversion_funnel_definitions' AND resource->>'site_id'=$1",
+    )
+    .bind(&site_id)
+    .execute(&pool)
+    .await
+    .unwrap();
+    seed_capabilities(&pool, &site_id, true).await;
+
+    let definitions_path = std::env::temp_dir().join(format!(
+        "processor-definitions-cli-{}.json",
+        std::process::id()
+    ));
+    let initial_definitions = json!({
+        "version":"cli-import-v1",
+        "sites":[{"site_id":site_id,"conversions":[{"id":"purchase","name":"Purchase","event_name":"purchase"}],"funnels":[]}]
+    });
+    std::fs::write(
+        &definitions_path,
+        serde_json::to_vec(&initial_definitions).unwrap(),
+    )
+    .unwrap();
+
+    let run_import = || {
+        std::process::Command::new(env!("CARGO_BIN_EXE_processor"))
+            .env("DATABASE_URL", database_url())
+            .env("ANALYTICS_DEFINITIONS_FILE", &definitions_path)
+            .arg("--import-definitions-if-empty")
+            .output()
+            .expect("processor importer should start")
+    };
+    let first = run_import();
+    assert!(
+        first.status.success(),
+        "first CLI import failed: {}",
+        String::from_utf8_lossy(&first.stderr)
+    );
+
+    let revision_before_repeat: serde_json::Value = sqlx::query_scalar(
+        "SELECT jsonb_build_object(
+            'revision', revision,
+            'definition_version', definition_version,
+            'effective_at', effective_at,
+            'created_at', created_at,
+            'document', document
+        ) FROM site_definition_revisions WHERE site_id=$1",
+    )
+    .bind(&site_id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    let audit_count_before_repeat: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM configuration_audit WHERE resource->>'kind'='conversion_funnel_definitions' AND resource->>'site_id'=$1",
+    )
+    .bind(&site_id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+
+    let replacement_definitions = json!({
+        "version":"cli-import-must-not-overwrite",
+        "sites":[{"site_id":site_id,"conversions":[{"id":"purchase","name":"Changed","event_name":"other"}],"funnels":[]}]
+    });
+    std::fs::write(
+        &definitions_path,
+        serde_json::to_vec(&replacement_definitions).unwrap(),
+    )
+    .unwrap();
+    let repeated = run_import();
+    let remove_result = std::fs::remove_file(&definitions_path);
+    assert!(
+        repeated.status.success(),
+        "repeated CLI import failed: {}",
+        String::from_utf8_lossy(&repeated.stderr)
+    );
+    remove_result.expect("temporary definitions file should be removed");
+
+    let revision_after_repeat: serde_json::Value = sqlx::query_scalar(
+        "SELECT jsonb_build_object(
+            'revision', revision,
+            'definition_version', definition_version,
+            'effective_at', effective_at,
+            'created_at', created_at,
+            'document', document
+        ) FROM site_definition_revisions WHERE site_id=$1",
+    )
+    .bind(&site_id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    let audit_count_after_repeat: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM configuration_audit WHERE resource->>'kind'='conversion_funnel_definitions' AND resource->>'site_id'=$1",
+    )
+    .bind(&site_id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(revision_before_repeat, revision_after_repeat);
+    assert_eq!(audit_count_before_repeat, 1);
+    assert_eq!(audit_count_after_repeat, audit_count_before_repeat);
 }

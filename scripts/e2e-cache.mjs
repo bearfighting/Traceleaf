@@ -61,4 +61,25 @@ export function prepareE2ECaches(root, scope) {
     ],
     { cwd: root, stdio: "ignore" },
   );
+
+  initializeNodeOwnedVolume(root, `${prefix}_${scope}_dashboard_next`);
+}
+
+export function initializeNodeOwnedVolume(root, volume) {
+  // Dashboard images run as node, but a pre-created named volume starts with
+  // a root-owned directory and hides the image's writable .next path.
+  execFileSync(
+    "docker",
+    [
+      "run",
+      "--rm",
+      "--volume",
+      `${volume}:/cache`,
+      "node:26.10.0-bookworm-slim",
+      "chown",
+      "1000:1000",
+      "/cache",
+    ],
+    { cwd: root, stdio: "ignore" },
+  );
 }

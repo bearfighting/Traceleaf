@@ -9,7 +9,8 @@ import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
 
 import { seedE2ECapabilityConfigurations } from "./e2e-capabilities.mjs";
-import { prepareE2ECaches } from "./e2e-cache.mjs";
+import { initializeNodeOwnedVolume, prepareE2ECaches } from "./e2e-cache.mjs";
+import { seedE2EIngestPolicies } from "./e2e-ingest-policies.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const importedDefinitionVersion = JSON.parse(
@@ -1570,6 +1571,12 @@ async function assertDefinitionManagement(page) {
 async function assertApiError(browser) {
   let scenarioError;
   try {
+    const errorNextVolume = `${project}_dashboard_error_next`;
+    execFileSync("docker", ["volume", "create", errorNextVolume], {
+      cwd: root,
+      stdio: "ignore",
+    });
+    initializeNodeOwnedVolume(root, errorNextVolume);
     runCompose(
       [
         "run",
@@ -1583,6 +1590,12 @@ async function assertApiError(browser) {
         `${project}_dashboard_error_next:/workspace/apps/dashboard/.next`,
         "-e",
         "ANALYTICS_API_URL=http://dashboard-api-error:4999",
+        "-e",
+        "DASHBOARD_SITES=site_playground,site_alpha,site_beta",
+        "-e",
+        "DASHBOARD_DEFAULT_SITE=site_playground",
+        "-e",
+        "DASHBOARD_DEFAULT_ENVIRONMENT=config-e2e",
         "dashboard",
       ],
       { capture: true },
@@ -1639,6 +1652,7 @@ try {
   await runCompose(["up", "-d", "--build", "--wait", "postgres"]);
   runCompose(["run", "--rm", "--build", "db-migrate"]);
   seedE2ECapabilityConfigurations(runCompose);
+  seedE2EIngestPolicies(runCompose, keys);
   importDefinitionsIfEmpty();
   const composeOutput = runCompose(
     [
@@ -1660,6 +1674,8 @@ try {
         NEXT_PUBLIC_ANALYTICS_ENDPOINT: `${collectorUrl}/v1/events`,
         NEXT_PUBLIC_ANALYTICS_INGEST_KEY: keys.site_playground,
         NEXT_PUBLIC_ANALYTICS_SITE_ID: "site_playground",
+        DASHBOARD_SITES: "site_playground,site_alpha,site_beta",
+        DASHBOARD_DEFAULT_SITE: "site_playground",
         CONFIG_ADMIN_TOKENS: JSON.stringify([adminToken]),
         DASHBOARD_CONFIG_ADMIN_TOKEN: adminToken,
         DASHBOARD_DEFAULT_ENVIRONMENT: "config-e2e",
@@ -1747,6 +1763,8 @@ try {
           env: {
             CONFIG_ADMIN_TOKENS: JSON.stringify([adminToken]),
             DASHBOARD_CONFIG_ADMIN_TOKEN: adminToken,
+            DASHBOARD_SITES: "site_playground,site_alpha,site_beta",
+            DASHBOARD_DEFAULT_SITE: "site_playground",
             DASHBOARD_DEFAULT_ENVIRONMENT: "config-e2e",
           },
         }),

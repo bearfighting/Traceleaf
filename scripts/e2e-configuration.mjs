@@ -55,6 +55,8 @@ function runCompose(args, { capture = false, allowFailure = false } = {}) {
         ...process.env,
         CONFIG_ADMIN_TOKENS: JSON.stringify([token]),
         DASHBOARD_CONFIG_ADMIN_TOKEN: token,
+        DASHBOARD_SITES: sites.join(","),
+        DASHBOARD_DEFAULT_SITE: "site_playground",
         DASHBOARD_DEFAULT_ENVIRONMENT: environment,
         DASHBOARD_PORT: dashboardPort,
         E2E_COLLECTOR_PORT: collectorPort,

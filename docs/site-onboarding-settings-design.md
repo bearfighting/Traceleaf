@@ -9,7 +9,7 @@
 
 ## 背景与问题
 
-当前 Dashboard 的站点清单和默认站点来自 `DASHBOARD_SITES`、`DASHBOARD_DEFAULT_SITE`；默认 Settings 环境来自 `DASHBOARD_DEFAULT_ENVIRONMENT`。开发 Compose seed 又从 `NEXT_PUBLIC_ANALYTICS_SITE_ID`、`NEXT_PUBLIC_ANALYTICS_INGEST_KEY` 和 Origin 环境变量初始化站点策略。Collector 同时合并数据库中的 environment policy 与 `COLLECTOR_CONFIG` 指向的 TOML fallback。Processor 还提供显式 `--import-definitions-if-empty` 命令，可从 `ANALYTICS_DEFINITIONS_FILE` 初始化 definition revisions；普通处理循环不会自动执行该导入。
+当前 Dashboard 的站点清单和默认站点来自 `DASHBOARD_SITES`、`DASHBOARD_DEFAULT_SITE`；默认 Settings 环境来自 `DASHBOARD_DEFAULT_ENVIRONMENT`。开发 Compose seed 又从 `NEXT_PUBLIC_ANALYTICS_SITE_ID`、`NEXT_PUBLIC_ANALYTICS_INGEST_KEY` 和 Origin 环境变量初始化站点策略。Collector 只从数据库加载 environment policy；旧 TOML 示例不再作为运行时 fallback。Processor 还提供显式 `--import-definitions-if-empty` 命令，可从 `ANALYTICS_DEFINITIONS_FILE` 初始化 definition revisions；普通处理循环不会自动执行该导入。
 
 Settings 页面目前把 capability 开关、环境接收策略、Allowed Origins、Ingest Keys 和 conversion/funnel definitions 放在一张长页面里。它能管理已知站点的部分配置，但没有创建站点的完整 workflow。UI 站点列表由环境变量维护，因此用户无法通过产品界面新增一个可观测网站。
 
@@ -57,7 +57,7 @@ Collector 和 Analytics API 从持久化配置读取这些数据。Dashboard 的
 
 ### Collector TOML 与 Processor definitions 文件过渡
 
-当前 `COLLECTOR_CONFIG` TOML 同时含有监听/Collector 默认设置和 Site/environment policy。目标状态是 Site/environment policy 只从数据库加载。过渡期间需要明确处理 TOML 中现有站点：导入并核对到数据库后移除重复策略，避免 DB 删除后 TOML fallback 让旧 Site 或 Ingest Key 意外重新生效。
+旧版 `COLLECTOR_CONFIG` TOML 曾包含 Site/environment policy。当前 Collector 不再加载该文件或提供 TOML Site fallback；每个目标仍须在启用此版本前完成独立核对，避免遗漏仅存在于旧 TOML 的有效策略。
 
 若 TOML 仍需保留，职责应限于明确的本地/紧急 bootstrap，并由单独开关启用；不能与数据库策略静默合并成为第二个运行时权威源。`ANALYTICS_DEFINITIONS_FILE` 已导入的 definitions 也须核对到数据库；显式 Processor 导入命令仅保留为历史数据迁移工具，普通启动与新增站点流程不依赖该文件。
 
