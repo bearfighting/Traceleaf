@@ -123,6 +123,8 @@ flowchart LR
 
 详细执行步骤、来源清单、恢复策略和验收项见 [M3 Site Registry checklist](m3-site-registry-checklist.md)。
 
+**状态（2026-10-01）：** M3.1–M3.6 已完成本地开发目标的 Registry 盘点、导入、23 个 `ON DELETE RESTRICT` 引用 rollout 和验收。各部署目标仍须单独执行备份、预检、disposition 审核与 postflight；M4 权威切换尚未完成。
+
 **完成条件**：旧站点在 Registry 中可见；有有效 policy 的旧站点可继续采集，缺失 policy 的站点保留历史查询且显示待补齐；原始事件、派生事实、definitions 和 key audit 保留；重复迁移或 importer 不产生重复站点。
 
 ### M4：切换平台运行配置权威

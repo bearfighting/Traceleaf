@@ -8,7 +8,16 @@ fn database_url() -> String {
         .expect("DATABASE_URL must point to the integration PostgreSQL database")
 }
 
+async fn ensure_site_registry(pool: &PgPool, site_id: &str) {
+    sqlx::query("INSERT INTO site_registry (site_id) VALUES ($1) ON CONFLICT (site_id) DO NOTHING")
+        .bind(site_id)
+        .execute(pool)
+        .await
+        .expect("Site Registry fixture should be present");
+}
+
 async fn seed_capabilities(pool: &PgPool, site_id: &str, phase6_dimensions_enabled: bool) {
+    ensure_site_registry(pool, site_id).await;
     let updated_at = Utc::now();
     let timestamp = updated_at.to_rfc3339_opts(chrono::SecondsFormat::Micros, true);
     let enabled = phase6_dimensions_enabled;
@@ -97,6 +106,7 @@ async fn insert_raw_event(
     occurred_at: DateTime<Utc>,
     path: &str,
 ) {
+    ensure_site_registry(pool, site_id).await;
     seed_capabilities(pool, site_id, true).await;
     sqlx::query(
         "INSERT INTO raw_events
@@ -129,6 +139,7 @@ async fn insert_identified_event(
     occurred_at: DateTime<Utc>,
     path: &str,
 ) {
+    ensure_site_registry(pool, site_id).await;
     seed_capabilities(pool, site_id, true).await;
     sqlx::query(
         "INSERT INTO raw_events
@@ -243,6 +254,7 @@ async fn rollback_generation_is_atomic_and_selects_only_retired_targets() {
 async fn rebuild_writes_generation_facts_without_mutating_raw_payload() {
     let (processor, pool) = setup().await;
     let site_id = "site_phase6_processor";
+    ensure_site_registry(&pool, site_id).await;
     let visitor_id = "550e8400-e29b-41d4-a716-446655440000";
     let second_visitor_id = "550e8400-e29b-41d4-a716-446655440001";
     sqlx::query(
@@ -578,6 +590,7 @@ async fn no_visitor_event_contributes_dimensions_only_after_site_rebuild() {
 async fn disabled_phase6_capabilities_pause_pending_rebuild_without_activation() {
     let (processor, pool) = setup().await;
     let site_id = "site_paused_queue";
+    ensure_site_registry(&pool, site_id).await;
     let day = NaiveDate::from_ymd_opt(2026, 9, 18).unwrap();
 
     sqlx::query(
@@ -662,6 +675,7 @@ async fn concurrent_queue_workers_publish_one_generation_without_failed_duplicat
     let (processor, pool) = setup().await;
     let second_processor = Processor::connect(&database_url()).await.unwrap();
     let site_id = "site_concurrent_queue";
+    ensure_site_registry(&pool, site_id).await;
     let visitor_id = "550e8400-e29b-41d4-a716-446655440000";
     let occurred_at: DateTime<Utc> = "2026-09-18T12:00:00Z".parse().unwrap();
 
@@ -731,6 +745,7 @@ async fn concurrent_queue_workers_publish_one_generation_without_failed_duplicat
 async fn late_events_over_24_hours_wait_for_explicit_backfill() {
     let (processor, pool) = setup().await;
     let site_id = "site_backfill";
+    ensure_site_registry(&pool, site_id).await;
     let visitor_id = "550e8400-e29b-41d4-a716-446655440000";
     sqlx::query(
         "INSERT INTO analytics_feature_flags (site_id, analytics_enabled)
@@ -941,7 +956,9 @@ async fn failed_aggregate_update_leaves_event_unprocessed() {
             day DATE NOT NULL,
             path TEXT NOT NULL,
             page_views BIGINT NOT NULL DEFAULT 0,
-            PRIMARY KEY (site_id, day, path)
+            PRIMARY KEY (site_id, day, path),
+            CONSTRAINT page_view_routes_site_registry_fk
+                FOREIGN KEY (site_id) REFERENCES site_registry(site_id) ON DELETE RESTRICT
         )",
     )
     .execute(&pool)

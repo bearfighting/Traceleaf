@@ -68,6 +68,14 @@ async fn refresh_applies_database_policy_and_uses_toml_only_for_missing_rows() {
         .execute(&pool)
         .await
         .unwrap();
+    sqlx::query("INSERT INTO site_registry (site_id) SELECT unnest(ARRAY[$1, $2, $3, $4]::text[]) ON CONFLICT (site_id) DO NOTHING")
+        .bind(db_site)
+        .bind(toml_site)
+        .bind(no_last_good_site)
+        .bind(disabled_site)
+        .execute(&pool)
+        .await
+        .unwrap();
 
     let toml_registry = SiteRegistry::from_sites(vec![
         SiteConfig {

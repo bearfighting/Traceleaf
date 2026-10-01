@@ -519,7 +519,8 @@ DECLARE
     20260925001500,
     20260925001600,
     20260926001700,
-    20260930001800
+    20260930001800,
+    20261001001900
   ];
   actual_migrations bigint[];
 BEGIN
@@ -590,6 +591,37 @@ BEGIN
        AND table_name = 'site_registry_setup_status'
   ) THEN
     RAISE EXCEPTION 'Site Registry setup-status view is missing';
+  END IF;
+END
+$$;
+
+DO $$
+DECLARE
+  expected_fk_tables constant text[] := ARRAY[
+    'analytics_feature_flags', 'site_capability_configurations',
+    'site_capability_activation_windows', 'site_environment_policies',
+    'site_definition_revisions', 'raw_events', 'page_view_totals',
+    'page_view_daily', 'page_view_routes', 'normalized_event_context',
+    'visitor_event_facts', 'visitor_daily', 'sessions', 'session_events',
+    'session_daily', 'dimension_event_facts', 'dimension_daily',
+    'web_vital_facts', 'custom_event_facts', 'conversion_facts',
+    'funnel_step_facts', 'geo_event_metadata', 'geo_country_facts'
+  ];
+  actual_fk_tables text[];
+BEGIN
+  SELECT array_agg(child.relname ORDER BY child.relname)
+    INTO actual_fk_tables
+    FROM pg_constraint AS constraint_row
+    JOIN pg_class AS child ON child.oid = constraint_row.conrelid
+    WHERE constraint_row.contype = 'f'
+      AND constraint_row.confrelid = 'public.site_registry'::regclass
+      AND constraint_row.confdeltype = 'r';
+
+  IF actual_fk_tables IS DISTINCT FROM (
+    SELECT array_agg(table_name ORDER BY table_name)
+      FROM unnest(expected_fk_tables) AS table_name
+  ) THEN
+    RAISE EXCEPTION 'unexpected Site Registry foreign keys: %', actual_fk_tables;
   END IF;
 END
 $$;

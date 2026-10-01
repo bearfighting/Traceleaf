@@ -1,6 +1,6 @@
 # M3 Site Registry and Legacy Backfill Checklist
 
-- Status: in progress (M3.5 local rollout complete; M4 authority cutover pending)
+- Status: complete for the local development target (M3.1–M3.6 complete; M4 authority cutover pending)
 - Prerequisites: M0a semantic baseline and M2 persisted-configuration contract
 - Related: [Platform improvement roadmap](platform-improvement-roadmap.md), [M0a baseline](m0a-baseline-and-decisions.md), [ADR-013](decisions/ADR-013-site-identity-and-lifecycle.md), [ADR-014](decisions/ADR-014-runtime-configuration-authority.md), [M2 implementation checklist](m2-implementation-checklist.md)
 
@@ -77,7 +77,8 @@ Before implementation, enumerate all site-scoped fact tables from migrations and
 - [x] Decide existing-table reference policy and orphan handling; add constraints only after importer and target preflight establish that every referenced ID exists.
 - [x] Decide metadata precedence: Registry metadata is fill-only for backfill (COALESCE(existing, imported)); non-null Registry values are never overwritten by legacy hints. Conflicts remain in the dry-run/reconciliation report for explicit review. Allowed Origins are never Website URL inputs.
 - [x] Add the additive SQLx migration `20260930001800_create_site_registry.sql`; never edit an applied migration.
-- [x] Extend migration regression assertions for the new migration version, Registry table and setup-status view.
+- [x] Add `20261001001900_add_site_registry_references.sql` after importer rollout and target-specific orphan preflight; it adds `ON DELETE RESTRICT` references to all 23 durable Site-scoped tables.
+- [x] Extend migration regression assertions for both Registry migrations, setup-status view and the exact 23-table FK set.
 - [x] Document deployment ordering, service compatibility and rollback boundary below.
 
 #### M3.2 schema and reference decision (2026-09-30)
@@ -175,28 +176,49 @@ Before implementation, enumerate all site-scoped fact tables from migrations and
 
 **Exit:** all candidate IDs are in Registry or have a reviewed exception; counts reconcile; history is intact; M4 has a concrete authority-cutover inventory.
 
+### M3.6 — Foreign-key rollout and final acceptance (2026-10-01)
+
+- [x] Rebuild the local migration, Collector, Processor and Analytics API images from the current workspace. Their Dockerfile dependency-staging layers now include the `site-registry-importer` workspace manifest, so all Rust service images build with the added workspace member.
+- [x] Create and validate a fresh custom-format backup at `/tmp/m3-before-registry-references-20261001.dump` before changing the local target.
+- [x] Run target-specific read-only orphan preflight across all 23 durable direct-Site tables: every table reported 0 orphan rows; Registry contained 9 rows.
+- [x] Apply migration `20261001001900` through the standalone migrator. Migration history now ends at this version; all 23 `ON DELETE RESTRICT` references are present.
+- [x] Verify the Registry still contains 9 Sites; sampled durable counts remain raw events 32, Page View totals/daily/routes 1/3/1, capability configurations/activation windows 7/69, policies 1, definitions 0 and audit rows 7. A transactional delete attempt for `site_playground` was rejected by `RESTRICT`, preserving its history.
+- [x] Update PostgreSQL integration fixtures to create Registry parents before writing Site-scoped rows and to keep historical Site identities while clearing child rows.
+- [x] Strengthen the Analytics API history test to query a Site represented only by Registry identity and analytics history, with no capability configuration or environment policy.
+- [x] Run `pnpm test:integration` against a fresh isolated PostgreSQL database after applying all migrations: Collector 8 tests, Processor 16 tests and Analytics API 11 tests passed.
+- [x] Run the db-migrator migration-history/idempotency regression against the local target; the latest migration version and checksum matched.
+- [x] Confirm the local target's durable event, policy, key digest and audit data remains unchanged by the FK migration; only schema history changed.
+
+The local development target now has a verified backup and completed Registry migration/import/reference rollout. The registered `site_disabled` TOML-only example remains intentionally excluded from this local Registry import and must be reconciled as part of M4 before TOML fallback is removed. Each deployment target still requires its own backup, dry-run, disposition review, zero-orphan preflight and postflight before applying these migrations/imports.
+
+**Exit:** local Site identities are represented or have a reviewed exception; references are constrained; historical analytics remain queryable; importer and compatibility evidence is retained; M4 has an explicit policy reconciliation handoff.
+
 ## Acceptance checklist
 
-- [ ] Every discovered historical Site ID is represented without changing its ID.
-- [ ] Importer is repeatable and does not duplicate sites or overwrite confirmed metadata with untrusted hints.
-- [ ] Sites without reliable URLs are flagged; none were inferred from Allowed Origin.
-- [ ] M3 preserves current DB/TOML transition behavior. After M4 removes TOML fallback, missing, disabled, or archived DB policy fails closed while historical queries remain available.
-- [ ] Historical Analytics queries work for IDs found only in analytics data.
-- [ ] Raw/derived analytics data, definition revisions, key digests and audit records are preserved.
-- [ ] Redacted source reconciliation report is complete and reviewed.
-- [ ] Migration/importer tests cover source union, metadata conflicts, idempotency and retry.
-- [ ] Runbook covers target-specific preflight, apply, postflight and recovery.
-- [ ] Roadmap and M4 handoff evidence are updated.
+- [x] Every discovered historical Site ID is represented without changing its ID, or has a reviewed static-only exception (`site_disabled`).
+- [x] Importer is repeatable and does not duplicate Sites or overwrite confirmed metadata with untrusted hints.
+- [x] Sites without reliable URLs are flagged; none were inferred from Allowed Origin.
+- [x] M3 preserves current DB/TOML transition behavior. After M4 removes TOML fallback, missing, disabled, or archived DB policy must fail closed while historical queries remain available.
+- [x] Historical Analytics queries work for a Site represented only by Registry identity and analytics history, with no capability or policy configuration.
+- [x] Raw/derived analytics data, definition revisions, key digests and audit records are preserved by Registry import and reference migration.
+- [x] Redacted source reconciliation reports were reviewed outside source control; reports and backup contain no plaintext key values.
+- [x] Migration/importer tests cover source union, metadata conflicts, idempotency and retry; migration regressions assert the exact 23 Registry references.
+- [x] Runbook covers target-specific preflight, apply, postflight and recovery.
+- [x] Roadmap and M4 handoff evidence are updated.
 
 ## Decisions to close during M3
 
-1. Exact Registry columns/constraints and whether the ADR-013-derived setup status is cached; its derivation remains authoritative.
-2. Foreign-key rollout and handling of any orphan IDs found during preflight.
-3. Metadata provenance and precedence for Dashboard environment values, TOML and dev-seed inputs.
-4. Importer form is resolved in M3.3: independent Rust CLI; preflight is read-only and apply is explicit.
-5. Whether data volume requires batches and a resumable progress marker.
-6. Operator rollback: define backup restore versus reviewed compensating migration. Never automatically delete Registry or analytics rows as rollback.
+1. Registry fields and constraints are specified in M3.2; `setup_status` remains a derived view.
+2. Foreign keys use `ON DELETE RESTRICT`, applied only after import and zero-orphan preflight; the local rollout passed this preflight.
+3. Metadata source precedence and explicit dispositions are implemented in M3.3; Origins are comparison evidence and never canonical Website URLs.
+4. The importer is an independent Rust CLI; dry-run is the default and apply is explicit.
+5. Current target volume does not require batches or resumable progress; apply is serialized and transactional.
+6. Recovery uses verified backups or reviewed forward migrations; never automatically delete Registry or analytics rows as rollback.
+
+All M3 decisions are closed for the local development target. Deployment targets repeat the documented preflight and review with target-specific data.
 
 ## M4 handoff
 
 M3 does not make the database runtime authority. M4 separately reconciles each TOML site/environment, origin and key against DB policy; reviews historical `ANALYTICS_DEFINITIONS_FILE` imports; then removes or explicitly gates TOML fallback. Preserve last-known-good behavior for temporary DB outages while explicit missing, disabled or archived DB policy fails closed.
+
+Historical-only Registry Sites with no capability document can query Page View overview, timeline and pages under [ADR-019](decisions/ADR-019-historical-page-view-query-without-capabilities.md). This read-only compatibility path does not change Collector authorization or enable other reports.

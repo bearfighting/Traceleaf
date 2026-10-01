@@ -46,6 +46,12 @@ async fn cleanup(pool: &PgPool) {
 async fn phase6_metadata_migration_is_additive_and_supports_rollback() {
     let pool = pool().await;
     cleanup(&pool).await;
+    sqlx::query(
+        "INSERT INTO site_registry (site_id) VALUES ('site_pr1') ON CONFLICT (site_id) DO NOTHING",
+    )
+    .execute(&pool)
+    .await
+    .expect("Site Registry fixture should be present");
 
     let phase6_indexes = sqlx::query_scalar::<_, String>(
         "SELECT indexname

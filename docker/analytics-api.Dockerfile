@@ -13,12 +13,14 @@ COPY services/analytics-api/Cargo.toml services/analytics-api/Cargo.toml
 COPY services/collector/Cargo.toml services/collector/Cargo.toml
 COPY services/processor/Cargo.toml services/processor/Cargo.toml
 COPY tools/db-migrator/Cargo.toml tools/db-migrator/Cargo.toml
-RUN mkdir -p crates/configuration-runtime/src services/analytics-api/src services/collector/src services/processor/src tools/db-migrator/src \
+COPY tools/site-registry-importer/Cargo.toml tools/site-registry-importer/Cargo.toml
+RUN mkdir -p crates/configuration-runtime/src services/analytics-api/src services/collector/src services/processor/src tools/db-migrator/src tools/site-registry-importer/src \
   && printf '#![allow(dead_code)]\n' > crates/configuration-runtime/src/lib.rs \
   && printf 'fn main() {}\n' > services/analytics-api/src/main.rs \
   && printf 'fn main() {}\n' > services/collector/src/main.rs \
   && printf 'fn main() {}\n' > services/processor/src/main.rs \
   && printf 'fn main() {}\n' > tools/db-migrator/src/main.rs \
+  && printf 'fn main() {}\n' > tools/site-registry-importer/src/main.rs \
   && cargo fetch --locked
 
 CMD ["cargo", "run", "-p", "analytics-api", "--", "--host", "0.0.0.0", "--port", "4002"]

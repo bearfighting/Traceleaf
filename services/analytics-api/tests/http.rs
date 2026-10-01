@@ -26,6 +26,11 @@ async fn body(response: axum::response::Response) -> serde_json::Value {
 }
 
 async fn seed_capabilities(pool: &PgPool, site_id: &str) {
+    sqlx::query("INSERT INTO site_registry (site_id) VALUES ($1) ON CONFLICT (site_id) DO NOTHING")
+        .bind(site_id)
+        .execute(pool)
+        .await
+        .unwrap();
     let updated_at = Utc::now();
     let timestamp = updated_at.to_rfc3339_opts(chrono::SecondsFormat::Micros, true);
     let capabilities = [
@@ -919,6 +924,11 @@ async fn clear_configuration_site(pool: &PgPool, site_id: &str) {
         .execute(pool)
         .await
         .unwrap();
+    sqlx::query("INSERT INTO site_registry (site_id) VALUES ($1) ON CONFLICT (site_id) DO NOTHING")
+        .bind(site_id)
+        .execute(pool)
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -1804,27 +1814,42 @@ async fn capability_runtime_reuses_validator_and_retains_last_good_snapshot_on_i
 async fn registry_metadata_gaps_do_not_block_historical_analytics() {
     let pool = pool().await;
     let site = "m34_history_metadata_gap";
-    reset(&pool, site).await;
+    for table in [
+        "raw_events",
+        "page_view_totals",
+        "page_view_daily",
+        "page_view_routes",
+    ] {
+        sqlx::query(sqlx::AssertSqlSafe(format!(
+            "DELETE FROM {table} WHERE site_id = $1"
+        )))
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    }
     sqlx::query("DELETE FROM site_environment_policies WHERE site_id = $1")
         .bind(site)
         .execute(&pool)
         .await
         .unwrap();
-    sqlx::query("DELETE FROM raw_events WHERE site_id = $1")
+    sqlx::query("DELETE FROM site_capability_activation_windows WHERE site_id = $1")
         .bind(site)
         .execute(&pool)
         .await
         .unwrap();
-    sqlx::query("DELETE FROM site_registry WHERE site_id = $1")
+    sqlx::query("DELETE FROM site_capability_configurations WHERE site_id = $1")
         .bind(site)
         .execute(&pool)
         .await
         .unwrap();
-    sqlx::query("INSERT INTO site_registry (site_id) VALUES ($1)")
+    sqlx::query("DELETE FROM analytics_feature_flags WHERE site_id = $1")
         .bind(site)
         .execute(&pool)
         .await
         .unwrap();
+    sqlx::query("INSERT INTO site_registry (site_id, display_name, website_url) VALUES ($1, NULL, NULL) ON CONFLICT (site_id) DO UPDATE SET display_name = NULL, website_url = NULL")
+        .bind(site).execute(&pool).await.unwrap();
     sqlx::query("INSERT INTO raw_events (site_id, event_id, schema_version, event_type, occurred_at, received_at, path, payload) VALUES ($1, '01J00000000000000000000001', 1, 'page_view', NOW(), NOW(), '/legacy', '{}'::jsonb)")
         .bind(site)
         .execute(&pool)
@@ -1843,6 +1868,14 @@ async fn registry_metadata_gaps_do_not_block_historical_analytics() {
             .await
             .unwrap();
     assert_eq!(metadata, (None, None));
+    let capability_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM site_capability_configurations WHERE site_id = $1",
+    )
+    .bind(site)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(capability_rows, 0);
     let raw_rows: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM raw_events WHERE site_id = $1")
         .bind(site)
         .fetch_one(&pool)
@@ -1852,6 +1885,28 @@ async fn registry_metadata_gaps_do_not_block_historical_analytics() {
 
     // A Site with incomplete Registry metadata remains queryable without a policy row.
     assert_historical_overview(&pool, site).await;
+    for path in [
+        format!("/v1/sites/{site}/reports/2026-10-01/2026-10-01/overview"),
+        format!("/v1/sites/{site}/reports/2026-10-01/2026-10-01/timeline"),
+        format!("/v1/sites/{site}/reports/2026-10-01/2026-10-01/pages"),
+    ] {
+        let response = app(pool.clone())
+            .oneshot(Request::get(path).body(axum::body::Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+    let visitors = app(pool.clone())
+        .oneshot(
+            Request::get(format!(
+                "/v1/sites/{site}/reports/2026-10-01/2026-10-01/visitors"
+            ))
+            .body(axum::body::Body::empty())
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(visitors.status(), StatusCode::SERVICE_UNAVAILABLE);
 
     let updated_at = Utc::now();
     let updated_at_text = updated_at.to_rfc3339_opts(chrono::SecondsFormat::Micros, true);
@@ -1896,11 +1951,6 @@ async fn registry_metadata_gaps_do_not_block_historical_analytics() {
     assert_eq!(raw_rows_after, raw_rows);
 
     sqlx::query("DELETE FROM raw_events WHERE site_id = $1")
-        .bind(site)
-        .execute(&pool)
-        .await
-        .unwrap();
-    sqlx::query("DELETE FROM site_registry WHERE site_id = $1")
         .bind(site)
         .execute(&pool)
         .await

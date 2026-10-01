@@ -42,6 +42,10 @@ async fn setup() -> (PostgresSink, PgPool) {
         .execute(&pool)
         .await
         .expect("feature flag table should be writable");
+    sqlx::query("INSERT INTO site_registry (site_id) SELECT unnest(ARRAY['site_boundary', 'site_example', 'other_site', 'site_geo']::text[]) ON CONFLICT (site_id) DO NOTHING")
+        .execute(&pool)
+        .await
+        .expect("Site Registry fixtures should be present");
     let sink = PostgresSink::connect(&url)
         .await
         .expect("Postgres sink should connect");
