@@ -97,6 +97,11 @@ const EXPECTED_MIGRATIONS: &[(i64, &str, &str)] = &[
         "add site registry references",
         "2a57800a0804b014dd365e34a8236cc037a181019be2995a99ad8a8905fb5c8fd4812f7943330c0c8586a9acda456446",
     ),
+    (
+        20261001002000,
+        "pin policy validator search path",
+        "bed8211216ce711a57e00ed87b93935353b72743bee16d37150c54254714eb3fa9b7bb5ddc18d0d14a72a93032b513d0",
+    ),
 ];
 
 #[tokio::test]

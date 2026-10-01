@@ -520,7 +520,8 @@ DECLARE
     20260925001600,
     20260926001700,
     20260930001800,
-    20261001001900
+    20261001001900,
+    20261001002000
   ];
   actual_migrations bigint[];
 BEGIN
@@ -530,6 +531,19 @@ BEGIN
 
   IF actual_migrations IS DISTINCT FROM expected_migrations THEN
     RAISE EXCEPTION 'unexpected migration history: %', actual_migrations;
+  END IF;
+END
+$$;
+
+DO $$
+DECLARE
+  validator_config TEXT[];
+BEGIN
+  SELECT proconfig INTO validator_config
+    FROM pg_proc
+   WHERE oid = 'public.configuration_environment_policy_document_is_valid(jsonb)'::regprocedure;
+  IF validator_config IS NULL OR NOT ('search_path=pg_catalog, public' = ANY(validator_config)) THEN
+    RAISE EXCEPTION 'environment policy validator does not pin a restore-safe search_path: %', validator_config;
   END IF;
 END
 $$;

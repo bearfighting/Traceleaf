@@ -4,6 +4,7 @@
 
 - [MVP Scope and Freeze Record](mvp-scope.md)：冻结后的 MVP 功能基线和验收摘要。
 - [M3 Site Registry checklist](m3-site-registry-checklist.md)：Site Registry rollout、目标数据库迁移记录和 M4 handoff。
+- [M4 Runtime Configuration Authority checklist](m4-runtime-configuration-authority-checklist.md)：逐目标核对数据库/TOML policy、definitions 导入、Collector fallback 移除和 cutover 验收。
 - [Roadmap](roadmap.md)：当前阶段状态与后续方向。
 - [Post-MVP Follow-up](post-mvp-follow-up.md)：未完成或延期的性能、运维和发布工作。
 - [Release Readiness Freeze Record](release-readiness-design.md)：MVP 冻结时的验证状态。

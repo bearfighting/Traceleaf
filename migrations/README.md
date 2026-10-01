@@ -35,3 +35,4 @@ Configuration audit rows expire after one year. Compose deployments using the `s
 
 - `20260930001800_create_site_registry.sql` adds stable Site identity and optional metadata storage plus a derived setup-status view. It intentionally does not backfill identities or add references; those steps require the M3 importer and target-specific orphan preflight first.
 - `20261001001900_add_site_registry_references.sql` adds `ON DELETE RESTRICT` Site Registry references to the durable Site-scoped configuration and analytics tables. Apply it only after a target-specific Registry import and orphan preflight; the migration fails atomically if any direct Site reference lacks a Registry row.
+- `20261001002000_pin_policy_validator_search_path.sql` pins the environment-policy validator's helper lookup so `pg_restore` can validate stored policy rows with its empty session `search_path`.
