@@ -9,6 +9,11 @@ fn database_url() -> String {
 }
 
 async fn seed_capabilities(pool: &PgPool, site_id: &str) {
+    sqlx::query("INSERT INTO site_registry (site_id) VALUES ($1) ON CONFLICT (site_id) DO NOTHING")
+        .bind(site_id)
+        .execute(pool)
+        .await
+        .expect("Site Registry fixture should be present");
     let updated_at = Utc::now();
     let timestamp = updated_at.to_rfc3339_opts(chrono::SecondsFormat::Micros, true);
     let capabilities = serde_json::json!({

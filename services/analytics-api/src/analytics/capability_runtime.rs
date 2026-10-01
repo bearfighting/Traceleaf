@@ -32,6 +32,11 @@ pub(crate) async fn gate(
         }
     };
     let Some(snapshot) = snapshot else {
+        if is_historical_page_view_route(path)
+            && let Ok(true) = registry_site_without_capabilities(&state, site_id).await
+        {
+            return next.run(request).await;
+        }
         return (
             StatusCode::SERVICE_UNAVAILABLE,
             Json(json!({"error":{"code":"configuration_unavailable","message":"Capability configuration is unavailable"}})),
@@ -54,4 +59,31 @@ pub(crate) async fn gate(
         ).into_response();
     }
     next.run(request).await
+}
+
+fn is_historical_page_view_route(path: &str) -> bool {
+    ["overview", "timeline", "pages"]
+        .iter()
+        .any(|report| path.ends_with(&format!("/{report}")))
+}
+
+async fn registry_site_without_capabilities(
+    state: &AnalyticsState,
+    site_id: &str,
+) -> Result<bool, sqlx::Error> {
+    sqlx::query_scalar(
+        "SELECT EXISTS (
+            SELECT 1
+              FROM site_registry AS site
+             WHERE site.site_id = $1
+               AND NOT EXISTS (
+                    SELECT 1
+                      FROM site_capability_configurations AS capabilities
+                     WHERE capabilities.site_id = site.site_id
+               )
+        )",
+    )
+    .bind(site_id)
+    .fetch_one(&state.pool)
+    .await
 }
