@@ -26,6 +26,13 @@ const policyUpdateSchema = await readJson(
   path.join(contractRoot, "environment-policy-update.schema.json"),
 );
 const auditSchema = await readJson(path.join(contractRoot, "audit-event.schema.json"));
+const siteCreateSchema = await readJson(path.join(contractRoot, "site-create-request.schema.json"));
+const siteMetadataUpdateSchema = await readJson(
+  path.join(contractRoot, "site-metadata-update.schema.json"),
+);
+const siteManagementAuditSchema = await readJson(
+  path.join(contractRoot, "site-management-audit-event.schema.json"),
+);
 const manifest = await readJson(path.join(root, "protocol/capabilities/capabilities.json"));
 const openapi = await readJson(path.join(contractRoot, "openapi.json"));
 const validateCapabilities = makeValidator(capabilitySchema);
@@ -33,6 +40,17 @@ const validatePolicy = makeValidator(policySchema);
 const validateCapabilityUpdate = makeValidator(capabilityUpdateSchema);
 const validatePolicyUpdate = makeValidator(policyUpdateSchema);
 const validateAudit = makeValidator(auditSchema);
+const validateSiteCreate = makeValidator(siteCreateSchema);
+const validateSiteMetadataUpdate = makeValidator(siteMetadataUpdateSchema);
+const validateSiteManagementAudit = makeValidator(siteManagementAuditSchema);
+if (
+  siteCreateSchema.properties.capabilities.properties.page_views?.const !== true ||
+  siteCreateSchema.properties.capabilities.default?.page_views !== true
+) {
+  fail(
+    "Site creation must fix page_views to true when supplied and normalize it to true when omitted",
+  );
+}
 const capabilityIds = manifest.capabilities.map(({ id }) => id).sort();
 const expectedIds = [
   "anonymous_visitors",
@@ -87,6 +105,9 @@ for (const kind of [
   "environment-policy-update",
   "conversion-funnel-definition-set-update",
   "audit",
+  "site-create",
+  "site-metadata-update",
+  "site-management-audit",
 ]) {
   const directory = path.join(contractRoot, "fixtures", kind);
   const validate = {
@@ -100,6 +121,9 @@ for (const kind of [
       ),
     ),
     audit: validateAudit,
+    "site-create": validateSiteCreate,
+    "site-metadata-update": validateSiteMetadataUpdate,
+    "site-management-audit": validateSiteManagementAudit,
   }[kind];
   for (const validity of ["valid", "invalid"]) {
     const fixtureDirectory = path.join(directory, validity);
@@ -111,6 +135,49 @@ for (const kind of [
       let semanticErrors = [];
       if (kind === "capabilities") semanticErrors = dependencyErrors(fixture);
       if (kind === "capability-update") semanticErrors = dependencyErrors(fixture);
+      if (kind === "site-create") {
+        if (!fixture.display_name.trim().normalize("NFC")) {
+          semanticErrors.push("display_name must remain non-empty after normalization");
+        }
+        const capabilities = Object.fromEntries(
+          capabilityIds.map((id) => [
+            id,
+            { enabled: id === "page_views" || fixture.capabilities?.[id] === true },
+          ]),
+        );
+        semanticErrors.push(...dependencyErrors({ capabilities }));
+        try {
+          const websiteUrl = new URL(fixture.website_url);
+          const websiteOrigin = websiteUrl.origin;
+          if (websiteUrl.username || websiteUrl.password) {
+            semanticErrors.push("website_url must not contain username or password credentials");
+          }
+          const allowedOrigins = fixture.allowed_origins.map((origin) => new URL(origin).origin);
+          if (new Set(allowedOrigins).size !== allowedOrigins.length) {
+            semanticErrors.push("allowed_origins must not contain duplicate canonical Origins");
+          }
+          if (!allowedOrigins.includes(websiteOrigin)) {
+            semanticErrors.push("website_url origin must be included in allowed_origins");
+          }
+        } catch {
+          // Structural validation reports malformed URLs.
+        }
+      }
+      if (kind === "site-metadata-update") {
+        if (fixture.display_name !== undefined && !fixture.display_name.trim().normalize("NFC")) {
+          semanticErrors.push("display_name must remain non-empty after normalization");
+        }
+        if (fixture.website_url !== undefined) {
+          try {
+            const websiteUrl = new URL(fixture.website_url);
+            if (websiteUrl.username || websiteUrl.password) {
+              semanticErrors.push("website_url must not contain username or password credentials");
+            }
+          } catch {
+            // Structural validation reports malformed URLs.
+          }
+        }
+      }
       if (kind === "conversion-funnel-definition-set-update") {
         const ids = new Set();
         for (const definition of [...(fixture.conversions ?? []), ...(fixture.funnels ?? [])]) {
@@ -159,7 +226,7 @@ for (const kind of [
       const actualValid = structurallyValid && semanticErrors.length === 0;
       if (actualValid !== (validity === "valid")) {
         fail(
-          `unexpected ${kind} fixture result: ${validity}/${filename}; ${JSON.stringify(validate.errors ?? dependencyErrors(fixture))}`,
+          `unexpected ${kind} fixture result: ${validity}/${filename}; ${JSON.stringify(validate.errors ?? semanticErrors)}`,
         );
       } else {
         pass(`${kind} ${validity}/${filename}`);
@@ -217,7 +284,79 @@ for (const testCase of migrationCases.cases) {
   }
 }
 
+const siteManagementCases = await readJson(
+  path.join(contractRoot, "fixtures/site-management-cases.json"),
+);
+const normalization = siteManagementCases.normalization;
+const canonicalCapabilities = Object.fromEntries(
+  capabilityIds.map((id) => [
+    id,
+    id === "page_views" || normalization.input.capabilities?.[id] === true,
+  ]),
+);
+let normalizedOrigins = [];
+try {
+  normalizedOrigins = normalization.input.allowed_origins
+    .map((origin) => new URL(origin).origin)
+    .sort();
+} catch {
+  fail("Site creation normalization fixture contains an invalid Origin");
+}
+const normalizedWebsiteUrl = new URL(normalization.input.website_url);
+normalizedWebsiteUrl.hash = "";
+const normalizedRequest = {
+  display_name: normalization.input.display_name.trim().normalize("NFC"),
+  website_url: normalizedWebsiteUrl.href,
+  environment: normalization.input.environment,
+  capabilities: canonicalCapabilities,
+  allowed_origins: normalizedOrigins,
+};
+if (
+  JSON.stringify(normalizedRequest) !== JSON.stringify(normalization.canonical) ||
+  normalization.digest_algorithm !== "SHA-256" ||
+  normalization.canonical_json !== "RFC 8785"
+) {
+  fail("Site creation normalization fixture does not match its declared canonical request");
+} else {
+  pass("site creation normalization, default capabilities and digest contract");
+}
+if (
+  siteManagementCases.retries.length !== 4 ||
+  siteManagementCases.retries.some((testCase) =>
+    testCase.id === "same-key-same-request"
+      ? testCase.expected_status !== 200 || testCase.returns_plaintext_key !== false
+      : testCase.id === "same-key-different-request"
+        ? testCase.expected_status !== 409 ||
+          testCase.expected_error !== "site_idempotency_conflict"
+        : testCase.id === "concurrent-same-key-same-request"
+          ? testCase.one_site_created !== true || testCase.one_initial_plaintext_response !== true
+          : testCase.id === "concurrent-same-key-different-request"
+            ? testCase.one_request_commits !== true || testCase.other_response_status !== 409
+            : true,
+  ) ||
+  siteManagementCases.retention.idempotency_association !== "site_lifetime_including_archive" ||
+  siteManagementCases.retention.site_audit !== "site_lifetime_including_archive" ||
+  siteManagementCases.retention.physical_site_delete !== false
+) {
+  fail("Site creation retry, concurrency or lifetime-retention contract fixture is inconsistent");
+} else {
+  pass("site creation idempotency replay, conflict, concurrency and retention cases");
+}
+if (
+  siteManagementCases.create_defaults.environment_policy_enabled !== true ||
+  siteManagementCases.create_defaults.rate_limit_per_minute !== 600 ||
+  siteManagementCases.create_defaults.generated_ingest_key_active !== true
+) {
+  fail("Site creation must create an enabled 600/minute policy with its initial key active");
+} else {
+  pass("site creation initial environment policy and active key defaults");
+}
+
 const requiredPaths = {
+  "/v1/admin/sites": ["get", "post"],
+  "/v1/admin/sites/{site_id}": ["get", "patch"],
+  "/v1/admin/sites/{site_id}/archive": ["post"],
+  "/v1/admin/sites/{site_id}/restore": ["post"],
   "/v1/admin/sites/{site_id}/capabilities": ["get", "put"],
   "/v1/admin/sites/{site_id}/conversion-funnel-definitions": ["get", "post", "put"],
   "/v1/sites/{site_id}/definition-revisions": ["get"],
@@ -232,7 +371,7 @@ if (
         .map(([route, methods]) => [
           route,
           Object.keys(methods)
-            .filter((method) => ["get", "put", "post", "delete"].includes(method))
+            .filter((method) => ["get", "put", "post", "patch", "delete"].includes(method))
             .sort(),
         ])
         .sort(([a], [b]) => a.localeCompare(b)),
@@ -248,23 +387,32 @@ if (
 ) {
   fail("OpenAPI configuration routes do not match the frozen route set");
 }
+if (
+  openapi.components.schemas.CreatedManagedSite.allOf?.[1]?.properties?.site_id?.pattern !==
+  "^site_[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+) {
+  fail("newly created Site IDs must be prefixed ULIDs with a valid first character");
+}
 if (!openapi.security?.some((requirement) => requirement.configAdminBearer)) {
   fail("all configuration API routes must inherit deployment-admin Bearer authentication");
 }
 for (const [route, methods] of Object.entries(openapi.paths)) {
   for (const [method, operation] of Object.entries(methods)) {
-    if (!["put", "post", "delete"].includes(method)) continue;
+    if (!["put", "post", "patch", "delete"].includes(method)) continue;
     const parameters = [...(methods.parameters ?? []), ...(operation.parameters ?? [])].map(
       (parameter) =>
         parameter.$ref
           ? openapi.components.parameters[parameter.$ref.split("/").at(-1)]
           : parameter,
     );
-    const creatingEnvironmentPolicy =
-      (method === "post" &&
-        route === "/v1/admin/sites/{site_id}/environments/{environment}/ingest-policy") ||
-      (method === "post" && route === "/v1/admin/sites/{site_id}/conversion-funnel-definitions");
-    const requiredHeader = creatingEnvironmentPolicy ? "If-None-Match" : "If-Match";
+    const requiredHeader =
+      method === "post" && route === "/v1/admin/sites"
+        ? "Idempotency-Key"
+        : method === "post" && route.endsWith("/conversion-funnel-definitions")
+          ? "If-None-Match"
+          : method === "post" && route.endsWith("/ingest-policy")
+            ? "If-None-Match"
+            : "If-Match";
     if (!parameters.some((parameter) => parameter?.name === requiredHeader && parameter.required)) {
       fail(`${method.toUpperCase()} ${route} must require ${requiredHeader}`);
     }
@@ -403,6 +551,12 @@ for (const testCase of mutationCases.cases) {
       !openapiText.includes("only time the plaintext key is returned"))
   ) {
     fail("Ingest Key plaintext must be one-time only");
+  }
+  if (testCase.id === "create-site" && (!testCase.plaintext_returned_once || !testCase.atomic)) {
+    fail("Site creation must commit atomically and return plaintext only on its initial success");
+  }
+  if (testCase.id === "retry-create-site" && testCase.plaintext_returned_once !== false) {
+    fail("Site creation retry must not return plaintext Ingest Key material");
   }
 }
 pass("OpenAPI routes, Bearer auth, version preconditions and one-time key response validated");

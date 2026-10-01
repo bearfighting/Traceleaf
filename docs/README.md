@@ -5,6 +5,8 @@
 - [MVP Scope and Freeze Record](mvp-scope.md)：冻结后的 MVP 功能基线和验收摘要。
 - [M3 Site Registry checklist](m3-site-registry-checklist.md)：Site Registry rollout、目标数据库迁移记录和 M4 handoff。
 - [M4 Runtime Configuration Authority checklist](m4-runtime-configuration-authority-checklist.md)：逐目标核对数据库/TOML policy、definitions 导入、Collector fallback 移除和 cutover 验收。
+- [M5 Site Management Backend checklist](m5-site-management-checklist.md)：Site 列表/详情/创建 API、原子创建、审计、幂等和验收门槛。
+- [Site Management persistence contract](../protocol/contracts/configuration/current/site-management-persistence.md)：M5 Site 版本、原子创建幂等记录、审计保留与归档的 PostgreSQL 合约。
 - [M4.2 Local Policy Reconciliation](m4.2-local-policy-reconciliation-plan.md)：本地开发目标的策略对账计划、预期状态与执行记录。
 - [M4.3 Definitions Import Closeout](m4.3-definitions-import-closeout.md)：定义文件迁移入口收口、本地数据证据与显式导入操作。
 - [M4.4 Local DB-only Policy Closeout](m4.4-local-db-only-policy-closeout.md)：Collector DB-only policy authority、本地 postflight 和验证记录。

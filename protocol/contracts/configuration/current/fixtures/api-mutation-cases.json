@@ -1,6 +1,61 @@
 {
   "cases": [
     {
+      "id": "create-site",
+      "method": "POST",
+      "idempotency_key": "create-example-001",
+      "expected_status": 201,
+      "plaintext_returned_once": true,
+      "atomic": true,
+      "path": "/v1/admin/sites"
+    },
+    {
+      "id": "retry-create-site",
+      "method": "POST",
+      "idempotency_key": "create-example-001",
+      "expected_status": 200,
+      "plaintext_returned_once": false,
+      "path": "/v1/admin/sites"
+    },
+    {
+      "id": "idempotency-key-reused-with-different-request",
+      "method": "POST",
+      "idempotency_key": "create-example-001",
+      "expected_status": 409,
+      "expected_error": "site_idempotency_conflict",
+      "partial_update": false,
+      "path": "/v1/admin/sites"
+    },
+    {
+      "id": "update-site-missing-if-match",
+      "method": "PATCH",
+      "if_match": null,
+      "expected_status": 428,
+      "expected_error": "configuration_precondition_required",
+      "partial_update": false,
+      "path": "/v1/admin/sites/{site_id}"
+    },
+    {
+      "id": "update-site-stale-version",
+      "method": "PATCH",
+      "if_match": "\"1\"",
+      "current_version": 2,
+      "expected_status": 409,
+      "expected_error": "site_version_conflict",
+      "partial_update": false,
+      "path": "/v1/admin/sites/{site_id}"
+    },
+    {
+      "id": "archive-site-stale-version",
+      "method": "POST",
+      "if_match": "\"1\"",
+      "current_version": 2,
+      "expected_status": 409,
+      "expected_error": "site_version_conflict",
+      "partial_update": false,
+      "path": "/v1/admin/sites/{site_id}/archive"
+    },
+    {
       "id": "missing-if-match",
       "method": "PUT",
       "if_match": null,

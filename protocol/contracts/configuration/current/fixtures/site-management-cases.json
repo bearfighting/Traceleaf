@@ -1,0 +1,71 @@
+{
+  "normalization": {
+    "input": {
+      "display_name": "  Café Site  ",
+      "website_url": "https://EXAMPLE.test:443/path#section",
+      "environment": "production",
+      "capabilities": {
+        "sessions": true,
+        "anonymous_visitors": true,
+        "browser_context": true,
+        "dimensions": true
+      },
+      "allowed_origins": ["https://EXAMPLE.test:443/"]
+    },
+    "canonical": {
+      "display_name": "Café Site",
+      "website_url": "https://example.test/path",
+      "environment": "production",
+      "capabilities": {
+        "anonymous_visitors": true,
+        "browser_context": true,
+        "conversions": false,
+        "custom_events": false,
+        "dimensions": true,
+        "funnels": false,
+        "geo": false,
+        "page_views": true,
+        "sessions": true,
+        "web_vitals": false
+      },
+      "allowed_origins": ["https://example.test"]
+    },
+    "digest_algorithm": "SHA-256",
+    "canonical_json": "RFC 8785"
+  },
+  "create_defaults": {
+    "environment_policy_enabled": true,
+    "rate_limit_per_minute": 600,
+    "generated_ingest_key_active": true
+  },
+  "retries": [
+    {
+      "id": "same-key-same-request",
+      "expected_status": 200,
+      "returns_site_metadata": true,
+      "returns_plaintext_key": false
+    },
+    {
+      "id": "same-key-different-request",
+      "expected_status": 409,
+      "expected_error": "site_idempotency_conflict",
+      "partial_update": false
+    },
+    {
+      "id": "concurrent-same-key-same-request",
+      "one_site_created": true,
+      "one_initial_plaintext_response": true,
+      "other_response_status": 200
+    },
+    {
+      "id": "concurrent-same-key-different-request",
+      "one_request_commits": true,
+      "other_response_status": 409
+    }
+  ],
+  "retention": {
+    "idempotency_association": "site_lifetime_including_archive",
+    "site_audit": "site_lifetime_including_archive",
+    "physical_site_delete": false
+  }
+}

@@ -81,13 +81,14 @@ Collector 和 Analytics API 从持久化配置读取这些数据。Dashboard 的
 
 ### Admin API
 
-以下路由与响应语义是产品方向草案，不是已冻结的 HTTP contract；M5 冻结具体字段、错误 envelope、ETag 与幂等请求 wire shape 后再实现；幂等关联的 Site 生命周期保留语义已由 ADR-013 冻结。
+以下路由方向现由 M5.1 HTTP contract 冻结；字段、错误 envelope、ETag、幂等摘要和持久化细节见 [configuration OpenAPI](../protocol/contracts/configuration/current/openapi.json)、[Site creation schema](../protocol/contracts/configuration/current/site-create-request.schema.json) 与 [persistence contract](../protocol/contracts/configuration/current/site-management-persistence.md)。实现仍按 M5.2/M5.3 顺序交付。
 
-补充受 deployment-admin 保护的站点集合与创建接口，例如：
+提供受 deployment-admin 保护的站点集合、创建、元数据和生命周期接口：
 
 - `GET /v1/admin/sites`：列出 Site Registry 元数据和基本可用状态。
 - `POST /v1/admin/sites`：创建站点及首个环境。
-- `GET /v1/admin/sites/{site_id}` / `PATCH`：读取和更新名称、URL、生命周期状态。
+- `GET /v1/admin/sites/{site_id}` / `PATCH`：读取和更新名称、URL。
+- `POST /v1/admin/sites/{site_id}/archive` 和 `/restore`：使用 Site ETag 修改生命周期；恢复不自动启用 policy。
 
 创建接口应在一个数据库事务内创建 Site Registry、capability configuration、activation windows、首个 environment policy 和 Ingest Key 摘要，并写入审计记录。任何一步失败都应回滚，避免出现下拉列表里有站点但 Collector 无法接受事件的半成品状态。
 

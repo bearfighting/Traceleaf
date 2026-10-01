@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://web-analytics-platform.dev/contracts/configuration/current/site-management-audit-event.schema.json",
+  "title": "Site Management Audit Event",
+  "type": "object",
+  "properties": {
+    "schema_version": { "const": 1 },
+    "actor_kind": { "const": "deployment_admin" },
+    "site_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "description": "Accepts preserved historical Site IDs. Newly created Site IDs use site_ followed by a 26-character Crockford Base32 ULID whose first character is 0-7."
+    },
+    "site_version": { "type": "integer", "minimum": 1 },
+    "operation": { "enum": ["created", "metadata_updated", "archived", "restored"] },
+    "changed_fields": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "enum": ["display_name", "website_url", "lifecycle_status"] }
+    },
+    "created_at": { "type": "string", "format": "date-time" }
+  },
+  "required": [
+    "schema_version",
+    "actor_kind",
+    "site_id",
+    "site_version",
+    "operation",
+    "changed_fields",
+    "created_at"
+  ],
+  "additionalProperties": false
+}

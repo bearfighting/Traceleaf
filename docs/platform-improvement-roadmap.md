@@ -139,7 +139,7 @@ flowchart LR
 
 ### M5：交付 Site Management 后端闭环
 
-**前置**：M1、M3、M4。**交付**：站点列表/详情/创建 API、原子创建事务、管理审计、并发与重复请求处理。创建事务包含 Registry、capabilities、activation windows、首个 environment policy、key digest、创建请求 ID 和规范化请求摘要。明文 key 只在首次成功创建响应中返回；重复 key/相同摘要返回站点元数据，重复 key/不同摘要返回冲突。现有 capabilities、policy、key、definition APIs 继续由 Site Management 维护。
+**前置**：M1、M3、M4。**状态**：进行中（M5.1 API 与持久化合约已冻结）；执行门槛见 [M5 Site Management Backend checklist](m5-site-management-checklist.md)。**交付**：站点列表/详情/创建 API、原子创建事务、管理审计、并发与重复请求处理。创建事务包含 Registry、capabilities、activation windows、首个 environment policy、key digest、创建请求 ID 和规范化请求摘要。明文 key 只在首次成功创建响应中返回；重复 key/相同摘要返回站点元数据，重复 key/不同摘要返回冲突。现有 capabilities、policy、key、definition APIs 继续由 Site Management 维护。
 
 **完成条件**：空数据库可通过管理 API 创建可接收事件的站点；失败时无半成品；重试不多建站点或重放明文 key；历史报告和现有 API 兼容。
 

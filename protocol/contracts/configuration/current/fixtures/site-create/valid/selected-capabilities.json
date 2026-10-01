@@ -1,0 +1,13 @@
+{
+  "display_name": "Example analytics",
+  "website_url": "https://analytics.example.test/app",
+  "environment": "staging_1",
+  "capabilities": {
+    "page_views": true,
+    "browser_context": true,
+    "anonymous_visitors": true,
+    "sessions": true,
+    "dimensions": true
+  },
+  "allowed_origins": ["https://analytics.example.test", "http://localhost:3000"]
+}
