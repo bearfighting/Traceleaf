@@ -1,6 +1,6 @@
 # M4 Runtime Configuration Authority Checklist
 
-- Status: M4.1–M4.4 implementation complete for the local development target; M4.5 compatibility acceptance and other-target rollout remain open
+- Status: M4.1–M4.5 implementation and acceptance complete for the local development target; rollout to other deployment targets remains open
 - Prerequisites: M3 local-development target complete; ADR-014 accepted
 - Related: [M4.2 Local Policy Reconciliation](m4.2-local-policy-reconciliation-plan.md), [Platform improvement roadmap](platform-improvement-roadmap.md), [M3 Site Registry checklist](m3-site-registry-checklist.md), [ADR-014](decisions/ADR-014-runtime-configuration-authority.md), [Site Onboarding and Settings Design](site-onboarding-settings-design.md)
 
@@ -127,13 +127,22 @@ M4 does not implement Site list/create APIs or onboarding UI (M5/M6), change his
 
 ## M4.5 — Compatibility tests, rollout and acceptance
 
-- [ ] Add or update tests for enabled DB policy, disabled policy, archived Site, absent policy despite matching TOML, wrong/rotated key, Origin rejection, invalid DB policy, and database outage with a last-known-good snapshot.
-- [ ] Add Processor tests proving normal startup/processing does not import or overwrite definitions and the explicit migration operation remains deliberate and safe.
-- [ ] Verify Analytics historical overview, timeline and pages remain queryable after cutover, including Registry-only historical Sites; non-Page-View capability reports remain correctly gated.
-- [ ] Verify saved/applied/stale configuration status remains observable for Collector, Processor and Analytics API.
-- [ ] Run the repository's relevant unit, integration, protocol, format, type-check and build commands through the documented scripts/CI equivalents.
-- [ ] Roll out to one target at a time: backup, approved reconciliation, DB postflight, deploy DB-only behavior, exercise ingestion/query scenarios, then record results before moving to another target.
-- [ ] Update this checklist, the roadmap status, operational runbook and any changed ADR when implementation and target acceptance are complete.
+- [x] Verify enabled DB policy, disabled policy, archived Site, absent policy despite legacy credentials, wrong/rotated key, Origin rejection, invalid policy handling, and database outage with a last-known-good snapshot.
+- [x] Verify normal Processor startup/processing does not import or overwrite definitions and explicit migration import remains deliberate and idempotent.
+- [x] Verify historical Analytics overview, timeline and pages remain queryable for Registry-only historical Sites; capability reports remain correctly gated.
+- [x] Verify saved/applied/stale configuration status for Collector, Processor and Analytics API.
+- [x] Run relevant unit, PostgreSQL integration, protocol, format, type-check, build and end-to-end commands through documented scripts/CI equivalents.
+- [x] Complete and record the local development target's rollout and post-cutover acceptance. Apply the same backup, reconciliation, DB postflight, deployment and scenario checks separately for every other target.
+- [x] Update this checklist, the roadmap status and the operational acceptance record.
+
+### M4.5 local acceptance (2026-10-01)
+
+- Local development target accepted after the M4.4 DB-only Collector cutover. Target-specific reconciliation and postflight remain required before any other deployment adopts this behavior.
+- Dashboard E2E startup exposed two fixture-isolation issues: the pre-created `.next` cache volume was root-owned, and Compose inherited host Site selectors. E2E cache setup now assigns the Next cache directory to the container `node` user, and Dashboard E2Es explicitly set their seeded Site list and default Site. The separate simulated API-error Dashboard receives the same writable-cache and fixed Site configuration.
+- Collector PostgreSQL integration verifies active/disabled/missing/archived policy, legacy-looking credentials without a DB policy, key rotation, deleted policy, and outage last-good behavior. Existing unit coverage validates invalid and conflicting stored policy handling. Processor integration verifies ordinary processing leaves definitions and audit history unchanged and explicit import is idempotent. Analytics API integration verifies Registry-only historical Sites retain overview, timeline and pages while capability-gated reports remain unavailable.
+- Runtime configuration convergence is exercised through Configuration E2E for Collector, Processor and Analytics API applied versions, plus API and settings-page checks for current status. Stale and missing-version aggregation paths are covered by Analytics API integration tests.
+- Validation passed: `pnpm check`, `pnpm test`, `pnpm test:integration` against an isolated temporary PostgreSQL 18.6 database, `pnpm protocol:validate`, `pnpm build`, `pnpm format:check:docs`, `pnpm e2e:analytics` (10 fixtures), `pnpm e2e:configuration`, and `pnpm e2e:dashboard` (full browser workflow). `pnpm check` reported five existing unused ESLint suppression warnings in generated TypeScript files; it had no errors.
+- No public API or protocol changes were needed. M4.5 acceptance is complete for local development only; external deployment rollouts remain open.
 
 **M4 exit:** missing DB configuration cannot be restored by TOML; Processor's ordinary lifecycle cannot import file definitions; valid retained Sites continue collecting; explicit disabled/archived/absent policy fails closed; DB outage preserves only the documented stale last-known-good behavior; historical reports and durable configuration/audit data remain intact.
 
