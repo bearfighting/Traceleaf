@@ -1,7 +1,7 @@
 use axum::{body::Body, http::Request};
 use chrono::Utc;
 use collector::{
-    config::{SiteConfig, SiteRegistry},
+    config::SiteRegistry,
     http::router,
     rate_limit::RateLimiter,
     runtime_policy::RuntimePolicyManager,
@@ -31,12 +31,12 @@ fn digest(key: &str) -> String {
 
 #[tokio::test]
 #[ignore = "requires migrated PostgreSQL; run pnpm test:integration"]
-async fn refresh_applies_database_policy_and_uses_toml_only_for_missing_rows() {
+async fn refresh_uses_only_active_database_policies_and_rejects_missing_or_archived_sites() {
     let pool = pool().await;
     let db_site = "pr4_runtime_db_site";
-    let toml_site = "pr4_runtime_toml_site";
-    let no_last_good_site = "pr4_runtime_no_last_good";
+    let legacy_only_site = "pr4_runtime_toml_site";
     let disabled_site = "pr4_runtime_db_disabled";
+    let archived_site = "pr4_runtime_archived";
     sqlx::query(
         "DELETE FROM raw_events WHERE site_id = $1 AND event_id = '01J00000000000000000000021'",
     )
@@ -46,72 +46,40 @@ async fn refresh_applies_database_policy_and_uses_toml_only_for_missing_rows() {
     .unwrap();
     sqlx::query("DELETE FROM configuration_runtime_instances WHERE service = 'collector' AND instance_id IN (SELECT instance_id FROM configuration_runtime_state WHERE site_id IN ($1, $2, $3, $4))")
         .bind(db_site)
-        .bind(toml_site)
-        .bind(no_last_good_site)
+        .bind(legacy_only_site)
         .bind(disabled_site)
+        .bind(archived_site)
         .execute(&pool)
         .await
         .unwrap();
     sqlx::query("DELETE FROM configuration_runtime_state WHERE site_id IN ($1, $2, $3, $4)")
         .bind(db_site)
-        .bind(toml_site)
-        .bind(no_last_good_site)
+        .bind(legacy_only_site)
         .bind(disabled_site)
+        .bind(archived_site)
         .execute(&pool)
         .await
         .unwrap();
     sqlx::query("DELETE FROM site_environment_policies WHERE site_id IN ($1, $2, $3, $4)")
         .bind(db_site)
-        .bind(toml_site)
-        .bind(no_last_good_site)
+        .bind(legacy_only_site)
         .bind(disabled_site)
+        .bind(archived_site)
         .execute(&pool)
         .await
         .unwrap();
-    sqlx::query("INSERT INTO site_registry (site_id) SELECT unnest(ARRAY[$1, $2, $3, $4]::text[]) ON CONFLICT (site_id) DO NOTHING")
+    sqlx::query("INSERT INTO site_registry (site_id) SELECT unnest(ARRAY[$1, $2, $3, $4]::text[]) ON CONFLICT (site_id) DO UPDATE SET lifecycle_status='active'")
         .bind(db_site)
-        .bind(toml_site)
-        .bind(no_last_good_site)
+        .bind(legacy_only_site)
         .bind(disabled_site)
+        .bind(archived_site)
         .execute(&pool)
         .await
         .unwrap();
 
-    let toml_registry = SiteRegistry::from_sites(vec![
-        SiteConfig {
-            site_id: toml_site.to_owned(),
-            environment: "production".to_owned(),
-            enabled: true,
-            allowed_origins: vec!["https://toml.example.test".to_owned()],
-            ingest_keys: vec!["toml-fallback-key".to_owned()],
-            rate_limit_per_minute: 23,
-            ingest_key_digests: Vec::new(),
-        },
-        SiteConfig {
-            site_id: db_site.to_owned(),
-            environment: "staging".to_owned(),
-            enabled: true,
-            allowed_origins: vec!["https://toml-conflict.example.test".to_owned()],
-            ingest_keys: vec!["toml-conflict-key".to_owned()],
-            rate_limit_per_minute: 23,
-            ingest_key_digests: Vec::new(),
-        },
-        SiteConfig {
-            site_id: disabled_site.to_owned(),
-            environment: "production".to_owned(),
-            enabled: true,
-            allowed_origins: vec!["https://disabled-toml.example.test".to_owned()],
-            ingest_keys: vec!["disabled-toml-key".to_owned()],
-            rate_limit_per_minute: 23,
-            ingest_key_digests: Vec::new(),
-        },
-    ])
-    .unwrap();
-    let runtime_registry = SiteRegistry::from_runtime_sites(Vec::new()).unwrap();
-    let policy = KeyPolicy::new(runtime_registry);
+    let policy = KeyPolicy::new(SiteRegistry::from_runtime_sites(Vec::new()).unwrap());
     let manager = RuntimePolicyManager::new(
         pool.clone(),
-        toml_registry,
         policy.clone(),
         collector::runtime_policy::stored_policy_validator().unwrap(),
     )
@@ -164,6 +132,67 @@ async fn refresh_applies_database_policy_and_uses_toml_only_for_missing_rows() {
         .await
         .unwrap();
 
+    let staging_document = json!({
+        "schema_version": 1,
+        "site_id": db_site,
+        "environment": "staging",
+        "version": 1,
+        "updated_at": updated_at,
+        "enabled": true,
+        "allowed_origins": ["https://database-staging.example.test"],
+        "ingest_keys": [{
+            "key_id": "ik_staging1",
+            "sha256_digest": digest("database-staging-key"),
+            "created_at": updated_at
+        }],
+        "rate_limit_per_minute": 23
+    });
+    sqlx::query("INSERT INTO site_environment_policies (site_id, environment, version, updated_at, document) VALUES ($1, 'staging', 1, $2, $3)")
+        .bind(db_site)
+        .bind(updated_at.parse::<chrono::DateTime<chrono::Utc>>().unwrap())
+        .bind(staging_document)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let archived_document = json!({
+        "schema_version": 1,
+        "site_id": archived_site,
+        "environment": "production",
+        "version": 1,
+        "updated_at": updated_at,
+        "enabled": true,
+        "allowed_origins": ["https://archived.example.test"],
+        "ingest_keys": [{
+            "key_id": "ik_archived1",
+            "sha256_digest": digest("archived-db-key"),
+            "created_at": updated_at
+        }],
+        "rate_limit_per_minute": 41
+    });
+    sqlx::query("INSERT INTO site_environment_policies (site_id, environment, version, updated_at, document) VALUES ($1, 'production', 1, $2, $3)")
+        .bind(archived_site)
+        .bind(updated_at.parse::<chrono::DateTime<chrono::Utc>>().unwrap())
+        .bind(archived_document)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    assert!(manager.refresh_once().await);
+    assert!(
+        policy
+            .authorize(
+                archived_site,
+                Some("https://archived.example.test"),
+                Some("archived-db-key")
+            )
+            .is_ok()
+    );
+    sqlx::query("UPDATE site_registry SET lifecycle_status='archived' WHERE site_id=$1")
+        .bind(archived_site)
+        .execute(&pool)
+        .await
+        .unwrap();
     assert!(manager.refresh_once().await);
     assert!(
         policy
@@ -226,22 +255,38 @@ async fn refresh_applies_database_policy_and_uses_toml_only_for_missing_rows() {
         ),
         Err(AccessError::InvalidIngestKey { .. })
     ));
-    let fallback = policy
-        .authorize(
-            toml_site,
-            Some("https://toml.example.test"),
-            Some("toml-fallback-key"),
-        )
-        .unwrap();
-    assert_eq!(fallback.site.rate_limit_per_minute, 23);
     assert!(matches!(
         policy.authorize(
-            disabled_site,
-            Some("https://disabled-toml.example.test"),
-            Some("disabled-toml-key")
+            legacy_only_site,
+            Some("https://toml.example.test"),
+            Some("toml-fallback-key")
         ),
         Err(AccessError::SiteNotAllowed)
     ));
+    assert!(matches!(
+        policy.authorize(
+            disabled_site,
+            Some("https://disabled-db.example.test"),
+            Some("disabled-db-key")
+        ),
+        Err(AccessError::SiteNotAllowed)
+    ));
+    assert!(matches!(
+        policy.authorize(
+            archived_site,
+            Some("https://archived.example.test"),
+            Some("archived-db-key")
+        ),
+        Err(AccessError::SiteNotAllowed)
+    ));
+    let archived_runtime_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM configuration_runtime_state WHERE service = 'collector' AND site_id = $1 AND environment = 'production'",
+    )
+    .bind(archived_site)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(archived_runtime_rows, 0);
 
     let updated_at = "2026-09-25T00:00:05Z";
     let document = json!({
@@ -303,121 +348,29 @@ async fn refresh_applies_database_policy_and_uses_toml_only_for_missing_rows() {
     .unwrap();
     assert_eq!(instance_status, "current");
 
-    let updated_at = "2026-09-25T00:00:10Z";
-    let conflicting_document = json!({
-        "schema_version": 1,
-        "site_id": db_site,
-        "environment": "production",
-        "version": 3,
-        "updated_at": updated_at,
-        "enabled": true,
-        "allowed_origins": ["https://toml-conflict.example.test"],
-        "ingest_keys": [{
-            "key_id": "ik_abcdefgh",
-            "sha256_digest": digest("database-key-v3"),
-            "created_at": updated_at
-        }],
-        "rate_limit_per_minute": 41
-    });
-    sqlx::query("UPDATE site_environment_policies SET version = 3, updated_at = $3, document = $4 WHERE site_id = $1 AND environment = $2")
+    sqlx::query("DELETE FROM site_environment_policies WHERE site_id=$1 AND environment='staging'")
         .bind(db_site)
-        .bind("production")
-        .bind(updated_at.parse::<chrono::DateTime<chrono::Utc>>().unwrap())
-        .bind(conflicting_document)
         .execute(&pool)
         .await
         .unwrap();
-
-    for _ in 0..2 {
-        assert!(manager.refresh_once().await);
-        assert!(
-            policy
-                .authorize(
-                    db_site,
-                    Some("https://database.example.test"),
-                    Some("database-key-v2")
-                )
-                .is_ok()
-        );
-        assert!(matches!(
-            policy.authorize(
-                db_site,
-                Some("https://toml-conflict.example.test"),
-                Some("database-key-v3")
-            ),
-            Err(AccessError::InvalidIngestKey { .. })
-        ));
-    }
-
-    let (applied_version, refresh_status): (Option<i64>, String) = sqlx::query_as(
-        "SELECT applied_version, refresh_status FROM configuration_runtime_state WHERE service = 'collector' AND site_id = $1 AND environment = 'production' ORDER BY last_seen_at DESC LIMIT 1",
-    )
-    .bind(db_site)
-    .fetch_one(&pool)
-    .await
-    .unwrap();
-    assert_eq!(applied_version, Some(2));
-    assert_eq!(refresh_status, "stale");
-
-    let no_last_good_document = json!({
-        "schema_version": 1,
-        "site_id": no_last_good_site,
-        "environment": "production",
-        "version": 1,
-        "updated_at": "2026-09-25T00:00:15Z",
-        "enabled": true,
-        "allowed_origins": ["https://toml.example.test"],
-        "ingest_keys": [{
-            "key_id": "ik_nolastgood",
-            "sha256_digest": digest("no-last-good-key"),
-            "created_at": "2026-09-25T00:00:15Z"
-        }],
-        "rate_limit_per_minute": 41
-    });
-    sqlx::query("INSERT INTO site_environment_policies (site_id, environment, version, updated_at, document) VALUES ($1, 'production', 1, $2, $3)")
-        .bind(no_last_good_site)
-        .bind("2026-09-25T00:00:15Z".parse::<chrono::DateTime<chrono::Utc>>().unwrap())
-        .bind(no_last_good_document)
-        .execute(&pool)
-        .await
-        .unwrap();
-    let no_last_good_fallback = SiteRegistry::from_sites(vec![SiteConfig {
-        site_id: no_last_good_site.to_owned(),
-        environment: "staging".to_owned(),
-        enabled: true,
-        allowed_origins: vec!["https://toml.example.test".to_owned()],
-        ingest_keys: vec!["no-last-good-fallback-key".to_owned()],
-        rate_limit_per_minute: 23,
-        ingest_key_digests: Vec::new(),
-    }])
-    .unwrap();
-    let no_last_good_policy = KeyPolicy::new(SiteRegistry::from_runtime_sites(Vec::new()).unwrap());
-    let no_last_good_manager = RuntimePolicyManager::new(
-        pool.clone(),
-        no_last_good_fallback,
-        no_last_good_policy.clone(),
-        collector::runtime_policy::stored_policy_validator().unwrap(),
-    )
-    .unwrap();
-    assert!(no_last_good_manager.refresh_once().await);
+    assert!(manager.refresh_once().await);
+    assert!(matches!(
+        policy.authorize(
+            db_site,
+            Some("https://database-staging.example.test"),
+            Some("database-staging-key")
+        ),
+        Err(AccessError::OriginNotAllowed)
+    ));
     assert!(
-        no_last_good_policy
+        policy
             .authorize(
-                no_last_good_site,
-                Some("https://toml.example.test"),
-                Some("no-last-good-key")
+                db_site,
+                Some("https://database.example.test"),
+                Some("database-key-v2")
             )
-            .is_err()
+            .is_ok()
     );
-    let (applied_version, refresh_status): (Option<i64>, String) = sqlx::query_as(
-        "SELECT applied_version, refresh_status FROM configuration_runtime_state WHERE service = 'collector' AND site_id = $1 AND environment = 'production' ORDER BY last_seen_at DESC LIMIT 1",
-    )
-    .bind(no_last_good_site)
-    .fetch_one(&pool)
-    .await
-    .unwrap();
-    assert_eq!(applied_version, None);
-    assert_eq!(refresh_status, "stale");
 
     sqlx::query(
         "DELETE FROM raw_events WHERE site_id = $1 AND event_id = '01J00000000000000000000021'",
@@ -428,26 +381,39 @@ async fn refresh_applies_database_policy_and_uses_toml_only_for_missing_rows() {
     .unwrap();
     sqlx::query("DELETE FROM configuration_runtime_instances WHERE service = 'collector' AND instance_id IN (SELECT instance_id FROM configuration_runtime_state WHERE site_id IN ($1, $2, $3, $4))")
         .bind(db_site)
-        .bind(toml_site)
-        .bind(no_last_good_site)
+        .bind(legacy_only_site)
         .bind(disabled_site)
+        .bind(archived_site)
         .execute(&pool)
         .await
         .unwrap();
     sqlx::query("DELETE FROM configuration_runtime_state WHERE site_id IN ($1, $2, $3, $4)")
         .bind(db_site)
-        .bind(toml_site)
-        .bind(no_last_good_site)
+        .bind(legacy_only_site)
         .bind(disabled_site)
+        .bind(archived_site)
         .execute(&pool)
         .await
         .unwrap();
     sqlx::query("DELETE FROM site_environment_policies WHERE site_id IN ($1, $2, $3, $4)")
         .bind(db_site)
-        .bind(toml_site)
-        .bind(no_last_good_site)
+        .bind(legacy_only_site)
         .bind(disabled_site)
+        .bind(archived_site)
         .execute(&pool)
         .await
         .unwrap();
+
+    pool.close().await;
+    assert!(!manager.refresh_once().await);
+    assert!(
+        policy
+            .authorize(
+                db_site,
+                Some("https://database.example.test"),
+                Some("database-key-v2")
+            )
+            .is_ok(),
+        "a temporary database outage should retain the last valid policy snapshot"
+    );
 }

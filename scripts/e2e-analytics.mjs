@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 
 import { seedE2ECapabilityConfigurations } from "./e2e-capabilities.mjs";
 import { prepareE2ECaches } from "./e2e-cache.mjs";
+import { seedE2EIngestPolicies } from "./e2e-ingest-policies.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const composeFiles = ["-f", "compose.yaml", "-f", "compose.backend.yaml", "-f", "compose.e2e.yaml"];
@@ -14,6 +15,11 @@ const project = `web-analytics-e2e-${process.pid}`;
 const collectorUrl = `http://127.0.0.1:${process.env.E2E_COLLECTOR_PORT ?? "14001"}`;
 const analyticsUrl = `http://127.0.0.1:${process.env.E2E_ANALYTICS_API_PORT ?? "14002"}`;
 const origin = "http://localhost:3000";
+const ingestKeys = {
+  site_playground: "e2e-test-key",
+  site_alpha: "e2e-test-key-alpha",
+  site_beta: "e2e-test-key-beta",
+};
 const fixturesDirectory = path.join(
   root,
   "protocol",
@@ -54,6 +60,7 @@ try {
   await runCompose(["up", "-d", "--build", "--wait", "postgres"]);
   runCompose(["run", "--rm", "--build", "db-migrate"]);
   seedE2ECapabilityConfigurations(runCompose);
+  seedE2EIngestPolicies(runCompose, ingestKeys);
   await runCompose(["up", "-d", "--build", "--wait", "collector", "analytics-api"]);
   await waitFor("Analytics API", `${analyticsUrl}/health`, (body) => body.status === "ok");
   await runFixtures();
@@ -73,11 +80,7 @@ async function runFixtures() {
     const startedAt = new Date();
 
     if (fixture.input.events.length > 0) {
-      const keys = new Map([
-        ["site_playground", "e2e-test-key"],
-        ["site_alpha", "e2e-test-key-alpha"],
-        ["site_beta", "e2e-test-key-beta"],
-      ]);
+      const keys = new Map(Object.entries(ingestKeys));
       for (const siteId of new Set(fixture.input.events.map((event) => event.site_id))) {
         await postFixtureEvents(
           fixture,
@@ -94,15 +97,10 @@ async function runFixtures() {
 
     if (fixture.input.events.length > 0) {
       for (const siteId of new Set(fixture.input.events.map((event) => event.site_id))) {
-        const keys = {
-          site_playground: "e2e-test-key",
-          site_alpha: "e2e-test-key-alpha",
-          site_beta: "e2e-test-key-beta",
-        };
         await postFixtureEvents(
           fixture,
           fixture.input.events.filter((event) => event.site_id === siteId),
-          keys[siteId],
+          ingestKeys[siteId],
         );
       }
       await runProcessorOnce();

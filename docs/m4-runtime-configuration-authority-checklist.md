@@ -1,6 +1,6 @@
 # M4 Runtime Configuration Authority Checklist
 
-- Status: M4.1–M4.3 complete for the local development target; M4.4–M4.5 and runtime authority cutover remain open
+- Status: M4.1–M4.4 implementation complete for the local development target; M4.5 compatibility acceptance and other-target rollout remain open
 - Prerequisites: M3 local-development target complete; ADR-014 accepted
 - Related: [M4.2 Local Policy Reconciliation](m4.2-local-policy-reconciliation-plan.md), [Platform improvement roadmap](platform-improvement-roadmap.md), [M3 Site Registry checklist](m3-site-registry-checklist.md), [ADR-014](decisions/ADR-014-runtime-configuration-authority.md), [Site Onboarding and Settings Design](site-onboarding-settings-design.md)
 
@@ -75,8 +75,8 @@ M4 does not implement Site list/create APIs or onboarding UI (M5/M6), change his
 
 - Definitions disposition: explicitly import `config/analytics-definitions.json` for `site_playground`; revision version `2026-09-23.1`, one Conversion, one Funnel, one audit record; rerun was idempotent.
 - Key handling: configured local development seed and Playground keys each matched the corresponding stored digest. No plaintext key or digest was written to evidence.
-- Policy disposition and owner: retain `site_example/development`; exclude `site_example/production` and `site_disabled/production` from the local DB migration, leaving TOML examples as evidence pending M4.4 cutover. Requester owns the eventual cutover approval.
-- Scope boundary: M4.1 preparation, M4.2 policy reconciliation and M4.3 definitions import closeout are complete for local development. M4.4–M4.5 implementation/acceptance remain outstanding; no runtime source-of-truth behavior has been switched.
+- Policy disposition and owner: retain `site_example/development`; exclude `site_example/production` and `site_disabled/production` from the local DB migration. TOML examples remain as migration/test evidence. Requester owns rollout to any other deployment target.
+- Scope boundary: M4.1–M4.4 are complete for local development. M4.5 compatibility acceptance and deployment-specific rollout remain open; other targets are not covered by this local cutover.
 
 ## M4.2 — Reconcile required runtime configuration
 
@@ -109,13 +109,21 @@ M4 does not implement Site list/create APIs or onboarding UI (M5/M6), change his
 
 ## M4.4 — Remove Collector TOML policy fallback
 
-- [ ] Change runtime policy loading so Collector obtains Site policies only from PostgreSQL; keep TOML infrastructure settings such as listener, logging and database configuration.
-- [ ] Remove TOML Site entries from active runtime config after the target's reconciliation and DB postflight are approved.
-- [ ] Keep temporary DB outage/last-known-good stale handling distinct from a successful refresh that finds a missing, disabled or archived policy.
-- [ ] Confirm refresh/recovery behavior cannot merge TOML entries back into the active snapshot.
-- [ ] Update configuration and operations docs to describe DB-only Site policy authority, stale state, explicit missing-policy behavior and recovery.
+- [x] Change runtime policy loading so Collector obtains Site policies only from PostgreSQL. Infrastructure settings remain CLI/environment configuration; the current TOML contained Site policy only.
+- [x] Remove TOML Site policy wiring and the `--config` / `COLLECTOR_CONFIG` runtime entry point after local reconciliation and read-only DB postflight.
+- [x] Keep temporary DB outage/last-known-good stale handling distinct from a successful refresh that finds a missing, disabled or archived policy.
+- [x] Confirm refresh/recovery behavior cannot merge TOML entries back into the active snapshot.
+- [x] Update configuration and operations docs to describe DB-only Site policy authority, stale state, explicit missing-policy behavior and recovery.
 
 **Exit:** no normal Collector code path can authorize an event using a TOML Site policy; temporary DB failure follows the documented last-known-good behavior; explicit missing/disabled/archived policy fails closed.
+
+### M4.4 local closeout (2026-10-01)
+
+- Collector now builds authorization snapshots from valid policies joined to active Site Registry rows. A successful refresh replaces the snapshot, so deleted policies and archived Sites are removed; disabled policies remain present but deny ingestion.
+- Temporary database refresh failures and invalid/conflicting policy rows retain only previously valid database policy and report stale. A first-time invalid policy or a missing Site has no snapshot and cannot authorize events.
+- Collector no longer parses Site policy from TOML at startup. The `--config` and `COLLECTOR_CONFIG` runtime interfaces were removed from the binary and Compose configuration. TOML samples remain test/migration references only.
+- Collector integration coverage exercises active, disabled, missing, archived, policy deletion, key rotation and outage last-good retention; archiving a Site also clears that Collector instance's applied-state row. Snapshot reconciliation unit coverage verifies invalid and conflicting updates retain prior valid policies, while first-time invalid or conflicting policies fail closed. Policy parsing/validation unit coverage rejects invalid documents; database constraints also reject malformed policy rows before Collector refresh. E2E fixtures now seed Registry and policy rows in PostgreSQL before Collector starts.
+- Detailed local postflight, implementation and validation evidence: [M4.4 Local DB-only Policy Closeout](m4.4-local-db-only-policy-closeout.md).
 
 ## M4.5 — Compatibility tests, rollout and acceptance
 
@@ -133,6 +141,6 @@ M4 does not implement Site list/create APIs or onboarding UI (M5/M6), change his
 
 - M3 completed the local Registry import and reference rollout, but did not switch runtime authority.
 - The M3 checklist records that local `site_example/development` DB policy Origins were aligned with the three Compose development Origins and the matching Collector development TOML entry. Reconfirm current state before cutover.
-- M4.2 confirmed that `site_example/production` and TOML-only disabled `site_disabled/production` have no DB policy. Their TOML entries remain pending M4.4 fallback removal; `site_disabled` was intentionally excluded from the M3 Registry import.
+- M4.2 confirmed that `site_example/production` and TOML-only disabled `site_disabled/production` have no DB policy. `site_disabled` was intentionally excluded from the M3 Registry import; neither TOML entry can authorize ingestion after M4.4.
 - M4.1 has re-inventoried the local development target and recorded the dispositions above. Re-inventory before any later cutover; do not rely on this result for another target.
-- M4.1 added a restore-safety forward migration; it does not change runtime policy authority. No M4 runtime cutover has been applied.
+- M4.1 added a restore-safety forward migration; M4.4 switches the local Collector policy source to PostgreSQL. Other deployment targets still require their own reconciliation and rollout.

@@ -159,7 +159,7 @@ Backend Foundation 阶段 Rust 约定：
 
 - Rust toolchain 固定为 `1.98.1`，由 `rust-toolchain.toml` 管理。
 - Rust workspace 命令通过统一脚本执行：`cargo fmt --check`、`cargo clippy --workspace --all-targets --all-features -- -D warnings`、`cargo test --workspace` 和 `cargo build --workspace`。
-- Collector 默认监听 `0.0.0.0:4001`，配置通过 `COLLECTOR_CONFIG` 或 `--config` 指定。
+- Collector 默认监听 `0.0.0.0:4001`；Site policy 仅从 PostgreSQL 加载，监听地址和端口通过 CLI 参数配置。
 
 ## 完成定义
 

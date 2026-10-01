@@ -10,6 +10,7 @@ import { chromium, expect } from "@playwright/test";
 
 import { seedE2ECapabilityConfigurations } from "./e2e-capabilities.mjs";
 import { prepareE2ECaches } from "./e2e-cache.mjs";
+import { seedE2EIngestPolicies } from "./e2e-ingest-policies.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const importedDefinitionVersion = JSON.parse(
@@ -1639,6 +1640,7 @@ try {
   await runCompose(["up", "-d", "--build", "--wait", "postgres"]);
   runCompose(["run", "--rm", "--build", "db-migrate"]);
   seedE2ECapabilityConfigurations(runCompose);
+  seedE2EIngestPolicies(runCompose, keys);
   importDefinitionsIfEmpty();
   const composeOutput = runCompose(
     [

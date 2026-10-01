@@ -424,7 +424,7 @@ job 分别运行两个 E2E 命令。失败诊断 artifact 位于 `artifacts/anal
 和 `artifacts/dashboard-e2e/`，CI 会上传它们供下载。migration job 必须先于
 Collector、Processor 和 Analytics API 启动。
 
-Collector 配置文件路径可以通过 `COLLECTOR_CONFIG` 指定；示例值见 `.env.example`。
+Collector 的 Site identity、environment policy、Origin 和 Ingest Key digest 仅从 PostgreSQL 加载。监听地址和端口通过 `collector serve --host` / `--port` 指定；数据库、GeoIP 和日志配置通过部署环境变量提供。旧 TOML 示例只供迁移参考与测试使用，不由 Collector 启动读取。
 
 ## 当前范围
 

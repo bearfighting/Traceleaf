@@ -16,7 +16,7 @@ Ingest Key 会被发送到浏览器，因此不是 secret，也不能作为唯�
 
 ## 2. 配置模型
 
-Collector 为每个 `site_id + environment` 保存独立配置：
+Collector 从 PostgreSQL 的 Site Management policy 中读取每个 `site_id + environment` 的配置。以下 TOML 只展示旧版本的迁移格式，不作为当前运行时配置：
 
 ```toml
 [[sites]]
@@ -30,7 +30,7 @@ ingest_keys = ["generated-public-key"]
 `ingest_keys` 使用数组，以便轮换时短暂允许旧 key 和新 key 同时有效。
 生产配置至少包含一个 key；Collector 不支持无 key 的生产降级模式。
 
-完整的 Phase 2 TOML 配置示例见 [`collector.example.toml`](../protocol/contracts/http-ingestion/current/config/collector.example.toml)。
+旧版 Phase 2 TOML 样例保留在 [`collector.example.toml`](../protocol/contracts/http-ingestion/current/config/collector.example.toml)，用于迁移和协议测试；Collector 启动不再接受 TOML 配置路径。
 
 Origin 是完整的 `scheme + host + port`：
 

@@ -30,7 +30,6 @@ services:
     healthcheck:
       start_period: 360s
     environment:
-      COLLECTOR_CONFIG: /workspace/protocol/contracts/http-ingestion/current/config/collector.e2e.toml
       GEOIP_DATABASE_PATH: /workspace/data/GeoLite2-Country.mmdb
       GEOIP_TRUSTED_PROXIES: 10.0.0.0/8,127.0.0.0/8,172.16.0.0/12,192.168.0.0/16
     volumes: !override
