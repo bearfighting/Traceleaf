@@ -1,6 +1,6 @@
 # M5 Site Management Backend Checklist
 
-- Status: In progress; M5.1 contract freeze complete
+- Status: In progress; M5.1 contract freeze complete; M5.2 Site directory and lifecycle APIs implemented
 - Prerequisites: M1 module boundaries, M3 Site Registry, and M4 local runtime-authority cutover; ADR-013 and ADR-014 accepted
 - Related: [Platform improvement roadmap](platform-improvement-roadmap.md), [Site Onboarding and Settings Design](site-onboarding-settings-design.md), [Analytics and Site Management Module Boundaries](analytics-site-management-module-boundaries.md), [ADR-013](decisions/ADR-013-site-identity-and-lifecycle.md), [ADR-014](decisions/ADR-014-runtime-configuration-authority.md)
 
@@ -36,11 +36,13 @@ M5 is backend-only. The Dashboard onboarding flow and removal of the automatic l
 
 ### M5.2 — Implement the Site Management module and directory APIs
 
-- [ ] Keep routes, handlers, services, repositories, models and errors inside the Site Management module; let the application layer compose routers only.
-- [ ] Implement authenticated Site list and detail reads, including lifecycle, derived setup status, missing setup requirements and the runtime application state needed by management clients.
-- [ ] Implement metadata update and archive/restore operations with validation, version/concurrency protection, and audit records.
+- [x] Keep routes, handlers, services, repositories, models and errors inside the Site Management module; let the application layer compose routers only.
+- [x] Implement authenticated Site list and detail reads, including lifecycle, derived setup status and missing setup requirements.
+- [x] Implement metadata update and archive/restore operations with validation, version/concurrency protection, and audit records.
 - [ ] Preserve Registry-only historical Sites and existing analytics/configuration API behavior.
 - [ ] Add module-boundary and HTTP contract tests for authorization, validation, not-found, conflict and database failures.
+
+Runtime application state is intentionally not duplicated in the Site directory response. Management clients read effective capability application state from the capabilities endpoint and effective ingest-policy state from the corresponding environment policy endpoint; those contracts remain authoritative for their independent configuration versions. `setup_status` and `missing_requirements` describe stored onboarding readiness only; every enabled environment must have origins and an active key for the Site to be ready.
 
 **Exit:** Administrators can inspect and maintain Site metadata/lifecycle through the management API; no direct database access or cross-domain repository calls are introduced.
 

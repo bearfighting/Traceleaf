@@ -947,7 +947,31 @@ async fn configuration_admin_routes_reject_missing_and_invalid_credentials_befor
     assert_eq!(no_token.status(), StatusCode::UNAUTHORIZED);
     assert_eq!(body(no_token).await["error"]["code"], "unauthorized");
 
+    let list_without_token = router(state(pool.clone()).expect("embedded schemas compile"))
+        .oneshot(
+            Request::get("/v1/admin/sites")
+                .body(axum::body::Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(list_without_token.status(), StatusCode::UNAUTHORIZED);
+
     let token = URL_SAFE_NO_PAD.encode([17_u8; 32]);
+    let invalid_limit = admin_app(pool.clone(), &token)
+        .oneshot(
+            Request::get("/v1/admin/sites?limit=101")
+                .header("authorization", format!("Bearer {token}"))
+                .body(axum::body::Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(invalid_limit.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(
+        body(invalid_limit).await["error"]["code"],
+        "configuration_validation_failed"
+    );
     let invalid = admin_app(pool, &token)
         .oneshot(
             Request::get(route)

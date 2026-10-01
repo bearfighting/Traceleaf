@@ -41,3 +41,4 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 woothee = "=0.13.0"
 url = "2"
+unicode-normalization = "0.1"

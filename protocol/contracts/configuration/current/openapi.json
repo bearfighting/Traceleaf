@@ -753,7 +753,7 @@
           "lifecycle_status": { "enum": ["active", "archived"] },
           "setup_status": {
             "enum": ["ready", "needs_attention"],
-            "description": "ready only when metadata, required Page Views, and one enabled environment policy with at least one allowed Origin and active Ingest Key all exist."
+            "description": "ready only when metadata and required Page Views exist, at least one environment policy is enabled, and every enabled environment policy has at least one allowed Origin and active Ingest Key."
           },
           "missing_requirements": {
             "type": "array",

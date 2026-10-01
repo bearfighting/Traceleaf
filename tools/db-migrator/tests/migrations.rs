@@ -102,6 +102,16 @@ const EXPECTED_MIGRATIONS: &[(i64, &str, &str)] = &[
         "pin policy validator search path",
         "bed8211216ce711a57e00ed87b93935353b72743bee16d37150c54254714eb3fa9b7bb5ddc18d0d14a72a93032b513d0",
     ),
+    (
+        20261002002100,
+        "add site management version audit",
+        "a6ab9dfc115a12c005dfdb42cf6c61dd642bd6eddd45d3948396a2170d19eb92337276474cc8a82a27fb7580aadc687d",
+    ),
+    (
+        20261003002200,
+        "align site registry setup readiness",
+        "b22c9ea34660d665eb29411d9fd764ae44422f1cbdaa79893c3e92e28e341460da3c1822e92bd37e23b0c7e475f015d7",
+    ),
 ];
 
 #[tokio::test]
