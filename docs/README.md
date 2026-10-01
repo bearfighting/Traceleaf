@@ -6,6 +6,7 @@
 - [M3 Site Registry checklist](m3-site-registry-checklist.md)：Site Registry rollout、目标数据库迁移记录和 M4 handoff。
 - [M4 Runtime Configuration Authority checklist](m4-runtime-configuration-authority-checklist.md)：逐目标核对数据库/TOML policy、definitions 导入、Collector fallback 移除和 cutover 验收。
 - [M4.2 Local Policy Reconciliation](m4.2-local-policy-reconciliation-plan.md)：本地开发目标的策略对账计划、预期状态与执行记录。
+- [M4.3 Definitions Import Closeout](m4.3-definitions-import-closeout.md)：定义文件迁移入口收口、本地数据证据与显式导入操作。
 - [Roadmap](roadmap.md)：当前阶段状态与后续方向。
 - [Post-MVP Follow-up](post-mvp-follow-up.md)：未完成或延期的性能、运维和发布工作。
 - [Release Readiness Freeze Record](release-readiness-design.md)：MVP 冻结时的验证状态。

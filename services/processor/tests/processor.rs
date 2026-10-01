@@ -973,17 +973,72 @@ async fn once_cli_processes_the_backlog() {
     let day = Utc::now();
     insert_raw_event(&pool, "01J00000000000000000000016", "site_cli", day, "/cli").await;
 
+    let revisions_before: serde_json::Value = sqlx::query_scalar(
+        "SELECT COALESCE(jsonb_agg(jsonb_build_object(
+            'site_id', site_id,
+            'revision', revision,
+            'definition_version', definition_version,
+            'document', document
+        ) ORDER BY site_id, revision), '[]'::jsonb) FROM site_definition_revisions",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    let audit_before: serde_json::Value = sqlx::query_scalar(
+        "SELECT COALESCE(jsonb_agg(jsonb_build_object(
+            'resource', resource,
+            'version', version,
+            'operation', operation,
+            'changed_fields', changed_fields
+        ) ORDER BY resource::text, version, operation, changed_fields), '[]'::jsonb)
+         FROM configuration_audit WHERE resource->>'kind'='conversion_funnel_definitions'",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+
     let status = std::process::Command::new(env!("CARGO_BIN_EXE_processor"))
         .env("DATABASE_URL", database_url())
         .env(
             "ANALYTICS_DEFINITIONS_FILE",
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("../../config/analytics-definitions.json"),
+            "/path/that/must/not/be-read/analytics-definitions.json",
         )
         .arg("--once")
         .status()
         .expect("processor binary should start");
     assert!(status.success());
+
+    let revisions_after: serde_json::Value = sqlx::query_scalar(
+        "SELECT COALESCE(jsonb_agg(jsonb_build_object(
+            'site_id', site_id,
+            'revision', revision,
+            'definition_version', definition_version,
+            'document', document
+        ) ORDER BY site_id, revision), '[]'::jsonb) FROM site_definition_revisions",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    let audit_after: serde_json::Value = sqlx::query_scalar(
+        "SELECT COALESCE(jsonb_agg(jsonb_build_object(
+            'resource', resource,
+            'version', version,
+            'operation', operation,
+            'changed_fields', changed_fields
+        ) ORDER BY resource::text, version, operation, changed_fields), '[]'::jsonb)
+         FROM configuration_audit WHERE resource->>'kind'='conversion_funnel_definitions'",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        revisions_after, revisions_before,
+        "ordinary processing must not add or modify any definition revision"
+    );
+    assert_eq!(
+        audit_after, audit_before,
+        "ordinary processing must not add or modify definition import audit records"
+    );
 
     let processed = sqlx::query(
         "SELECT processed_at FROM raw_events WHERE event_id = '01J00000000000000000000016'",

@@ -129,7 +129,7 @@ flowchart LR
 
 ### M4：切换平台运行配置权威
 
-**前置**：M3。**状态（2026-10-01）：M4.1 inventory/recovery preparation 与 M4.2 policy reconciliation 已完成本地开发目标；M4.3–M4.5 尚未完成，运行时权威切换未应用。** M4 面向单个部署目标逐一执行；本地开发目标记录不替代其他环境的预检、备份和审批。
+**前置**：M3。**状态（2026-10-01）：M4.1 inventory/recovery preparation、M4.2 policy reconciliation 与 M4.3 definitions import closeout 已完成本地开发目标；M4.4–M4.5 尚未完成，运行时权威切换未应用。** M4 面向单个部署目标逐一执行；本地开发目标记录不替代其他环境的预检、备份和审批。M4.3 closeout 见 [M4.3 Definitions Import Closeout](m4.3-definitions-import-closeout.md)。
 
 **执行顺序**：先完成目标环境备份和秘密安全的来源盘点；逐 Site/environment reconcile 数据库策略与 Collector TOML；核对并保留必要的 Origin/key/rate limit，必要时明确轮换无法验证的 key；核查 definitions 文件已导入 revisions；之后限定 Processor 文件导入并关闭 Collector TOML Site policy fallback；最后执行配置状态、Collector、Processor 和 Analytics 的端到端验收。临时数据库故障的 last-known-good/stale 状态必须与策略明确缺失、停用或归档区分。本地 M4.2 对账记录见 [M4.2 Local Policy Reconciliation](m4.2-local-policy-reconciliation-plan.md)；其缺失策略 TOML 路径仍由 M4.4 移除与验收。
 

@@ -133,7 +133,6 @@ services:
     environment:
       DATABASE_URL: ${COLLECTOR_DATABASE_URL:-postgres://analytics:analytics@postgres:5432/analytics}
       PROCESSOR_POLL_INTERVAL_MS: ${PROCESSOR_POLL_INTERVAL_MS:-1000}
-      ANALYTICS_DEFINITIONS_FILE: ${ANALYTICS_DEFINITIONS_FILE:-/workspace/config/analytics-definitions.json}
       RUST_LOG: processor=info
     depends_on:
       postgres:

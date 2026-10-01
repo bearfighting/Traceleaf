@@ -1,6 +1,6 @@
 # M4 Runtime Configuration Authority Checklist
 
-- Status: M4.1 and M4.2 complete for the local development target; M4.3–M4.5 and runtime authority cutover remain open
+- Status: M4.1–M4.3 complete for the local development target; M4.4–M4.5 and runtime authority cutover remain open
 - Prerequisites: M3 local-development target complete; ADR-014 accepted
 - Related: [M4.2 Local Policy Reconciliation](m4.2-local-policy-reconciliation-plan.md), [Platform improvement roadmap](platform-improvement-roadmap.md), [M3 Site Registry checklist](m3-site-registry-checklist.md), [ADR-014](decisions/ADR-014-runtime-configuration-authority.md), [Site Onboarding and Settings Design](site-onboarding-settings-design.md)
 
@@ -76,7 +76,7 @@ M4 does not implement Site list/create APIs or onboarding UI (M5/M6), change his
 - Definitions disposition: explicitly import `config/analytics-definitions.json` for `site_playground`; revision version `2026-09-23.1`, one Conversion, one Funnel, one audit record; rerun was idempotent.
 - Key handling: configured local development seed and Playground keys each matched the corresponding stored digest. No plaintext key or digest was written to evidence.
 - Policy disposition and owner: retain `site_example/development`; exclude `site_example/production` and `site_disabled/production` from the local DB migration, leaving TOML examples as evidence pending M4.4 cutover. Requester owns the eventual cutover approval.
-- Scope boundary: M4.1 preparation and M4.2 policy reconciliation are complete for local development. M4.3–M4.5 implementation/acceptance remain outstanding; no runtime source-of-truth behavior has been switched.
+- Scope boundary: M4.1 preparation, M4.2 policy reconciliation and M4.3 definitions import closeout are complete for local development. M4.4–M4.5 implementation/acceptance remain outstanding; no runtime source-of-truth behavior has been switched.
 
 ## M4.2 — Reconcile required runtime configuration
 
@@ -91,13 +91,21 @@ M4 does not implement Site list/create APIs or onboarding UI (M5/M6), change his
 
 ## M4.3 — Close definitions-file migration path
 
-- [ ] Identify whether and where `ANALYTICS_DEFINITIONS_FILE` was explicitly imported; compare file Site/version mappings with stored definition revisions and audit records.
-- [ ] Preserve any required historical definitions in PostgreSQL; document discrepancies and resolve them before restricting the command.
-- [ ] Ensure the file import command is an explicitly invoked migration operation, not a normal service-start option or implicit environment-triggered behavior.
-- [ ] Remove definitions-file wiring from regular Processor deployment/Compose configuration when no longer needed; retain only the documented explicit migration path until its retirement criteria are met.
-- [ ] Verify revision counts, versions, content digests or stable content comparisons, and audit evidence before/after any import.
+- [x] Identify whether and where `ANALYTICS_DEFINITIONS_FILE` was explicitly imported; compare file Site/version mappings with stored definition revisions and audit records.
+- [x] Preserve any required historical definitions in PostgreSQL; document discrepancies and resolve them before restricting the command.
+- [x] Ensure the file import command is an explicitly invoked migration operation, not a normal service-start option or implicit environment-triggered behavior.
+- [x] Remove definitions-file wiring from regular Processor Compose and `.env.example`; retain only the documented explicit migration path until its retirement criteria are met.
+- [x] Verify revision counts, versions, stable content and audit evidence without re-importing the already migrated local data.
 
 **Exit:** ordinary Processor startup cannot read or write definitions from the file; required revisions and audit history are present in PostgreSQL.
+
+### M4.3 local closeout (2026-10-01)
+
+- `ANALYTICS_DEFINITIONS_FILE` is no longer injected into the regular Processor service or advertised in `.env.example`. The Processor reads it only inside the explicit `--import-definitions-if-empty` branch; the CLI flag and default path remain for the legacy migration operation.
+- The explicit Compose migration command is `docker compose --profile processing run --rm --no-deps --entrypoint cargo processor run -p processor -- --import-definitions-if-empty`. Run it only after migrations and required capability configuration; pass a custom path with a one-command `-e ANALYTICS_DEFINITIONS_FILE=/workspace/path/to/file` override. `--no-deps` avoids starting database migration or development seed dependencies, so the target database must already be ready.
+- The local import recorded in the M4.1 inventory is retained: `site_playground`, definition version `2026-09-23.1`, one Conversion, one Funnel, revision 1 and one audit record. M4.3 does not rerun the import or modify that database history.
+- Processor CLI integration coverage now starts ordinary `--once` processing with `ANALYTICS_DEFINITIONS_FILE` set to a nonexistent path and checks that processing succeeds without adding a definition revision or import audit record.
+- Detailed command boundary and verification notes: [M4.3 definitions import closeout](m4.3-definitions-import-closeout.md).
 
 ## M4.4 — Remove Collector TOML policy fallback
 
