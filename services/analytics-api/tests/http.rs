@@ -128,6 +128,19 @@ fn app(pool: PgPool) -> axum::Router {
     router(state(pool).expect("embedded schemas compile"))
 }
 
+async fn assert_historical_overview(pool: &PgPool, site: &str) {
+    let response = app(pool.clone())
+        .oneshot(
+            Request::get(format!("/v1/sites/{site}/overview"))
+                .body(axum::body::Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(body(response).await["page_views"], 7);
+}
+
 #[tokio::test]
 #[ignore = "requires DATABASE_URL and PostgreSQL"]
 async fn analytics_http_contract_returns_aggregates_and_validates_queries() {
@@ -1782,6 +1795,143 @@ async fn capability_runtime_reuses_validator_and_retains_last_good_snapshot_on_i
         .unwrap();
     sqlx::query("DELETE FROM site_capability_configurations WHERE site_id = $1")
         .bind(site_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+}
+#[tokio::test]
+#[ignore = "requires DATABASE_URL and migrated PostgreSQL"]
+async fn registry_metadata_gaps_do_not_block_historical_analytics() {
+    let pool = pool().await;
+    let site = "m34_history_metadata_gap";
+    reset(&pool, site).await;
+    sqlx::query("DELETE FROM site_environment_policies WHERE site_id = $1")
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM raw_events WHERE site_id = $1")
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM site_registry WHERE site_id = $1")
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO site_registry (site_id) VALUES ($1)")
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO raw_events (site_id, event_id, schema_version, event_type, occurred_at, received_at, path, payload) VALUES ($1, '01J00000000000000000000001', 1, 'page_view', NOW(), NOW(), '/legacy', '{}'::jsonb)")
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO page_view_totals (site_id, page_views) VALUES ($1, 7)")
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let metadata: (Option<String>, Option<String>) =
+        sqlx::query_as("SELECT display_name, website_url FROM site_registry WHERE site_id = $1")
+            .bind(site)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(metadata, (None, None));
+    let raw_rows: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM raw_events WHERE site_id = $1")
+        .bind(site)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(raw_rows, 1);
+
+    // A Site with incomplete Registry metadata remains queryable without a policy row.
+    assert_historical_overview(&pool, site).await;
+
+    let updated_at = Utc::now();
+    let updated_at_text = updated_at.to_rfc3339_opts(chrono::SecondsFormat::Micros, true);
+    let policy_document = serde_json::json!({
+        "schema_version": 1,
+        "site_id": site,
+        "environment": "production",
+        "version": 1,
+        "updated_at": updated_at_text,
+        "enabled": false,
+        "allowed_origins": ["https://history.example.test"],
+        "ingest_keys": [{
+            "key_id": "ik_m34hist1",
+            "sha256_digest": "a".repeat(64),
+            "created_at": updated_at_text
+        }],
+        "rate_limit_per_minute": 60
+    });
+    sqlx::query("INSERT INTO site_environment_policies (site_id, environment, version, updated_at, document) VALUES ($1, 'production', 1, $2, $3)")
+        .bind(site)
+        .bind(updated_at)
+        .bind(policy_document)
+        .execute(&pool)
+        .await
+        .unwrap();
+    // An explicitly disabled policy does not hide historical Analytics data.
+    assert_historical_overview(&pool, site).await;
+    sqlx::query("UPDATE site_environment_policies SET document=jsonb_set(document, '{enabled}', 'true'::jsonb) WHERE site_id=$1 AND environment='production'")
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    // Enabling a DB policy also leaves historical query behavior unchanged.
+    assert_historical_overview(&pool, site).await;
+
+    let raw_rows_after: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM raw_events WHERE site_id = $1")
+            .bind(site)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(raw_rows_after, raw_rows);
+
+    sqlx::query("DELETE FROM raw_events WHERE site_id = $1")
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM site_registry WHERE site_id = $1")
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM site_environment_policies WHERE site_id = $1")
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM configuration_capability_runtime_instances WHERE service = 'analytics_api' AND instance_id IN (SELECT instance_id FROM configuration_capability_runtime_state WHERE site_id = $1)")
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM configuration_capability_runtime_state WHERE site_id = $1")
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM site_capability_activation_windows WHERE site_id = $1")
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM site_capability_configurations WHERE site_id = $1")
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM page_view_totals WHERE site_id = $1")
+        .bind(site)
         .execute(&pool)
         .await
         .unwrap();

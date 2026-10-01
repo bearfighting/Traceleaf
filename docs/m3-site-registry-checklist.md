@@ -112,14 +112,25 @@ Before implementation, enumerate all site-scoped fact tables from migrations and
 
 ### M3.4 — Compatibility and recovery
 
-- [ ] An enabled, valid DB policy continues to accept events under its existing policy/environment.
-- [ ] Verify the unchanged transition behavior: an explicitly present valid DB policy continues to take precedence; an explicitly disabled DB policy remains disabled; a missing DB row continues to follow any configured TOML fallback until M4 removes that fallback. Historical reports remain queryable in each case.
-- [ ] Reserve the post-cutover fail-closed assertion for M4: once TOML fallback is removed, an explicitly missing, disabled, or archived DB policy rejects new events.
-- [ ] Raw events, derived facts, definitions, key digests and audit rows are unchanged.
-- [ ] Event-only, definition-only, policy-only and capability-only IDs are represented.
-- [ ] Conflicting/missing metadata is reported and does not block queries or mutate policy.
-- [ ] Verify rerun and partial-failure retry on a disposable database.
-- [ ] Document backup, preflight, apply, postflight, expected counts and failure recovery; no undocumented manual SQL.
+- [x] An enabled, valid DB policy continues to accept events under its existing policy/environment.
+- [x] Verify the unchanged transition behavior: an explicitly present valid DB policy continues to take precedence; an explicitly disabled DB policy remains disabled; a missing DB row continues to follow any configured TOML fallback until M4 removes that fallback. Historical reports remain queryable in each case.
+- [x] Keep the post-cutover fail-closed assertion in M4: missing, disabled, and archived DB policies after TOML fallback removal were not changed or asserted in M3.4.
+- [x] Importer apply leaves all inventoried source tables unchanged; preflight/postflight reports reconcile per-source row and distinct-ID counts. The compact evidence below lists selected aggregate counts, while the local reports retain the full per-table comparison.
+- [x] Event-only, definition-only, policy-only and capability-only IDs are represented.
+- [x] Conflicting/missing metadata is reported and does not block queries or mutate policy.
+- [x] Verify rerun and partial-failure retry on a disposable database.
+- [x] Document backup, preflight, apply, postflight, expected counts and failure recovery; no undocumented manual SQL.
+
+#### M3.4 compatibility and recovery evidence (2026-09-30)
+
+- Validation ran on a fresh PostgreSQL 16 container and database. M3.2 migrations applied successfully; the migration regression, Collector runtime-policy PostgreSQL test, Analytics API metadata-gap/history test, and immutable-definition/history API test all passed.
+- Collector coverage verifies a real /v1/events request is stored under an enabled DB policy; the present DB policy wins over TOML; the wrong key is rejected after DB key rotation; a DB-disabled policy rejects even when TOML allows that environment; a missing DB row still uses TOML fallback; invalid/conflicting refreshed data retains the last-good DB policy.
+- Analytics history remains queryable with Registry name/URL missing while the DB policy is absent, disabled, and enabled. The stored-definition revision test also continues to return its historical report.
+- Importer preflight represented a raw-event-only ID, a definitions-file-only ID, a policy-only ID, and a capability-only ID. A separate persisted definition revision was included for preservation checks. The fresh baseline was Registry/raw/page-view-total/capability/definition/policy/key-digest/audit counts 1/1/0/2/1/1/1/0. The first apply inserted 4 rows from a 5-ID candidate union; repeat apply inserted 0. A pre-existing Registry name/URL remained unchanged.
+- A DB/TOML Origin conflict blocked apply. After the failed attempt, counts remained 5/1/0/2/1/1/1/0, and the existing policy version, enabled state, Origin and key-digest count were unchanged.
+- A controlled failure on the second of two new Registry rows rolled the transaction back: neither retry row was present and Registry count stayed 5. After removing the test-only trigger, retry inserted 2; repeat retry inserted 0. A final independent policy-only source added 1 Registry identity; its repeat inserted 0. Final postflight candidate union and Registry count were both 8. The only raw-event count increase (from 1 to 3) came from the two intentional retry fixtures; importer runs did not modify source tables.
+- The persisted site_definition_revisions schema has a foreign key to site_capability_configurations, so a database definition revision cannot be isolated from capability identity. The distinct definitions-file-only candidate covers the importer's independent definitions-file source without changing that schema constraint.
+- All detailed reports and temporary inputs stayed under /tmp; no shared development or deployment database was used. The disposable container was removed after validation.
 
 **Exit:** preservation and compatibility checks pass, with an actionable runbook and explicit rollback boundary.
 

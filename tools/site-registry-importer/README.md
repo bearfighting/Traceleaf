@@ -47,3 +47,30 @@ For an absent input, replace its path/value with the corresponding `--*-not-conf
 - Do not pass ingest keys as CLI options. Never include secrets in disposition reasons.
 - The detailed report path is rejected if it resolves inside the repository. It must be a new file; existing files, symlinks, and hard links are never overwritten.
 - The importer requires the M3.2 `site_registry` schema and all inventoried source tables; it does not run migrations.
+
+## M3 registry target-import runbook
+
+M3.4 compatibility checks use a disposable PostgreSQL database only. The following steps describe a later, explicitly approved target import; they are not authorization to apply to a shared or deployment database during M3.4.
+
+1. **Prepare and back up the target.** Obtain `DATABASE_URL` through the approved secret-injection mechanism; do not put a credential-bearing URL in shell history, command output, or this repository. Configure a password-free libpq service entry and protected passfile outside the repository for `pg_dump`/`psql`. Confirm the service resolves to the intended single target, then create and verify a custom-format backup:
+
+   ```sh
+   : "${PGSERVICE:?set the reviewed target service name}"
+   psql "service=$PGSERVICE" -XAtc "SELECT current_database() || ' @ ' || inet_server_addr() || ':' || inet_server_port()"
+   pg_dump --dbname="service=$PGSERVICE" --format=custom --no-owner --no-privileges --file="$BACKUP_FILE"
+   pg_restore --list "$BACKUP_FILE" >/dev/null
+   ```
+
+   The importer’s `DATABASE_URL` and the libpq service used for backup must resolve to the same database and server. Verify both identities through the approved secret-injection path before proceeding; do not print either credential-bearing connection string.
+
+   Record the database identity, backup path, and backup timestamp in the change record. The importer never applies migrations; deployment tooling must have applied and verified M3.2 first.
+
+2. **Run and review read-only preflight.** Use a new report path outside the repository. Supply every static source as an explicit value/path or `not_configured` flag, matching the target's actual inputs. Review candidate union, per-source row/distinct-ID counts, overlap, source-only IDs, Registry metadata, policy coverage, Origins and processing cross-checks. Resolve every Origin/metadata conflict and give each disposition-required ID a reasoned approve/exclude decision. A definitions-file-only ID is a static candidate; stored definition revisions require a capability row under the current schema.
+
+3. **Apply only after review.** Reuse exactly the preflight source arguments and the reviewed disposition file, with a second new report path and explicit `--apply`. Capture the CLI exit status and `new Registry rows inserted` count. Do not manually insert Registry rows or policy/key data.
+
+4. **Run postflight and reconcile.** Run the same inputs without `--apply` and write a third new report. Candidate union must match preflight; `db.site_registry_existing.distinct_site_ids` must equal its preflight count plus successful inserts. Confirm every approved candidate is present, excluded static-only IDs remain excluded, and the previously populated Registry metadata is unchanged. Compare preflight and postflight counts for the durable identity tables, audit rows, policy environment/origin evidence, key-digest counts, and processing cross-checks; the importer must not change any of them. Keep all three detailed reports (preflight, apply, and postflight) outside version control.
+
+5. **Recover from failure.** Import writes run in one transaction. If an insert fails, confirm the process returned nonzero, retain the failed report and error, correct the underlying cause, then rerun preflight with a new report path and repeat apply with a new report path. Repeated apply is idempotent, so already committed identities produce zero new rows. Never delete Registry or history rows as an automatic rollback. Restore the verified backup only through the database recovery procedure if broader target damage occurred, with the restore scope and subsequent writes reviewed first.
+
+For every apply, expected Registry cardinality is `preflight Registry rows + successful inserts`; source-table counts, policy documents, key digests, audit evidence, and history remain unchanged. Any mismatch pauses the rollout for investigation. M4 separately verifies the post-cutover fail-closed behavior for missing, disabled, and archived policies.

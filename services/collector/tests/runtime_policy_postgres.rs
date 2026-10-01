@@ -1,11 +1,18 @@
+use axum::{body::Body, http::Request};
+use chrono::Utc;
 use collector::{
     config::{SiteConfig, SiteRegistry},
+    http::router,
+    rate_limit::RateLimiter,
     runtime_policy::RuntimePolicyManager,
     security::{AccessError, KeyPolicy},
+    sink::PostgresSink,
+    validation::Validator,
 };
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use sqlx::{PgPool, postgres::PgPoolOptions};
+use tower::ServiceExt;
 
 async fn pool() -> PgPool {
     PgPoolOptions::new()
@@ -29,24 +36,35 @@ async fn refresh_applies_database_policy_and_uses_toml_only_for_missing_rows() {
     let db_site = "pr4_runtime_db_site";
     let toml_site = "pr4_runtime_toml_site";
     let no_last_good_site = "pr4_runtime_no_last_good";
-    sqlx::query("DELETE FROM configuration_runtime_instances WHERE service = 'collector' AND instance_id IN (SELECT instance_id FROM configuration_runtime_state WHERE site_id IN ($1, $2, $3))")
+    let disabled_site = "pr4_runtime_db_disabled";
+    sqlx::query(
+        "DELETE FROM raw_events WHERE site_id = $1 AND event_id = '01J00000000000000000000021'",
+    )
+    .bind(db_site)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query("DELETE FROM configuration_runtime_instances WHERE service = 'collector' AND instance_id IN (SELECT instance_id FROM configuration_runtime_state WHERE site_id IN ($1, $2, $3, $4))")
         .bind(db_site)
         .bind(toml_site)
         .bind(no_last_good_site)
+        .bind(disabled_site)
         .execute(&pool)
         .await
         .unwrap();
-    sqlx::query("DELETE FROM configuration_runtime_state WHERE site_id IN ($1, $2, $3)")
+    sqlx::query("DELETE FROM configuration_runtime_state WHERE site_id IN ($1, $2, $3, $4)")
         .bind(db_site)
         .bind(toml_site)
         .bind(no_last_good_site)
+        .bind(disabled_site)
         .execute(&pool)
         .await
         .unwrap();
-    sqlx::query("DELETE FROM site_environment_policies WHERE site_id IN ($1, $2, $3)")
+    sqlx::query("DELETE FROM site_environment_policies WHERE site_id IN ($1, $2, $3, $4)")
         .bind(db_site)
         .bind(toml_site)
         .bind(no_last_good_site)
+        .bind(disabled_site)
         .execute(&pool)
         .await
         .unwrap();
@@ -67,6 +85,15 @@ async fn refresh_applies_database_policy_and_uses_toml_only_for_missing_rows() {
             enabled: true,
             allowed_origins: vec!["https://toml-conflict.example.test".to_owned()],
             ingest_keys: vec!["toml-conflict-key".to_owned()],
+            rate_limit_per_minute: 23,
+            ingest_key_digests: Vec::new(),
+        },
+        SiteConfig {
+            site_id: disabled_site.to_owned(),
+            environment: "production".to_owned(),
+            enabled: true,
+            allowed_origins: vec!["https://disabled-toml.example.test".to_owned()],
+            ingest_keys: vec!["disabled-toml-key".to_owned()],
             rate_limit_per_minute: 23,
             ingest_key_digests: Vec::new(),
         },
@@ -106,6 +133,29 @@ async fn refresh_applies_database_policy_and_uses_toml_only_for_missing_rows() {
         .await
         .unwrap();
 
+    let disabled_document = json!({
+        "schema_version": 1,
+        "site_id": disabled_site,
+        "environment": "production",
+        "version": 1,
+        "updated_at": "2026-09-25T00:00:00Z",
+        "enabled": false,
+        "allowed_origins": ["https://disabled-db.example.test"],
+        "ingest_keys": [{
+            "key_id": "ik_disabled1",
+            "sha256_digest": digest("disabled-db-key"),
+            "created_at": "2026-09-25T00:00:00Z"
+        }],
+        "rate_limit_per_minute": 41
+    });
+    sqlx::query("INSERT INTO site_environment_policies (site_id, environment, version, updated_at, document) VALUES ($1, 'production', 1, $2, $3)")
+        .bind(disabled_site)
+        .bind("2026-09-25T00:00:00Z".parse::<chrono::DateTime<chrono::Utc>>().unwrap())
+        .bind(disabled_document)
+        .execute(&pool)
+        .await
+        .unwrap();
+
     assert!(manager.refresh_once().await);
     assert!(
         policy
@@ -116,6 +166,48 @@ async fn refresh_applies_database_policy_and_uses_toml_only_for_missing_rows() {
             )
             .is_ok()
     );
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL is required");
+    let sink = PostgresSink::connect(&database_url)
+        .await
+        .expect("PostgreSQL event sink should connect");
+    let app = router(
+        Validator::new().expect("event schemas should compile"),
+        sink,
+        policy.clone(),
+        RateLimiter::new(),
+    );
+    let request = Request::post("/v1/events")
+        .header("content-type", "application/json")
+        .header("origin", "https://database.example.test")
+        .header("x-ingest-key", "database-key-v1")
+        .body(Body::from(
+            json!({
+                "schema_version": 1,
+                "events": [{
+                    "schema_version": 1,
+                    "event_id": "01J00000000000000000000021",
+                    "type": "page_view",
+                    "site_id": db_site,
+                    "occurred_at": Utc::now().timestamp_millis(),
+                    "path": "/m34-db-policy"
+                }]
+            })
+            .to_string(),
+        ))
+        .expect("event request should build");
+    let response = app
+        .oneshot(request)
+        .await
+        .expect("event request should complete");
+    assert_eq!(response.status(), 202);
+    let accepted_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM raw_events WHERE site_id = $1 AND event_id = '01J00000000000000000000021'",
+    )
+    .bind(db_site)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(accepted_rows, 1);
     // A second refresh uses the validator injected when the manager was constructed.
     assert!(manager.refresh_once().await);
     assert!(matches!(
@@ -134,6 +226,14 @@ async fn refresh_applies_database_policy_and_uses_toml_only_for_missing_rows() {
         )
         .unwrap();
     assert_eq!(fallback.site.rate_limit_per_minute, 23);
+    assert!(matches!(
+        policy.authorize(
+            disabled_site,
+            Some("https://disabled-toml.example.test"),
+            Some("disabled-toml-key")
+        ),
+        Err(AccessError::SiteNotAllowed)
+    ));
 
     let updated_at = "2026-09-25T00:00:05Z";
     let document = json!({
@@ -311,23 +411,34 @@ async fn refresh_applies_database_policy_and_uses_toml_only_for_missing_rows() {
     assert_eq!(applied_version, None);
     assert_eq!(refresh_status, "stale");
 
-    sqlx::query("DELETE FROM configuration_runtime_instances WHERE service = 'collector' AND instance_id IN (SELECT instance_id FROM configuration_runtime_state WHERE site_id IN ($1, $2, $3))")
+    sqlx::query(
+        "DELETE FROM raw_events WHERE site_id = $1 AND event_id = '01J00000000000000000000021'",
+    )
+    .bind(db_site)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query("DELETE FROM configuration_runtime_instances WHERE service = 'collector' AND instance_id IN (SELECT instance_id FROM configuration_runtime_state WHERE site_id IN ($1, $2, $3, $4))")
         .bind(db_site)
         .bind(toml_site)
         .bind(no_last_good_site)
+        .bind(disabled_site)
         .execute(&pool)
         .await
         .unwrap();
-    sqlx::query("DELETE FROM configuration_runtime_state WHERE site_id IN ($1, $2, $3)")
+    sqlx::query("DELETE FROM configuration_runtime_state WHERE site_id IN ($1, $2, $3, $4)")
         .bind(db_site)
         .bind(toml_site)
         .bind(no_last_good_site)
+        .bind(disabled_site)
         .execute(&pool)
         .await
         .unwrap();
-    sqlx::query("DELETE FROM site_environment_policies WHERE site_id IN ($1, $2)")
+    sqlx::query("DELETE FROM site_environment_policies WHERE site_id IN ($1, $2, $3, $4)")
         .bind(db_site)
+        .bind(toml_site)
         .bind(no_last_good_site)
+        .bind(disabled_site)
         .execute(&pool)
         .await
         .unwrap();
