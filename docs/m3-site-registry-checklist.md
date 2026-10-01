@@ -1,6 +1,6 @@
 # M3 Site Registry and Legacy Backfill Checklist
 
-- Status: in progress (M3.5 local rollout blocked before Registry apply)
+- Status: in progress (M3.5 local rollout complete; M4 authority cutover pending)
 - Prerequisites: M0a semantic baseline and M2 persisted-configuration contract
 - Related: [Platform improvement roadmap](platform-improvement-roadmap.md), [M0a baseline](m0a-baseline-and-decisions.md), [ADR-013](decisions/ADR-013-site-identity-and-lifecycle.md), [ADR-014](decisions/ADR-014-runtime-configuration-authority.md), [M2 implementation checklist](m2-implementation-checklist.md)
 
@@ -141,9 +141,9 @@ Before implementation, enumerate all site-scoped fact tables from migrations and
 - [x] Apply the pending M3.2 migration without restarting application services or running dev-seed.
 - [x] Run the Importer dry-run with the current local Compose static inputs and retain its detailed report outside source control.
 - [x] Record and stop at blocking Origin/metadata conflicts; do not choose or modify policy/seed values automatically.
-- [ ] Apply Registry identities and reconcile postflight counts after the Origin conflict receives an explicit resolution.
+- [x] Apply the approved Registry identities and reconcile postflight counts after resolving configured Origin conflicts.
 - [x] Prepare the non-secret TOML, seed, Dashboard and definitions-file inventory for M4.
-- [ ] Confirm the local application services remain compatible after the rollout; they were stopped during this pass and were not restarted.
+- [x] Confirm the local Analytics historical overview remains readable after import (site_playground returned 4 Page Views). Collector DB-policy/TOML compatibility remains covered by the M3.4 disposable PostgreSQL integration test; this rollout did not start Collector against the local target.
 
 #### M3.5 local development checkpoint (2026-09-30)
 
@@ -155,7 +155,23 @@ Before implementation, enumerate all site-scoped fact tables from migrations and
 - The local M4 inventory, including Collector Site/environment/Origin/key-presence evidence and definitions file version/Site mapping, is in `/tmp/m35-local-m4-handoff.txt`. The importer report contains detailed source evidence; no plaintext key or digest value is stored.
 - Importer unit tests passed (12 tests). M3.2 migration regression passed on a disposable PostgreSQL 18 database. The full `pnpm test:migrations` wrapper stopped before database access because the host lacks `psql`; application services remained stopped and were not restarted.
 
-**Current status:** M3.5 is incomplete. Registry apply and postflight remain blocked on an explicit decision for the Origin conflict; live local service compatibility is also pending.
+#### M3.5 Origin reconciliation follow-up (2026-09-30)
+
+- A second protected custom-format backup was created before the policy update at `/tmp/m35-local-dev-before-origin-alignment-20260930.dump` and validated with `pg_restore --list` inside the PostgreSQL container.
+- The local `site_example/development` policy was updated through the Dashboard configuration API using `If-Match`; version advanced from 1 to 2. Its Allowed Origins now match the three localhost Origins in the effective Compose development seed. Enabled state, rate limit, and key-digest count remained unchanged; the expected configuration audit count increased by one.
+- The new read-only Importer preflight is `/tmp/m35-local-post-origin-preflight-20260930.json`: candidate union 10, disposition-required 7, metadata conflicts 0, Origin conflicts 1, and Registry rows 0. The remaining conflict is between the configured Collector TOML's single development Origin and the three Origins shared by the database policy and Compose seed. No TOML or seed value was changed.
+- Registry apply remained stopped at this checkpoint because the configured Collector TOML still differed from the Compose seed. The temporary loopback API/Dashboard processes were stopped. See the subsequent authorized TOML-alignment and Registry-rollout record below.
+
+#### M3.5 authorized TOML alignment and Registry rollout (2026-09-30)
+
+- After explicit authorization, only the site_example/development allowed_origins entry in protocol/contracts/http-ingestion/current/config/collector.example.toml was aligned to the three localhost Origins already selected for the Compose seed and DB policy. Production and disabled-example entries, key values, policy enabled state, and rate limit were unchanged.
+- Conflict-free preflight /tmp/m35-local-collector-aligned-preflight-20260930.json and reviewed preflight /tmp/m35-local-reviewed-preflight-20260930.json both report candidate union 10, Origin conflicts 0, and metadata conflicts 0. Six dispositions were reviewed: five persisted database identities approved for retention; site_disabled, which exists only as a disabled production example in Collector TOML, excluded from this local Registry import and retained for M4 review.
+- Apply report /tmp/m35-local-registry-apply-20260930.json records 9 new Registry rows. Postflight /tmp/m35-local-postflight-20260930.json reports a 10-ID source union and 9 Registry identities; programmatic set comparison confirmed the Registry exactly matches the approved non-excluded candidates. The excluded static-only ID is absent.
+- Every durable source-table and processing-cross-check row/distinct-ID count matched the post-migration baseline. Expected configuration changes were policy version 1 to 2, Allowed Origin count 1 to 3, and audit rows 6 to 7. Registry rows changed 0 to 9; setup-status rows changed 0 to 9, all requiring metadata attention because display name and Website URL remain absent. No URL was inferred from Origin.
+- A read-only local Analytics API overview returned 4 historical Page Views for site_playground. Collector DB-policy/TOML behavior remains covered by the M3.4 disposable PostgreSQL integration test; Collector was not started against the local database. Temporary API startups increased configuration_capability_runtime_state from 66 to 101 rows (9 distinct IDs); this runtime telemetry is excluded from Importer identity discovery. Other durable and processing cross-check counts matched.
+- Detailed apply/postflight reports and disposition inputs remain owner-only under /tmp; the verified backup remains outside the repository. No key plaintext or digest value was read or recorded.
+
+**Current status:** M3.5 local Registry rollout and M4 handoff are complete. The M4 cutover still needs its own TOML/DB policy reconciliation, including a decision for the disabled site_disabled production example.
 
 **Exit:** all candidate IDs are in Registry or have a reviewed exception; counts reconcile; history is intact; M4 has a concrete authority-cutover inventory.
 
