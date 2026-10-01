@@ -1,6 +1,6 @@
 # M5 Site Management Backend Checklist
 
-- Status: In progress; M5.1 contract freeze, M5.2 directory/lifecycle APIs, and M5.3 Site creation/idempotency implemented and verified against local PostgreSQL
+- Status: Complete (2026-10-01); M5.1–M5.4 verified against PostgreSQL integration tests and isolated end-to-end workflows
 - Prerequisites: M1 module boundaries, M3 Site Registry, and M4 local runtime-authority cutover; ADR-013 and ADR-014 accepted
 - Related: [Platform improvement roadmap](platform-improvement-roadmap.md), [Site Onboarding and Settings Design](site-onboarding-settings-design.md), [Analytics and Site Management Module Boundaries](analytics-site-management-module-boundaries.md), [ADR-013](decisions/ADR-013-site-identity-and-lifecycle.md), [ADR-014](decisions/ADR-014-runtime-configuration-authority.md)
 
@@ -39,8 +39,8 @@ M5 is backend-only. The Dashboard onboarding flow and removal of the automatic l
 - [x] Keep routes, handlers, services, repositories, models and errors inside the Site Management module; let the application layer compose routers only.
 - [x] Implement authenticated Site list and detail reads, including lifecycle, derived setup status and missing setup requirements.
 - [x] Implement metadata update and archive/restore operations with validation, version/concurrency protection, and audit records.
-- [ ] Preserve Registry-only historical Sites and existing analytics/configuration API behavior.
-- [ ] Add module-boundary and HTTP contract tests for authorization, validation, not-found, conflict and database failures.
+- [x] Preserve Registry-only historical Sites and existing analytics/configuration API behavior.
+- [x] Add module-boundary and HTTP contract tests for authorization, validation, not-found, conflict and database failures.
 
 Runtime application state is intentionally not duplicated in the Site directory response. Management clients read effective capability application state from the capabilities endpoint and effective ingest-policy state from the corresponding environment policy endpoint; those contracts remain authoritative for their independent configuration versions. `setup_status` and `missing_requirements` describe stored onboarding readiness only; every enabled environment must have origins and an active key for the Site to be ready.
 
@@ -55,20 +55,29 @@ Runtime application state is intentionally not duplicated in the Site directory 
 - [x] Return the plaintext key only after the first transaction commits successfully; provide replacement-key recovery after a lost response.
 - [x] Prove transaction rollback leaves no Registry, capability, activation, policy, key, audit or idempotency fragments after an injected late transaction failure.
 
-PostgreSQL HTTP tests cover create/replay/conflict, concurrent same-key requests, and injected audit-write failure rollback. The direct migration-history regression passed. The full `pnpm test:migrations` wrapper still requires a host `psql` client for its clean-install and upgrade scenarios.
+PostgreSQL HTTP tests cover create/replay/conflict, concurrent same-key requests, and injected audit-write failure rollback. The full migration wrapper passed its clean-install and upgrade scenarios against a disposable PostgreSQL database; see the M5.4 validation record for the containerized `psql` setup and fixture changes.
 
 **Exit:** A successful create can ingest an event immediately; retries cannot duplicate the Site or reveal the original key again; failures leave no partial Site.
 
 ### M5.4 — End-to-end verification and closeout
 
-- [ ] Add PostgreSQL integration coverage for create, list/detail, metadata changes, archive/restore, audit, rollback, idempotent replay, conflicting replay and concurrent duplicate requests.
-- [ ] Verify a newly created Site can accept an event through Collector and produce Analytics data through Processor; verify archive rejects new events and historical reports remain available.
-- [ ] Verify current configuration APIs and runtime-state reporting still work for existing and newly created Sites.
-- [ ] Run unit, integration, contract, formatting, type-check, build and relevant E2E commands through the documented scripts/CI equivalents.
-- [ ] Update this checklist, roadmap, operational documentation and any changed ADR with implementation and validation evidence.
+- [x] Add PostgreSQL integration coverage for create, list/detail, metadata changes, archive/restore, audit, rollback, idempotent replay, conflicting replay and concurrent duplicate requests.
+- [x] Verify a newly created Site can accept an event through Collector and produce Analytics data through Processor; verify archive rejects new events and historical reports remain available.
+- [x] Verify current configuration APIs and runtime-state reporting still work for existing and newly created Sites.
+- [x] Run unit, integration, contract, formatting, type-check, build and relevant E2E commands through the documented scripts/CI equivalents.
+- [x] Update this checklist, roadmap and validation record with implementation evidence.
+
+#### M5.4 validation record — 2026-10-01
+
+- Passed: `pnpm test`, `pnpm test:integration`, `pnpm check`, `pnpm build`, `pnpm protocol:validate`, `pnpm format:check:docs`, `pnpm e2e:analytics`, `pnpm e2e:configuration`, and `pnpm e2e:site-management`.
+- Passed: `pnpm test:migrations` against disposable PostgreSQL, including current-schema idempotency, clean first install, previous-version upgrade, failed-migration rollback, legacy Site Registry import, and final schema/foreign-key checks. The host has no `psql`; the run used the PostgreSQL image's bundled client through a temporary local proxy. The migration wrapper fixture now models the explicit M3 Registry import before applying Registry foreign keys and includes the M5 migrations and Site Management tables in its schema assertions.
+- Passed: `cargo test -p db-migrator --test migrations -- --ignored --test-threads=1` independently. The isolated Site Management E2E also applied the complete migration set to a clean database.
+- Site Management E2E verified first-response `no-store`, initial key use, key-free replay, list/detail, metadata update, effective capabilities and ingest policy, Collector ingestion, Processor aggregation, Analytics query, archive rejection after runtime propagation, historical report retention, restore, and the ordered `created`/`metadata_updated`/`archived`/`restored` audit history.
+- PostgreSQL HTTP integration tests verified creation audit atomicity, idempotent replay/conflict, concurrent same-key requests and rollback after injected audit failure. Existing Registry-only historical analytics and configuration runtime tests passed in the same integration run.
+- `pnpm check` reports five existing unused ESLint-disable warnings in generated protocol files and no errors.
 
 **M5 exit:** An administrator can list and inspect Sites, create a fully configured Site atomically, update metadata, and archive/restore it; audit and idempotency guarantees hold under retries and concurrency; the new Site works end to end without breaking historical analytics or existing configuration APIs.
 
 ## M5.1 contract references
 
-M5.1 freezes its detailed wire and persistence decisions in [the configuration OpenAPI contract](../protocol/contracts/configuration/current/openapi.json), [Site creation schema](../protocol/contracts/configuration/current/site-create-request.schema.json), [persistence contract](../protocol/contracts/configuration/current/site-management-persistence.md), and [contract fixtures](../protocol/contracts/configuration/current/fixtures/site-management-cases.json). M5.2/M5.3 must implement these contracts without changing their semantics; any later contract change requires updating these artifacts together.
+M5.1 froze its detailed wire and persistence decisions in [the configuration OpenAPI contract](../protocol/contracts/configuration/current/openapi.json), [Site creation schema](../protocol/contracts/configuration/current/site-create-request.schema.json), [persistence contract](../protocol/contracts/configuration/current/site-management-persistence.md), and [contract fixtures](../protocol/contracts/configuration/current/fixtures/site-management-cases.json). M5.2/M5.3 implement these contracts without changing their semantics; any later contract change requires updating these artifacts together.

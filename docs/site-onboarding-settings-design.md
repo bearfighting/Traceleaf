@@ -81,7 +81,7 @@ Collector 和 Analytics API 从持久化配置读取这些数据。Dashboard 的
 
 ### Admin API
 
-以下路由方向现由 M5.1 HTTP contract 冻结；字段、错误 envelope、ETag、幂等摘要和持久化细节见 [configuration OpenAPI](../protocol/contracts/configuration/current/openapi.json)、[Site creation schema](../protocol/contracts/configuration/current/site-create-request.schema.json) 与 [persistence contract](../protocol/contracts/configuration/current/site-management-persistence.md)。实现仍按 M5.2/M5.3 顺序交付。
+以下路由方向由 M5.1 HTTP contract 冻结，并已在 M5.2/M5.3 实施；字段、错误 envelope、ETag、幂等摘要和持久化细节见 [configuration OpenAPI](../protocol/contracts/configuration/current/openapi.json)、[Site creation schema](../protocol/contracts/configuration/current/site-create-request.schema.json) 与 [persistence contract](../protocol/contracts/configuration/current/site-management-persistence.md)。
 
 提供受 deployment-admin 保护的站点集合、创建、元数据和生命周期接口：
 
@@ -199,7 +199,7 @@ Analytics Sidebar 与 Settings Sidebar 是不同上下文：Analytics Sidebar �
 
 总体实施顺序和跨任务门槛以 [Platform Improvement Roadmap](platform-improvement-roadmap.md) 的 M0a/M0b、M1–M9 为准；以下步骤描述站点接入领域自己的交付细节。Site Management `mod` 和相关静态配置 contract 应先于新增 Site API 建立；Collector 配置权威切换应先于面向用户开放创建向导。
 
-1. **契约与模型**：按 M0a 与 ADR-013/014 执行已冻结的 Site/生命周期/配置权威语义；Site API wire contract、错误响应及幂等摘要格式在 M5 单独冻结。
+1. **契约与模型**：按 M0a 与 ADR-013/014 执行已冻结的 Site/生命周期/配置权威语义；Site API wire contract、错误响应及幂等摘要格式已在 M5 冻结。
 2. **数据迁移兼容**：增加 Site Registry migration；为现有 capability/policy/definition 及历史分析数据中的 Site ID 建立元数据。准备一次性 importer/运维步骤，合并当前环境变量清单、Collector TOML fallback、DB 配置及历史 analytics 中的 Site ID；开发环境另核对旧 seed 输入。它们只作为迁移清点来源，不能成为迁移后运行时配置。核对 Processor 从 definitions 文件显式导入的 revisions，并人工补齐名称/URL。
 3. **Collector 与 definitions 权威切换**：确认数据库管理 Site 的加载、归档和缺失策略语义；移除重复 TOML runtime policy，验证旧 key 不会复活；限定 Processor 文件导入为历史迁移工具。
 4. **Admin API**：实现站点列表、创建和元数据更新；确保完整创建事务、幂等重试、审计和权限保护。

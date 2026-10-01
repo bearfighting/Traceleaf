@@ -17,6 +17,7 @@
     "test:integration": "./scripts/test-integration.sh",
     "e2e:analytics": "node ./scripts/e2e-analytics.mjs",
     "e2e:configuration": "node ./scripts/e2e-configuration.mjs",
+    "e2e:site-management": "node ./scripts/e2e-site-management.mjs",
     "e2e:dashboard": "node ./scripts/e2e-dashboard.mjs",
     "e2e:router-adapters": "node ./scripts/e2e-router-adapters.mjs",
     "e2e:router-compose": "node ./scripts/e2e-router-compose.mjs",
