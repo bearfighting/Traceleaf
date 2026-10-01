@@ -1,6 +1,6 @@
 # M5 Site Management Backend Checklist
 
-- Status: In progress; M5.1 contract freeze complete; M5.2 Site directory and lifecycle APIs implemented
+- Status: In progress; M5.1 contract freeze, M5.2 directory/lifecycle APIs, and M5.3 Site creation/idempotency implemented and verified against local PostgreSQL
 - Prerequisites: M1 module boundaries, M3 Site Registry, and M4 local runtime-authority cutover; ADR-013 and ADR-014 accepted
 - Related: [Platform improvement roadmap](platform-improvement-roadmap.md), [Site Onboarding and Settings Design](site-onboarding-settings-design.md), [Analytics and Site Management Module Boundaries](analytics-site-management-module-boundaries.md), [ADR-013](decisions/ADR-013-site-identity-and-lifecycle.md), [ADR-014](decisions/ADR-014-runtime-configuration-authority.md)
 
@@ -48,12 +48,14 @@ Runtime application state is intentionally not duplicated in the Site directory 
 
 ### M5.3 — Implement atomic Site creation and idempotency
 
-- [ ] Generate a stable unique Site ID on the server; do not infer Website URL from an Allowed Origin.
-- [ ] In one database transaction, insert the Site, default capabilities and activation windows, first environment policy, key digest/key ID, idempotency record and creation audit.
-- [ ] Reuse existing capability, Origin and key validation rules rather than creating a second validation path.
-- [ ] Enforce same idempotency key + same normalized request as a metadata-only replay, and same key + different request as conflict, including simultaneous requests.
-- [ ] Return the plaintext key only after the first transaction commits successfully; provide replacement-key recovery after a lost response.
-- [ ] Prove transaction rollback leaves no Registry, capability, activation, policy, key, audit or idempotency fragments after any injected failure.
+- [x] Generate a stable unique Site ID on the server; do not infer Website URL from an Allowed Origin.
+- [x] In one database transaction, insert the Site, default capabilities and activation windows, first environment policy, key digest/key ID, idempotency record and creation audit.
+- [x] Reuse existing capability, Origin and key validation rules rather than creating a second validation path.
+- [x] Enforce same idempotency key + same normalized request as a metadata-only replay, and same key + different request as conflict, including simultaneous requests.
+- [x] Return the plaintext key only after the first transaction commits successfully; provide replacement-key recovery after a lost response.
+- [x] Prove transaction rollback leaves no Registry, capability, activation, policy, key, audit or idempotency fragments after an injected late transaction failure.
+
+PostgreSQL HTTP tests cover create/replay/conflict, concurrent same-key requests, and injected audit-write failure rollback. The direct migration-history regression passed. The full `pnpm test:migrations` wrapper still requires a host `psql` client for its clean-install and upgrade scenarios.
 
 **Exit:** A successful create can ingest an event immediately; retries cannot duplicate the Site or reveal the original key again; failures leave no partial Site.
 

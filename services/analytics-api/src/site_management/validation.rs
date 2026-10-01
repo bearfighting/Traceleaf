@@ -15,9 +15,13 @@ const POLICY_UPDATE_SCHEMA: &str = include_str!(
 const DEFINITION_SET_UPDATE_SCHEMA: &str = include_str!(
     "../../../../protocol/contracts/configuration/current/conversion-funnel-definition-set-update.schema.json"
 );
+const SITE_CREATE_SCHEMA: &str = include_str!(
+    "../../../../protocol/contracts/configuration/current/site-create-request.schema.json"
+);
 
 #[derive(Clone)]
 pub(crate) struct ConfigurationValidators {
+    pub(crate) site_create: Validator,
     pub(crate) capabilities: Validator,
     pub(crate) stored_capabilities: Validator,
     pub(crate) stored_policy: Validator,
@@ -40,6 +44,7 @@ impl ConfigurationValidators {
         definition_set: &str,
     ) -> Result<Self, String> {
         Ok(Self {
+            site_create: compile(SITE_CREATE_SCHEMA)?,
             capabilities: compile(capabilities)?,
             stored_capabilities: compile_stored(STORED_CAPABILITY_SCHEMA)?,
             stored_policy: compile_stored(STORED_POLICY_SCHEMA)?,

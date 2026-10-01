@@ -1,4 +1,4 @@
-use super::{configuration, sites, state::SiteManagementState};
+use super::{configuration, creation, sites, state::SiteManagementState};
 use axum::{
     Router,
     routing::{delete, get, post},
@@ -6,7 +6,10 @@ use axum::{
 
 pub(crate) fn router(state: SiteManagementState) -> Router {
     Router::new()
-        .route("/v1/admin/sites", get(sites::list_sites))
+        .route(
+            "/v1/admin/sites",
+            get(sites::list_sites).post(creation::create_site),
+        )
         .route(
             "/v1/admin/sites/{site_id}",
             get(sites::get_site).patch(sites::patch_site),

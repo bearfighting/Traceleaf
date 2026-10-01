@@ -81,7 +81,7 @@ fn require_if_none_match(headers: &HeaderMap) -> Result<(), ConfigurationApiErro
     }
 }
 
-fn validate_schema(
+pub(crate) fn validate_schema(
     validator: &jsonschema::Validator,
     value: &Value,
     path: &'static str,
@@ -98,7 +98,7 @@ fn validate_schema(
     Ok(())
 }
 
-fn validate_capability_dependencies(
+pub(crate) fn validate_capability_dependencies(
     value: &Value,
     registry: &configuration_runtime::CapabilityRegistry,
 ) -> Result<(), ConfigurationApiError> {
@@ -135,7 +135,7 @@ fn validate_capability_dependencies(
     Ok(())
 }
 
-fn validate_policy_origins(origins: &[String]) -> Result<Value, ConfigurationApiError> {
+pub(crate) fn validate_policy_origins(origins: &[String]) -> Result<Value, ConfigurationApiError> {
     let mut canonical_origins = Vec::with_capacity(origins.len());
     let mut identities = std::collections::HashSet::new();
     for (index, origin) in origins.iter().enumerate() {

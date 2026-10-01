@@ -112,6 +112,11 @@ const EXPECTED_MIGRATIONS: &[(i64, &str, &str)] = &[
         "align site registry setup readiness",
         "b22c9ea34660d665eb29411d9fd764ae44422f1cbdaa79893c3e92e28e341460da3c1822e92bd37e23b0c7e475f015d7",
     ),
+    (
+        20261004002300,
+        "create site creation requests",
+        "698c01e489b29660a6d3ee36889e514e5df73b8befb23c6a1000def39ed0ccd4c4de1c25ee98eb31acda3a673ca7553f",
+    ),
 ];
 
 #[tokio::test]
@@ -146,4 +151,38 @@ async fn migrations_are_idempotent() {
         })
         .collect::<Vec<_>>();
     assert_eq!(applied, expected);
+
+    let version_default: Option<String> = sqlx::query_scalar(
+        "SELECT column_default FROM information_schema.columns
+         WHERE table_schema='public' AND table_name='site_registry' AND column_name='version'",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("Site version column should exist");
+    assert!(version_default.is_some_and(|value| value.contains('1')));
+
+    let request_fk_restricts_delete: bool = sqlx::query_scalar(
+        "SELECT EXISTS (
+             SELECT 1 FROM pg_constraint
+              WHERE conrelid='site_creation_requests'::regclass
+                AND contype='f' AND confdeltype='r'
+         )",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("Site creation request FK should be queryable");
+    assert!(request_fk_restricts_delete);
+
+    let immutable_trigger_exists: bool = sqlx::query_scalar(
+        "SELECT EXISTS (
+             SELECT 1 FROM pg_trigger
+              WHERE tgrelid='site_creation_requests'::regclass
+                AND tgname='site_creation_requests_immutable'
+                AND NOT tgisinternal
+         )",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("Site creation immutability trigger should be queryable");
+    assert!(immutable_trigger_exists);
 }

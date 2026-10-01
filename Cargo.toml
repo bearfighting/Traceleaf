@@ -29,6 +29,7 @@ maxminddb = "0.32"
 ipnet = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+serde_jcs = "0.2"
 sha2 = "0.11"
 syn = { version = "2", features = ["full", "visit"] }
 sqlx = { version = "0.9", default-features = false, features = ["chrono", "json", "macros", "migrate", "postgres", "runtime-tokio"] }
@@ -42,3 +43,4 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 woothee = "=0.13.0"
 url = "2"
 unicode-normalization = "0.1"
+ulid = "1"

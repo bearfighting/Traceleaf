@@ -8,7 +8,7 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 120,
-      "description": "Trimmed and Unicode NFC-normalized before storage and idempotency hashing; the normalized value must remain non-empty."
+      "description": "Trimmed and Unicode NFC-normalized before storage and idempotency hashing; the normalized value must remain non-empty and no longer than 120 Unicode code points."
     },
     "website_url": {
       "type": "string",

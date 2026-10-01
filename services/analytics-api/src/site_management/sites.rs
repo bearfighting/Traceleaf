@@ -18,14 +18,14 @@ use super::{
 };
 
 #[derive(Clone, Debug, Serialize)]
-struct Site {
+pub(crate) struct Site {
     site_id: String,
     display_name: Option<String>,
     website_url: Option<String>,
     lifecycle_status: String,
     setup_status: String,
     missing_requirements: Vec<String>,
-    version: i64,
+    pub(crate) version: i64,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
 }
@@ -43,7 +43,7 @@ pub(crate) struct MetadataPatch {
     website_url: Option<String>,
 }
 
-type DbSite = (
+pub(crate) type DbSite = (
     String,
     Option<String>,
     Option<String>,
@@ -57,11 +57,13 @@ type DbSite = (
 
 const SELECT_SITE: &str = "SELECT s.site_id,s.display_name,s.website_url,s.lifecycle_status,s.version,s.created_at,s.updated_at, c.document #>> '{capabilities,page_views,enabled}' = 'true', EXISTS (SELECT 1 FROM site_environment_policies p WHERE p.site_id=s.site_id AND p.document->>'enabled'='true' AND jsonb_array_length(p.document->'allowed_origins')>0 AND jsonb_array_length(p.document->'ingest_keys')>0) AND NOT EXISTS (SELECT 1 FROM site_environment_policies p WHERE p.site_id=s.site_id AND p.document->>'enabled'='true' AND (COALESCE(jsonb_array_length(p.document->'allowed_origins'),0)=0 OR COALESCE(jsonb_array_length(p.document->'ingest_keys'),0)=0)) FROM site_registry s LEFT JOIN site_capability_configurations c USING(site_id)";
 
+pub(crate) const SELECT_SITE_FOR_MANAGED_READ: &str = SELECT_SITE;
+
 fn normalize_display_name(value: &str) -> String {
     value.trim().nfc().collect()
 }
 
-fn site(row: DbSite) -> Site {
+pub(crate) fn site(row: DbSite) -> Site {
     let (
         site_id,
         display_name,
@@ -181,14 +183,7 @@ pub(crate) async fn get_site(
     State(state): State<SiteManagementState>,
     Path(site_id): Path<String>,
 ) -> Result<Response, ConfigurationApiError> {
-    let sql = format!("{SELECT_SITE} WHERE s.site_id=$1");
-    let row = sqlx::query_as::<_, DbSite>(sqlx::AssertSqlSafe(sql.as_str()))
-        .bind(site_id)
-        .fetch_optional(&state.pool)
-        .await
-        .map_err(db_error)?
-        .ok_or(ConfigurationApiError::NotFound)?;
-    let value = site(row);
+    let value = read_managed_site(&state.pool, &site_id).await?;
     Ok(response(
         StatusCode::OK,
         json!({"site":value}),
@@ -332,20 +327,39 @@ async fn lifecycle(
 }
 
 async fn fetch_response(pool: &PgPool, id: &str) -> Result<Response, ConfigurationApiError> {
-    let sql = format!("{SELECT_SITE} WHERE s.site_id=$1");
-    let value = site(
-        sqlx::query_as::<_, DbSite>(sqlx::AssertSqlSafe(sql.as_str()))
-            .bind(id)
-            .fetch_optional(pool)
-            .await
-            .map_err(db_error)?
-            .ok_or(ConfigurationApiError::NotFound)?,
-    );
+    let value = read_managed_site(pool, id).await?;
     Ok(response(
         StatusCode::OK,
         json!({"site":value}),
         Some(value.version),
     ))
+}
+
+pub(crate) async fn read_managed_site(
+    pool: &PgPool,
+    id: &str,
+) -> Result<Site, ConfigurationApiError> {
+    let sql = format!("{SELECT_SITE} WHERE s.site_id=$1");
+    sqlx::query_as::<_, DbSite>(sqlx::AssertSqlSafe(sql.as_str()))
+        .bind(id)
+        .fetch_optional(pool)
+        .await
+        .map_err(db_error)?
+        .map(site)
+        .ok_or(ConfigurationApiError::NotFound)
+}
+
+pub(crate) async fn read_managed_site_in_transaction(
+    transaction: &mut Transaction<'_, Postgres>,
+    id: &str,
+) -> Result<Site, sqlx::Error> {
+    let sql = format!("{SELECT_SITE_FOR_MANAGED_READ} WHERE s.site_id=$1");
+    sqlx::query_as::<_, DbSite>(sqlx::AssertSqlSafe(sql.as_str()))
+        .bind(id)
+        .fetch_optional(&mut **transaction)
+        .await
+        .map(|row| row.map(site))?
+        .ok_or(sqlx::Error::RowNotFound)
 }
 
 async fn audit(
