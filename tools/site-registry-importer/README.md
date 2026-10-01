@@ -63,7 +63,62 @@ M3.4 compatibility checks use a disposable PostgreSQL database only. The followi
 
    The importer’s `DATABASE_URL` and the libpq service used for backup must resolve to the same database and server. Verify both identities through the approved secret-injection path before proceeding; do not print either credential-bearing connection string.
 
-   Record the database identity, backup path, and backup timestamp in the change record. The importer never applies migrations; deployment tooling must have applied and verified M3.2 first.
+   Record the database identity, backup path, and backup timestamp in the change record. The importer never applies migrations. Apply and verify M3.2 after this pre-migration baseline and before running the Importer.
+
+### Migration preflight: read-only SQL baseline (after backup)
+
+After the backup is verified and before applying migrations, set a new report path outside the repository and use the reviewed libpq service for this exact target. Do not place a credential-bearing connection URL in command arguments or output:
+
+```sh
+: "${PGSERVICE:?set the reviewed local target service name}"
+: "${BASELINE_REPORT:?set a new absolute report path outside the repository}"
+set -C
+umask 077
+psql "service=$PGSERVICE" -X -v ON_ERROR_STOP=1 > "$BASELINE_REPORT" <<'SQL'
+BEGIN READ ONLY;
+SELECT current_database() AS database_name,
+       inet_server_addr() AS server_address,
+       inet_server_port() AS server_port,
+       current_setting('listen_addresses') AS listen_addresses,
+       current_setting('port') AS configured_port;
+SELECT max(version) AS latest_successful_migration
+FROM _sqlx_migrations WHERE success;
+SELECT to_regclass('public.site_registry') AS site_registry_relation;
+SELECT c.table_name AS site_id_table
+FROM information_schema.columns AS c
+WHERE c.table_schema = 'public' AND c.column_name = 'site_id'
+  AND EXISTS (
+      SELECT 1 FROM information_schema.tables AS t
+      WHERE t.table_schema = c.table_schema AND t.table_name = c.table_name
+        AND t.table_type = 'BASE TABLE'
+  )
+GROUP BY c.table_name ORDER BY c.table_name;
+SELECT format(
+  'SELECT %L AS source, count(*)::bigint AS rows, count(DISTINCT site_id)::bigint AS distinct_site_ids FROM %I.%I',
+  c.table_name, c.table_schema, c.table_name
+)
+FROM information_schema.columns AS c
+WHERE c.table_schema = 'public' AND c.column_name = 'site_id'
+  AND EXISTS (
+      SELECT 1 FROM information_schema.tables AS t
+      WHERE t.table_schema = c.table_schema AND t.table_name = c.table_name
+        AND t.table_type = 'BASE TABLE'
+  )
+GROUP BY c.table_schema, c.table_name
+ORDER BY c.table_name
+\gexec
+SELECT 'configuration_audit' AS source, count(*)::bigint AS audit_rows,
+       count(DISTINCT resource->>'site_id')::bigint AS distinct_site_ids
+FROM configuration_audit WHERE resource ? 'site_id';
+SELECT environment, count(*)::bigint AS policies,
+       sum(jsonb_array_length(document->'allowed_origins'))::bigint AS allowed_origin_count,
+       sum(jsonb_array_length(document->'ingest_keys'))::bigint AS key_digest_count
+FROM site_environment_policies GROUP BY environment ORDER BY environment;
+ROLLBACK;
+SQL
+```
+
+The catalog query enumerates every public table with a direct `site_id` column; compare it with the M3 source matrix. Treat the two runtime-state tables as exclusion evidence and the four processing tables as cross-checks only. This baseline intentionally reports counts rather than per-Site details. If `inet_server_addr()` is null because the service uses a Unix socket, corroborate the server endpoint using the reviewed Compose container identity and published port. Stop if the database identity, table inventory, migration history, or report is incomplete. Keep the report outside version control.
 
 2. **Run and review read-only preflight.** Use a new report path outside the repository. Supply every static source as an explicit value/path or `not_configured` flag, matching the target's actual inputs. Review candidate union, per-source row/distinct-ID counts, overlap, source-only IDs, Registry metadata, policy coverage, Origins and processing cross-checks. Resolve every Origin/metadata conflict and give each disposition-required ID a reasoned approve/exclude decision. A definitions-file-only ID is a static candidate; stored definition revisions require a capability row under the current schema.
 

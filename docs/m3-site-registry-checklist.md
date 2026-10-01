@@ -1,6 +1,6 @@
 # M3 Site Registry and Legacy Backfill Checklist
 
-- Status: planned
+- Status: in progress (M3.5 local rollout blocked before Registry apply)
 - Prerequisites: M0a semantic baseline and M2 persisted-configuration contract
 - Related: [Platform improvement roadmap](platform-improvement-roadmap.md), [M0a baseline](m0a-baseline-and-decisions.md), [ADR-013](decisions/ADR-013-site-identity-and-lifecycle.md), [ADR-014](decisions/ADR-014-runtime-configuration-authority.md), [M2 implementation checklist](m2-implementation-checklist.md)
 
@@ -136,11 +136,26 @@ Before implementation, enumerate all site-scoped fact tables from migrations and
 
 ### M3.5 — Rollout and M4 handoff
 
-- [ ] Run preflight for each target environment before migration; retain sensitive reports outside source control.
-- [ ] Apply migration/importer and reconcile preflight, importer and postflight counts.
-- [ ] Review unresolved metadata conflicts and assign follow-up; do not invent URLs to make the report clean.
-- [ ] Confirm services that do not read Registry remain compatible during rollout.
-- [ ] Publish completion evidence and the TOML/definitions-file inventory M4 must reconcile.
+- [x] Confirm the local Compose PostgreSQL target and retain a verified backup outside the repository.
+- [x] Capture the pre-migration read-only schema/source baseline before applying M3.2.
+- [x] Apply the pending M3.2 migration without restarting application services or running dev-seed.
+- [x] Run the Importer dry-run with the current local Compose static inputs and retain its detailed report outside source control.
+- [x] Record and stop at blocking Origin/metadata conflicts; do not choose or modify policy/seed values automatically.
+- [ ] Apply Registry identities and reconcile postflight counts after the Origin conflict receives an explicit resolution.
+- [x] Prepare the non-secret TOML, seed, Dashboard and definitions-file inventory for M4.
+- [ ] Confirm the local application services remain compatible after the rollout; they were stopped during this pass and were not restarted.
+
+#### M3.5 local development checkpoint (2026-09-30)
+
+- The selected target was PostgreSQL container `web-analytics-platform-postgres-1`, database `analytics`. The actual source values were cross-checked against the current Compose configuration; no credential-bearing URLs, key values, or digests were printed.
+- Backup `/tmp/m35-local-dev-analytics-20260930.dump` passed `pg_restore --list`. The pre-migration aggregate baseline is in `/tmp/m35-local-pre-migration-baseline.txt`; the post-migration baseline is in `/tmp/m35-local-post-migration-baseline.txt`.
+- Before migration, the latest successful version was `20260926001700` and `site_registry` was absent. Migration `20260930001800` was applied. All pre-existing direct-Site table, audit, policy, and processing counts matched before and after; the new Registry table and view were empty.
+- Importer dry-run report: `/tmp/m35-local-post-migration-preflight.json`. Candidate union: 10; disposition-required candidates: 7; metadata conflicts: 0; Origin conflicts: 1; candidates missing Registry name or URL: 10. Registry apply was not run.
+- The blocking conflict matches the known development seed versus stored development policy Origin discrepancy. No policy, key, or seed value was changed. Review the detailed local report before choosing a separate resolution.
+- The local M4 inventory, including Collector Site/environment/Origin/key-presence evidence and definitions file version/Site mapping, is in `/tmp/m35-local-m4-handoff.txt`. The importer report contains detailed source evidence; no plaintext key or digest value is stored.
+- Importer unit tests passed (12 tests). M3.2 migration regression passed on a disposable PostgreSQL 18 database. The full `pnpm test:migrations` wrapper stopped before database access because the host lacks `psql`; application services remained stopped and were not restarted.
+
+**Current status:** M3.5 is incomplete. Registry apply and postflight remain blocked on an explicit decision for the Origin conflict; live local service compatibility is also pending.
 
 **Exit:** all candidate IDs are in Registry or have a reviewed exception; counts reconcile; history is intact; M4 has a concrete authority-cutover inventory.
 
