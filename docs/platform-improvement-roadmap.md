@@ -53,7 +53,7 @@
 - 部署管理员须先配置相互匹配的 `CONFIG_ADMIN_TOKENS` 与 `DASHBOARD_CONFIG_ADMIN_TOKEN`。它们是基础设施凭据。凭据缺失时 Dashboard 显示管理员设置错误，不把 401/503 当作空站点；当前全局 token 模式仅用于受信任的管理环境。
 - M0b 对一个事件 contract 和一个配置 contract 试用类型生成器，再按 contract 类别选定生成或手工维护策略、未知字段行为与 CI 防漂移检查。
 
-以上基线由 [M0a 现状基线与 ADR-013/014](m0a-baseline-and-decisions.md) 冻结。M5 新 API 的 wire contract、M0b 类型生成策略和 M3/M4 迁移操作细节仍由相应切片定义。
+以上基线由 [M0a 现状基线与 ADR-013/014](m0a-baseline-and-decisions.md) 冻结。M5 新 API 的 wire contract 已在 M5.1 冻结并于 M5.2/M5.3 实施；M0b 类型生成策略和 M3/M4 迁移操作细节见相应切片。
 
 ## 实施依赖
 
@@ -139,7 +139,7 @@ flowchart LR
 
 ### M5：交付 Site Management 后端闭环
 
-**前置**：M1、M3、M4。**交付**：站点列表/详情/创建 API、原子创建事务、管理审计、并发与重复请求处理。创建事务包含 Registry、capabilities、activation windows、首个 environment policy、key digest、创建请求 ID 和规范化请求摘要。明文 key 只在首次成功创建响应中返回；重复 key/相同摘要返回站点元数据，重复 key/不同摘要返回冲突。现有 capabilities、policy、key、definition APIs 继续由 Site Management 维护。
+**前置**：M1、M3、M4。**状态**：完成（2026-10-01；验收记录见 [M5 Site Management Backend checklist](m5-site-management-checklist.md)）。**交付**：站点列表/详情/创建 API、原子创建事务、管理审计、并发与重复请求处理。创建事务包含 Registry、capabilities、activation windows、首个 environment policy、key digest、创建请求 ID 和规范化请求摘要。明文 key 只在首次成功创建响应中返回；重复 key/相同摘要返回站点元数据，重复 key/不同摘要返回冲突。现有 capabilities、policy、key、definition APIs 继续由 Site Management 维护。独立 Compose E2E 已验证新 Site 从创建、采集、处理到 Analytics 查询，并确认归档阻止新事件而保留历史报告。
 
 **完成条件**：空数据库可通过管理 API 创建可接收事件的站点；失败时无半成品；重试不多建站点或重放明文 key；历史报告和现有 API 兼容。
 

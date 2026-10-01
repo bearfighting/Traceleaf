@@ -16,6 +16,161 @@
     }
   ],
   "paths": {
+    "/v1/admin/sites": {
+      "get": {
+        "operationId": "listManagedSites",
+        "summary": "List managed Sites",
+        "parameters": [
+          { "$ref": "#/components/parameters/SitePageLimit" },
+          { "$ref": "#/components/parameters/SitePageCursor" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Includes active and archived Sites, ordered by site_id ascending; next_cursor is null when the page is complete.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SiteListResponse" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "503": { "$ref": "#/components/responses/Unavailable" }
+        }
+      },
+      "post": {
+        "operationId": "createManagedSite",
+        "summary": "Create a Site and its initial ingest configuration atomically",
+        "description": "Requires Idempotency-Key with 1-128 visible ASCII characters; missing or malformed values return 422. The key is scoped to this operation and deployment. Normalize display_name with Unicode NFC and trim; canonicalize website_url and allowed_origins using the Site Management persistence contract; omitted optional capabilities are false. Compute SHA-256 over RFC 8785 canonical JSON of that normalized request, excluding the header, generated Site ID, key material and timestamps. The initial policy is enabled with a 600 requests/minute limit and the generated Ingest Key active, so the Site is configured to accept events after runtime application. A matching retry returns 200 metadata only; a reused key with another normalized request returns 409. The initial plaintext Ingest Key appears only in the first 201 response, which must be no-store.",
+        "parameters": [{ "$ref": "#/components/parameters/IdempotencyKey" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "site-create-request.schema.json" } }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created. All Site and initial configuration records committed atomically; save the one-time key now.",
+            "headers": {
+              "ETag": { "$ref": "#/components/headers/VersionETag" },
+              "Cache-Control": {
+                "description": "Prevents storage of the one-time plaintext key response.",
+                "schema": { "type": "string", "const": "no-store" }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SiteCreatedResponse" }
+              }
+            }
+          },
+          "200": {
+            "description": "Idempotent replay of a committed request. The one-time plaintext key is never returned again.",
+            "headers": { "ETag": { "$ref": "#/components/headers/VersionETag" } },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SiteCreateReplayResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": { "$ref": "#/components/responses/SiteIdempotencyConflict" },
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "503": { "$ref": "#/components/responses/Unavailable" }
+        }
+      }
+    },
+    "/v1/admin/sites/{site_id}": {
+      "parameters": [{ "$ref": "#/components/parameters/SiteId" }],
+      "get": {
+        "operationId": "getManagedSite",
+        "summary": "Read a Site and its derived setup status",
+        "responses": {
+          "200": {
+            "description": "Current Site metadata, lifecycle, derived setup status and missing requirements.",
+            "headers": { "ETag": { "$ref": "#/components/headers/VersionETag" } },
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SiteResponse" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "503": { "$ref": "#/components/responses/Unavailable" }
+        }
+      },
+      "patch": {
+        "operationId": "updateManagedSiteMetadata",
+        "summary": "Update Site display name or Website URL",
+        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "site-metadata-update.schema.json" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Metadata updated and Site version incremented.",
+            "headers": { "ETag": { "$ref": "#/components/headers/VersionETag" } },
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SiteResponse" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/SiteVersionConflict" },
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "503": { "$ref": "#/components/responses/Unavailable" },
+          "428": { "$ref": "#/components/responses/PreconditionRequired" }
+        }
+      }
+    },
+    "/v1/admin/sites/{site_id}/archive": {
+      "parameters": [
+        { "$ref": "#/components/parameters/SiteId" },
+        { "$ref": "#/components/parameters/IfMatch" }
+      ],
+      "post": {
+        "operationId": "archiveManagedSite",
+        "summary": "Archive a Site without deleting its history or configuration",
+        "responses": {
+          "200": {
+            "description": "Archived; ingestion is blocked and retained policies remain unchanged.",
+            "headers": { "ETag": { "$ref": "#/components/headers/VersionETag" } },
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SiteResponse" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/SiteVersionConflict" },
+          "503": { "$ref": "#/components/responses/Unavailable" },
+          "428": { "$ref": "#/components/responses/PreconditionRequired" }
+        }
+      }
+    },
+    "/v1/admin/sites/{site_id}/restore": {
+      "parameters": [
+        { "$ref": "#/components/parameters/SiteId" },
+        { "$ref": "#/components/parameters/IfMatch" }
+      ],
+      "post": {
+        "operationId": "restoreManagedSite",
+        "summary": "Restore a Site without enabling any environment policy",
+        "responses": {
+          "200": {
+            "description": "Restored; environment policies retain their existing enabled state.",
+            "headers": { "ETag": { "$ref": "#/components/headers/VersionETag" } },
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SiteResponse" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/SiteVersionConflict" },
+          "503": { "$ref": "#/components/responses/Unavailable" },
+          "428": { "$ref": "#/components/responses/PreconditionRequired" }
+        }
+      }
+    },
     "/v1/admin/sites/{site_id}/capabilities": {
       "parameters": [
         {
@@ -518,6 +673,31 @@
         "schema": {
           "const": "*"
         }
+      },
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": true,
+        "description": "Client-generated key scoped to deployment and Site creation; retained for the Site lifetime.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[\\x21-\\x7E]+$"
+        }
+      },
+      "SitePageLimit": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 }
+      },
+      "SitePageCursor": {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "description": "Opaque cursor from the preceding response; pagination is stable in ascending site_id order.",
+        "schema": { "type": "string", "minLength": 1 }
       }
     },
     "headers": {
@@ -562,6 +742,97 @@
           }
         },
         "required": ["status", "stored_version", "applied_versions"],
+        "additionalProperties": false
+      },
+      "ManagedSite": {
+        "type": "object",
+        "properties": {
+          "site_id": { "type": "string", "minLength": 1 },
+          "display_name": { "type": ["string", "null"] },
+          "website_url": { "type": ["string", "null"] },
+          "lifecycle_status": { "enum": ["active", "archived"] },
+          "setup_status": {
+            "enum": ["ready", "needs_attention"],
+            "description": "ready only when metadata and required Page Views exist, at least one environment policy is enabled, and every enabled environment policy has at least one allowed Origin and active Ingest Key."
+          },
+          "missing_requirements": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "display_name",
+                "website_url",
+                "page_views",
+                "environment_ingest_configuration"
+              ]
+            }
+          },
+          "version": { "type": "integer", "minimum": 1 },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        },
+        "required": [
+          "site_id",
+          "display_name",
+          "website_url",
+          "lifecycle_status",
+          "setup_status",
+          "missing_requirements",
+          "version",
+          "created_at",
+          "updated_at"
+        ],
+        "additionalProperties": false
+      },
+      "SiteResponse": {
+        "type": "object",
+        "properties": { "site": { "$ref": "#/components/schemas/ManagedSite" } },
+        "required": ["site"],
+        "additionalProperties": false
+      },
+      "SiteListResponse": {
+        "type": "object",
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/ManagedSite" } },
+          "next_cursor": { "type": ["string", "null"] }
+        },
+        "required": ["items", "next_cursor"],
+        "additionalProperties": false
+      },
+      "SiteCreatedResponse": {
+        "type": "object",
+        "properties": {
+          "site": { "$ref": "#/components/schemas/CreatedManagedSite" },
+          "initial_environment": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "ingest_key": {
+            "type": "object",
+            "properties": {
+              "key": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" },
+              "key_id": { "type": "string", "pattern": "^ik_[A-Za-z0-9_-]{8,64}$" }
+            },
+            "required": ["key", "key_id"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["site", "initial_environment", "ingest_key"],
+        "additionalProperties": false
+      },
+      "CreatedManagedSite": {
+        "allOf": [
+          { "$ref": "#/components/schemas/ManagedSite" },
+          {
+            "type": "object",
+            "properties": {
+              "site_id": { "type": "string", "pattern": "^site_[0-7][0-9A-HJKMNP-TV-Z]{25}$" }
+            },
+            "required": ["site_id"]
+          }
+        ]
+      },
+      "SiteCreateReplayResponse": {
+        "type": "object",
+        "properties": { "site": { "$ref": "#/components/schemas/ManagedSite" } },
+        "required": ["site"],
         "additionalProperties": false
       },
       "CapabilityConfigurationResponse": {
@@ -675,7 +946,9 @@
                   "configuration_version_conflict",
                   "configuration_validation_failed",
                   "configuration_unavailable",
-                  "configuration_precondition_required"
+                  "configuration_precondition_required",
+                  "site_idempotency_conflict",
+                  "site_version_conflict"
                 ]
               },
               "message": {
@@ -827,6 +1100,34 @@
             }
           }
         ]
+      },
+      "SiteIdempotencyConflictError": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Error" },
+          {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "object",
+                "properties": { "code": { "const": "site_idempotency_conflict" } }
+              }
+            }
+          }
+        ]
+      },
+      "SiteVersionConflictError": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Error" },
+          {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "object",
+                "properties": { "code": { "const": "site_version_conflict" } }
+              }
+            }
+          }
+        ]
       }
     },
     "responses": {
@@ -887,6 +1188,22 @@
             "schema": {
               "$ref": "#/components/schemas/PreconditionRequiredError"
             }
+          }
+        }
+      },
+      "SiteIdempotencyConflict": {
+        "description": "Idempotency-Key was previously committed with a different normalized request. No mutation was applied.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/SiteIdempotencyConflictError" }
+          }
+        }
+      },
+      "SiteVersionConflict": {
+        "description": "If-Match Site version is stale. No mutation was applied.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/SiteVersionConflictError" }
           }
         }
       }

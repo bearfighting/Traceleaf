@@ -1,0 +1,7 @@
+{
+  "display_name": "Example site",
+  "website_url": "https://example.test/",
+  "environment": "production",
+  "capabilities": { "page_views": false },
+  "allowed_origins": ["https://example.test"]
+}

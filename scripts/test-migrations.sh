@@ -85,6 +85,17 @@ $$;
 DROP TABLE site_environment_policies;
 SQL
 
+echo "Applying migrations through the Site Registry base schema..."
+DATABASE_URL="$upgrade_database_url" \
+  cargo run -p db-migrator -- --target-version 20260930001800
+
+echo "Simulating the explicit M3 Registry import before adding foreign keys..."
+psql "$upgrade_database_url" -v ON_ERROR_STOP=1 <<'SQL'
+INSERT INTO site_registry (site_id)
+SELECT DISTINCT site_id FROM analytics_feature_flags
+ON CONFLICT (site_id) DO NOTHING;
+SQL
+
 echo "Upgrading the isolated database to the current migration history..."
 DATABASE_URL="$upgrade_database_url" pnpm db:migrate
 DATABASE_URL="$upgrade_database_url" cargo test -p db-migrator --test migrations -- --ignored --test-threads=1
@@ -130,6 +141,16 @@ DECLARE
   timestamp_text TEXT := to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"');
   valid_policy JSONB;
 BEGIN
+  INSERT INTO site_registry (site_id)
+  SELECT unnest(ARRAY[
+    'empty-keys-policy', 'invalid-capability', 'invalid-policy', 'extra-field-policy',
+    'timestamp-mismatch-capability', 'unicode-origin', 'ipv4-alias-origin',
+    'canonical-ipv4-origin', 'leading-zero-port-origin', 'punycode-origin',
+    'ipv6-origin', 'timestamp-mismatch-policy', 'long-environment', 'another-site',
+    'identity-move-source', 'identity-move-target', 'concurrent-origin-test'
+  ])
+  ON CONFLICT (site_id) DO NOTHING;
+
   valid_policy := jsonb_build_object(
     'schema_version', 1, 'site_id', 'extra-field-policy', 'environment', 'production',
     'version', 1, 'updated_at', timestamp_text, 'enabled', TRUE,
@@ -521,7 +542,10 @@ DECLARE
     20260926001700,
     20260930001800,
     20261001001900,
-    20261001002000
+    20261001002000,
+    20261002002100,
+    20261003002200,
+    20261004002300
   ];
   actual_migrations bigint[];
 BEGIN
@@ -580,7 +604,9 @@ DECLARE
     'configuration_capability_runtime_instances',
     'configuration_capability_runtime_state',
     'site_capability_activation_windows',
-    'site_registry'
+    'site_registry',
+    'site_management_audit',
+    'site_creation_requests'
   ];
   missing_table text;
 BEGIN
@@ -619,7 +645,8 @@ DECLARE
     'visitor_event_facts', 'visitor_daily', 'sessions', 'session_events',
     'session_daily', 'dimension_event_facts', 'dimension_daily',
     'web_vital_facts', 'custom_event_facts', 'conversion_facts',
-    'funnel_step_facts', 'geo_event_metadata', 'geo_country_facts'
+    'funnel_step_facts', 'geo_event_metadata', 'geo_country_facts',
+    'site_management_audit', 'site_creation_requests'
   ];
   actual_fk_tables text[];
 BEGIN

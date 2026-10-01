@@ -10,6 +10,8 @@ pub(crate) enum ConfigurationApiError {
     Unauthorized,
     NotFound,
     Conflict,
+    SiteVersionConflict,
+    SiteIdempotencyConflict,
     PreconditionRequired,
     Validation(Vec<ConfigurationValidationDetail>),
     Unavailable,
@@ -66,6 +68,18 @@ impl ConfigurationApiError {
                 StatusCode::CONFLICT,
                 "configuration_version_conflict",
                 "Configuration changed or already exists.",
+                None,
+            ),
+            Self::SiteVersionConflict => (
+                StatusCode::CONFLICT,
+                "site_version_conflict",
+                "Site version is stale; no mutation was applied.",
+                None,
+            ),
+            Self::SiteIdempotencyConflict => (
+                StatusCode::CONFLICT,
+                "site_idempotency_conflict",
+                "Idempotency-Key was previously committed with a different normalized request.",
                 None,
             ),
             Self::PreconditionRequired => (

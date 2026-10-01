@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "actor_kind": "deployment_admin",
+  "site_id": "invalid id",
+  "site_version": 1,
+  "operation": "created",
+  "changed_fields": ["display_name"],
+  "created_at": "2026-10-01T12:00:00Z"
+}

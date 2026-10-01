@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://web-analytics-platform.dev/contracts/configuration/current/site-create-request.schema.json",
+  "title": "Site Creation Request",
+  "type": "object",
+  "properties": {
+    "display_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Trimmed and Unicode NFC-normalized before storage and idempotency hashing; the normalized value must remain non-empty and no longer than 120 Unicode code points."
+    },
+    "website_url": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "format": "uri",
+      "pattern": "^https?://",
+      "description": "HTTP(S) URL without username/password. Serialized with WHATWG URL rules and fragment removed; its origin must be included in allowed_origins."
+    },
+    "environment": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+    },
+    "capabilities": {
+      "type": "object",
+      "description": "Page Views is a fixed enabled baseline. It may be omitted; when supplied it must be true. The server normalizes it to true.",
+      "properties": {
+        "page_views": { "const": true },
+        "browser_context": { "type": "boolean", "default": false },
+        "anonymous_visitors": { "type": "boolean", "default": false },
+        "sessions": { "type": "boolean", "default": false },
+        "dimensions": { "type": "boolean", "default": false },
+        "custom_events": { "type": "boolean", "default": false },
+        "web_vitals": { "type": "boolean", "default": false },
+        "conversions": { "type": "boolean", "default": false },
+        "funnels": { "type": "boolean", "default": false },
+        "geo": { "type": "boolean", "default": false }
+      },
+      "additionalProperties": false,
+      "default": { "page_views": true }
+    },
+    "allowed_origins": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^https?://(([A-Za-z0-9-]+\\.)*[A-Za-z0-9-]*[A-Za-z][A-Za-z0-9-]*|(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(\\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}|\\[[A-Fa-f0-9.]*:[A-Fa-f0-9:.]*\\])(:(0|[1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]))?/?$"
+      }
+    }
+  },
+  "required": ["display_name", "website_url", "environment", "allowed_origins"],
+  "additionalProperties": false
+}

@@ -1,0 +1,12 @@
+{
+  "display_name": "Example site",
+  "website_url": "https://example.test/",
+  "environment": "production",
+  "capabilities": {
+    "browser_context": true,
+    "anonymous_visitors": true,
+    "sessions": true,
+    "dimensions": true
+  },
+  "allowed_origins": ["https://example.test"]
+}

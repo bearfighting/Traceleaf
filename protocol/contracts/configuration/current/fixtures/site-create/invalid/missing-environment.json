@@ -1,0 +1,5 @@
+{
+  "display_name": "Example site",
+  "website_url": "https://example.test/",
+  "allowed_origins": ["https://example.test"]
+}

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://web-analytics-platform.dev/contracts/configuration/current/site-metadata-update.schema.json",
+  "title": "Site Metadata Update",
+  "type": "object",
+  "properties": {
+    "display_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "description": "Trimmed and Unicode NFC-normalized before storage; the normalized value must remain non-empty."
+    },
+    "website_url": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "format": "uri",
+      "pattern": "^https?://",
+      "description": "HTTP(S) URL without username/password. Serialized with WHATWG URL rules and fragment removed."
+    }
+  },
+  "minProperties": 1,
+  "additionalProperties": false
+}

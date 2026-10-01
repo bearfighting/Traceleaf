@@ -1,4 +1,4 @@
-use super::{configuration, state::SiteManagementState};
+use super::{configuration, creation, sites, state::SiteManagementState};
 use axum::{
     Router,
     routing::{delete, get, post},
@@ -6,6 +6,22 @@ use axum::{
 
 pub(crate) fn router(state: SiteManagementState) -> Router {
     Router::new()
+        .route(
+            "/v1/admin/sites",
+            get(sites::list_sites).post(creation::create_site),
+        )
+        .route(
+            "/v1/admin/sites/{site_id}",
+            get(sites::get_site).patch(sites::patch_site),
+        )
+        .route(
+            "/v1/admin/sites/{site_id}/archive",
+            post(sites::archive_site),
+        )
+        .route(
+            "/v1/admin/sites/{site_id}/restore",
+            post(sites::restore_site),
+        )
         .route(
             "/v1/admin/sites/{site_id}/conversion-funnel-definitions",
             get(configuration::get_definition_set)
