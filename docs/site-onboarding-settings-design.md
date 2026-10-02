@@ -12,7 +12,7 @@
 
 空 Registry 时 Dashboard 提供首站引导与创建向导，收集 Site 名称、Website URL、首个 Environment、Allowed Origins 和可选能力。Site 创建成功后，Dashboard 只在当前结果页内存中显示一次性 Ingest Key，并提供 SDK 配置示例。管理员可在 Settings 查看 Site Page Views、capability 和 ingest-policy 的运行时状态，以及等待首事件/已收到事件状态。真实 Browser SDK 的空数据库端到端验收由 [M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md) 中的 `pnpm e2e:site-onboarding` 覆盖。
 
-完整 Settings 二级导航与配置页面重组继续留在 M7c；本节后续目标模型和迁移讨论保留为设计依据。
+完整 Settings 二级导航与配置页面重组继续留在 M7c；旧 Playground 平台初始化 site/key wiring 清理属于 M8。服务端 URL 可达性检查、域名所有权验证及多用户身份/RBAC 暂列 M10 后续规划，需各自完成产品与安全设计后再启动。本节后续目标模型和迁移讨论保留为设计依据。
 
 ## 背景与问题
 

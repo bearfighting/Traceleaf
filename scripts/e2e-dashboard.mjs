@@ -1639,6 +1639,8 @@ async function assertApiError(browser) {
         "-e",
         "ANALYTICS_API_URL=http://dashboard-api-error:4999",
         "-e",
+        "SITE_MANAGEMENT_API_URL=http://dashboard-api-error:4999",
+        "-e",
         "DASHBOARD_CONFIG_ADMIN_TOKEN=e2e-admin-token",
         "-e",
         "DASHBOARD_DEFAULT_ENVIRONMENT=config-e2e",
