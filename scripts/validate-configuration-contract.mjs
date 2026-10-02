@@ -357,7 +357,7 @@ const requiredPaths = {
   "/v1/admin/sites/{site_id}": ["get", "patch"],
   "/v1/admin/sites/{site_id}/archive": ["post"],
   "/v1/admin/sites/{site_id}/restore": ["post"],
-  "/v1/admin/sites/{site_id}/capabilities": ["get", "put"],
+  "/v1/admin/sites/{site_id}/capabilities": ["get", "post", "put"],
   "/v1/admin/sites/{site_id}/conversion-funnel-definitions": ["get", "post", "put"],
   "/v1/sites/{site_id}/definition-revisions": ["get"],
   "/v1/admin/sites/{site_id}/environments/{environment}/ingest-policy": ["get", "post", "put"],
@@ -412,7 +412,9 @@ for (const [route, methods] of Object.entries(openapi.paths)) {
           ? "If-None-Match"
           : method === "post" && route.endsWith("/ingest-policy")
             ? "If-None-Match"
-            : "If-Match";
+            : method === "post" && route.endsWith("/capabilities")
+              ? "If-None-Match"
+              : "If-Match";
     if (!parameters.some((parameter) => parameter?.name === requiredHeader && parameter.required)) {
       fail(`${method.toUpperCase()} ${route} must require ${requiredHeader}`);
     }
@@ -458,7 +460,7 @@ if (
   openapi.components.parameters.IfNoneMatch.name !== "If-None-Match" ||
   openapi.components.parameters.IfNoneMatch.schema.const !== "*"
 ) {
-  fail("initial environment policy creation must require If-None-Match: *");
+  fail("create-only configuration operations must require If-None-Match: *");
 }
 if (
   !openapiText.includes("configuration_version_conflict") ||
@@ -480,6 +482,7 @@ if (
   fail("only key creation may return the one-time plaintext key");
 }
 const mutationResponses = {
+  capabilityCreate: openapi.paths["/v1/admin/sites/{site_id}/capabilities"].post.responses,
   put: openapi.paths["/v1/admin/sites/{site_id}/capabilities"].put.responses,
   policyPut:
     openapi.paths["/v1/admin/sites/{site_id}/environments/{environment}/ingest-policy"].put

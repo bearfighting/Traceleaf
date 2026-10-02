@@ -1,6 +1,7 @@
 import "server-only";
 
 import { AnalyticsApiClientError } from "../analytics-api/errors";
+
 import { getSiteManagementApiUrl } from "./config";
 
 import type {
@@ -174,6 +175,7 @@ export function createSiteManagementClient(options: {
 
   async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const response = await requestWithStatus(path, init);
+
     return response.body as T;
   }
 

@@ -160,6 +160,12 @@ describe("SiteCreationWizard result lifecycle", () => {
     expect(window.location.search).toContain("site_example");
     expect(container?.textContent).toContain("NEXT_PUBLIC_ANALYTICS_ENDPOINT");
     expect(container?.textContent).not.toContain("NEXT_PUBLIC_ANALYTICS_ENVIRONMENT");
+    const settingsLink = container?.querySelector(
+      'a[href="/dashboard/settings?site_id=site_example&environment=production"]',
+    );
+    expect(settingsLink?.textContent).toContain("View connection status in Settings");
+    expect(settingsLink?.getAttribute("target")).toBe("_blank");
+    expect(settingsLink?.getAttribute("rel")).toBe("noopener noreferrer");
   });
 
   it("treats a 200 idempotent replay as metadata only and does not show a credential", async () => {

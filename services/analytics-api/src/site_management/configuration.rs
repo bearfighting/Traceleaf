@@ -394,6 +394,36 @@ pub(crate) async fn get_capabilities(
     ))
 }
 
+pub(crate) async fn create_capabilities(
+    _auth: AdminAuth,
+    State(state): State<SiteManagementState>,
+    Path(site_id): Path<String>,
+    headers: HeaderMap,
+) -> Result<Response, ConfigurationApiError> {
+    validate_identity(&site_id, None)?;
+    require_if_none_match(&headers)?;
+
+    let mut capabilities = serde_json::Map::new();
+    for id in state.capabilities.ids() {
+        let id = id.as_str();
+        capabilities.insert(
+            id.to_owned(),
+            json!({"enabled": id == "page_views", "settings": {}}),
+        );
+    }
+    let capabilities = Value::Object(capabilities);
+    validate_capability_dependencies(&json!({"capabilities":capabilities}), &state.capabilities)?;
+    let row = config_store::create_capabilities(&state.pool, &site_id, capabilities)
+        .await
+        .map_err(map_store_error)?;
+
+    Ok(response_with_etag(
+        StatusCode::CREATED,
+        row.version,
+        capability_response(&state.pool, &row, &state).await?,
+    ))
+}
+
 pub(crate) async fn put_capabilities(
     _auth: AdminAuth,
     State(state): State<SiteManagementState>,

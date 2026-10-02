@@ -1,6 +1,6 @@
 # M6 Site Onboarding Checklist
 
-- Status: M6.0–M6.2 complete; M6.3–M6.4 planned
+- Status: M6.0–M6.3 complete; M6.4 planned
 - Prerequisites: M5 Site Management backend complete; M7a Dashboard UI foundation complete
 - Scope: Empty-site local development workflow and Dashboard onboarding for creating and connecting Sites
 - Design references: [Platform Improvement Roadmap](platform-improvement-roadmap.md), [Site Onboarding and Settings Design](site-onboarding-settings-design.md), [Dashboard UI Improvements](dashboard-ui-improvements.md), [M5 Site Management Backend Checklist](m5-site-management-checklist.md)
@@ -9,7 +9,7 @@
 
 A new local installation can start with an empty Site Registry, and an administrator can create and connect the first observed website through Dashboard. Existing Sites and Analytics history remain available. A demo Site is created only through an explicit local seed option.
 
-M6 consumes the M5 Site Management and configuration contracts. It does not add Site persistence or management API behavior. Settings information architecture and report-page redesign are tracked in M7c and M7b respectively.
+M6 consumes the M5 Site Management and configuration contracts. M6.3 adds a create-only Site capability initialization operation so legacy Sites without configuration can be repaired; it does not add Site persistence or general Site management behavior. Settings information architecture and report-page redesign are tracked in M7c and M7b respectively.
 
 ## Frozen behavior and boundaries
 
@@ -70,14 +70,16 @@ M6 consumes the M5 Site Management and configuration contracts. It does not add 
 
 ### M6.3 — Connection and configuration state
 
-- [ ] Show stored Site readiness and missing requirements from the Site API.
-- [ ] Show effective capability and ingest-policy application state from the existing configuration APIs, including pending and stale conditions.
-- [ ] Show “waiting for first event” separately from configuration readiness; transition to connected only when existing Analytics data provides evidence of ingestion.
-- [ ] Provide a useful retry/refresh action and retain a path to configuration when application is pending or policy is incomplete.
-- [ ] Represent archived Sites as archived and prevent onboarding UI from implying they are ingestible.
-- [ ] Cover missing management credentials, API unauthorized, API unavailable, empty registry, legacy Site needing attention, pending rollout, stale rollout, waiting for event, connected, and archived states.
+- [x] Show stored Site readiness and missing requirements from the Site API.
+- [x] Show effective capability and ingest-policy application state from the existing configuration APIs, including pending and stale conditions.
+- [x] Show “waiting for first event” separately from configuration readiness. Treat the existing cumulative Page Views overview as Site-level evidence only; it cannot confirm events for the selected environment because the Analytics API has no environment attribution.
+- [x] Provide a useful retry/refresh action and retain a path to configuration when application is pending or policy is incomplete.
+- [x] Represent archived Sites as archived and prevent onboarding UI from implying they are ingestible.
+- [x] Cover missing management credentials, API unauthorized, API unavailable, empty registry, legacy Site needing attention, pending rollout, stale rollout, waiting for event, connected, and archived states.
 
-**Exit:** The user can tell whether setup is incomplete, saved but not applied, applied but not yet receiving events, connected, or unavailable due to an operational error.
+**M6.3 validation (2026-10-02):** Dashboard tests (30 files, 142 tests), TypeScript typecheck, ESLint, Prettier check, production build, documentation format check, protocol validation, API integration-test compilation, Rust formatting, and `git diff --check` passed. Coverage includes connection status precedence, archived and needs-attention Sites, missing legacy capability configuration and its create-only recovery path, pending/stale runtime state, Page Views zero/nonzero and Analytics errors, unauthorized configuration access, manual refresh, missing requirement labels, environment policy readiness, and the creation-result Settings URL. Analytics errors remain distinct from an empty all-time overview. Because the Analytics overview is site-scoped, Page Views confirm Site-level receipt only and do not identify which environment produced them. The PostgreSQL-backed legacy recovery integration test compiles but was not run in this validation pass.
+
+**Exit:** The user can tell whether setup is incomplete, saved but not applied, applied but waiting for the first event, the Site has received Page Views, or status is unavailable due to an operational error.
 
 ### M6.4 — Integrated acceptance and closeout
 

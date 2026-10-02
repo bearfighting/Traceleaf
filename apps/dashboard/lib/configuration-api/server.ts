@@ -6,7 +6,10 @@ import type { CapabilityResponse, IngestPolicyResponse } from "./types";
 
 export type ConfigurationLoadResult =
   | { kind: "ready"; capabilities: CapabilityResponse; policy: IngestPolicyResponse | null }
+  | { kind: "missing_capabilities"; message: string }
   | { kind: "unconfigured"; message: string }
+  | { kind: "environment_unconfigured"; message: string }
+  | { kind: "unauthorized"; message: string }
   | { kind: "error"; message: string };
 
 export function getConfigurationEnvironment(): string | undefined {
@@ -42,11 +45,22 @@ export async function loadSiteConfiguration(
     ]);
 
     if (!capabilitiesResponse.ok) {
-      return { kind: "error", message: await readApiError(capabilitiesResponse) };
+      if (capabilitiesResponse.status === 401 || capabilitiesResponse.status === 403)
+        return { kind: "unauthorized", message: await readApiError(capabilitiesResponse) };
+      if (capabilitiesResponse.status !== 404)
+        return { kind: "error", message: await readApiError(capabilitiesResponse) };
     }
     if (policyResponse.status !== 404 && !policyResponse.ok) {
+      if (policyResponse.status === 401 || policyResponse.status === 403)
+        return { kind: "unauthorized", message: await readApiError(policyResponse) };
+
       return { kind: "error", message: await readApiError(policyResponse) };
     }
+    if (capabilitiesResponse.status === 404)
+      return {
+        kind: "missing_capabilities",
+        message: "No capability configuration exists for this Site.",
+      };
 
     const capabilities = (await capabilitiesResponse.json()) as CapabilityResponse;
     const policy = policyResponse.ok

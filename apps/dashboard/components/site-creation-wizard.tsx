@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -118,6 +119,8 @@ export function SiteCreationWizard({ manifest }: { manifest: Capability[] }) {
     [selected, manifest],
   );
 
+  // Check the marker immediately so an ambiguous key request cannot briefly expose a retry action.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!replacementAttemptKey) {
       setReplacementStatusLoaded(true);
@@ -132,6 +135,7 @@ export function SiteCreationWizard({ manifest }: { manifest: Capability[] }) {
       setReplacementStatusLoaded(true);
     }
   }, [replacementAttemptKey]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   function update<K extends keyof Values>(key: K, value: Values[K]) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -345,13 +349,21 @@ export function SiteCreationWizard({ manifest }: { manifest: Capability[] }) {
         <p className="text-sm text-muted">
           Environment: <code>{env}</code>
         </p>
+        <Link
+          className="mt-3 inline-flex min-h-10 items-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold"
+          href={`/dashboard/settings?site_id=${encodeURIComponent(siteId)}&environment=${encodeURIComponent(env)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          View connection status in Settings
+        </Link>
         {created && (
           <>
             <p className="text-sm text-muted">Allowed Origins: {allowedOrigins.join(", ")}</p>
             <h3 className="mt-5 font-semibold">One-time Ingest Key</h3>
             <p className="text-sm text-muted">
-              Copy this key now. It is held only in this page's memory and cannot be recovered after
-              leaving or refreshing.
+              Copy this key now. It is held only in this page&apos;s memory and cannot be recovered
+              after leaving or refreshing.
             </p>
           </>
         )}
@@ -399,7 +411,7 @@ export function SiteCreationWizard({ manifest }: { manifest: Capability[] }) {
         {replacementNeedsReview && (
           <div className="mt-3 rounded-lg border border-amber-700/20 bg-warning-soft p-3 text-sm text-amber-900">
             <p>
-              Check the environment's key list in Settings. If a new key appeared, verify it or
+              Check the environment&apos;s key list in Settings. If a new key appeared, verify it or
               revoke it there before starting another replacement.
             </p>
             <Button
@@ -426,9 +438,9 @@ export function SiteCreationWizard({ manifest }: { manifest: Capability[] }) {
             <pre className="mt-2 overflow-auto rounded bg-slate-950 p-4 text-sm text-white">{`# .env.local on the observed Next.js website\nNEXT_PUBLIC_ANALYTICS_TRANSPORT=fetch\nNEXT_PUBLIC_ANALYTICS_ENDPOINT=https://<collector-host>/v1/events\nNEXT_PUBLIC_ANALYTICS_SITE_ID=${siteId}\nNEXT_PUBLIC_ANALYTICS_INGEST_KEY=${key || "<copy the key above>"}`}</pre>
             <p className="mt-2 text-sm text-muted">
               Configure these values on the observed website and replace the Collector URL with your
-              deployment's full POST /v1/events endpoint. This Site uses the {env} environment; the
-              Collector matches it through the configured Origin policy. Keep the key out of source
-              control and server logs. Verify events arrive before revoking any older key in
+              deployment&apos;s full POST /v1/events endpoint. This Site uses the {env} environment;
+              the Collector matches it through the configured Origin policy. Keep the key out of
+              source control and server logs. Verify events arrive before revoking any older key in
               Settings.
             </p>
           </>

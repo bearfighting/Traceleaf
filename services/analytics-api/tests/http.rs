@@ -1894,6 +1894,83 @@ async fn configuration_api_creates_empty_policy_then_issues_and_revokes_key_atom
 
 #[tokio::test]
 #[ignore = "requires DATABASE_URL and PostgreSQL"]
+async fn configuration_api_initializes_missing_legacy_capability_configuration() {
+    let pool = pool().await;
+    let site_id = "config_api_legacy_capabilities";
+    clear_configuration_site(&pool, site_id).await;
+
+    let token = URL_SAFE_NO_PAD.encode([28_u8; 32]);
+    let app = admin_app(pool.clone(), &token);
+    let path = format!("/v1/admin/sites/{site_id}/capabilities");
+    let missing = app
+        .clone()
+        .oneshot(
+            Request::get(&path)
+                .header("authorization", format!("Bearer {token}"))
+                .body(axum::body::Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(missing.status(), StatusCode::NOT_FOUND);
+
+    let initialized = app
+        .clone()
+        .oneshot(
+            Request::post(&path)
+                .header("authorization", format!("Bearer {token}"))
+                .header("if-none-match", "*")
+                .body(axum::body::Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(initialized.status(), StatusCode::CREATED);
+    assert_eq!(initialized.headers()["etag"], "\"1\"");
+    let initialized = body(initialized).await;
+    assert_eq!(
+        initialized["configuration"]["capabilities"]["page_views"]["enabled"],
+        true
+    );
+    assert_eq!(
+        initialized["configuration"]["capabilities"]["browser_context"]["enabled"],
+        false
+    );
+    assert_eq!(initialized["effective_state"]["stored_version"], 1);
+
+    let duplicate = app
+        .oneshot(
+            Request::post(&path)
+                .header("authorization", format!("Bearer {token}"))
+                .header("if-none-match", "*")
+                .body(axum::body::Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(duplicate.status(), StatusCode::CONFLICT);
+
+    let activation_windows: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM site_capability_activation_windows WHERE site_id = $1",
+    )
+    .bind(site_id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(activation_windows, 1);
+    let audit_rows: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM configuration_audit WHERE resource->>'site_id' = $1 AND operation = 'created'",
+    )
+    .bind(site_id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(audit_rows, 1);
+    clear_configuration_site(&pool, site_id).await;
+}
+
+#[tokio::test]
+#[ignore = "requires DATABASE_URL and PostgreSQL"]
 async fn capability_effective_state_aggregates_services_and_versions() {
     let pool = pool().await;
     let site = "capability_runtime_aggregate_test";

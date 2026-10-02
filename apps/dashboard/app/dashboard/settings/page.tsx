@@ -3,9 +3,16 @@ import React from "react";
 import { ConfigurationEditor } from "../../../components/configuration-editor";
 import { DashboardHeader, DashboardShell } from "../../../components/dashboard-shell";
 import { DefinitionEditor } from "../../../components/definition-editor";
+import {
+  SiteConnectionStatus,
+  type PageViewEvidence,
+} from "../../../components/site-connection-status";
 import { SiteDirectoryState, SiteSelectionState } from "../../../components/site-directory-state";
 import { ErrorState } from "../../../components/states/error-state";
 import { selectDashboardSite, siteOptions } from "../../../config/sites";
+import { createAnalyticsApiClient } from "../../../lib/analytics-api/client";
+import { getAnalyticsApiUrl } from "../../../lib/analytics-api/config";
+import { AnalyticsApiClientError } from "../../../lib/analytics-api/errors";
 import { ANALYTICS_DIMENSIONS } from "../../../lib/analytics-api/types";
 import {
   getConfigurationEnvironment,
@@ -23,6 +30,7 @@ interface SettingsPageProps {
     to?: string | string[];
     dimension?: string | string[];
     definition_version?: string | string[];
+    environment?: string | string[];
   }>;
 }
 
@@ -59,11 +67,20 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     );
   }
   const siteId = selection.site.site_id;
-  const environment = getConfigurationEnvironment();
+  const environment = firstValue(params.environment)?.trim() || getConfigurationEnvironment();
   const requestedDimension = firstValue(params.dimension);
   const dimension = ANALYTICS_DIMENSIONS.find((value) => value === requestedDimension) ?? "browser";
   const dateRange = { from: firstValue(params.from) ?? "", to: firstValue(params.to) ?? "" };
   const definitionVersion = firstValue(params.definition_version);
+  const [configuration, analytics] = await Promise.all([
+    environment
+      ? loadSiteConfiguration(siteId, environment)
+      : Promise.resolve({
+          kind: "environment_unconfigured" as const,
+          message: "DASHBOARD_DEFAULT_ENVIRONMENT is not configured on the Dashboard server.",
+        }),
+    loadPageViewEvidence(siteId),
+  ]);
 
   return (
     <DashboardShell
@@ -74,6 +91,12 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       definitionVersion={definitionVersion}
       settingsMode
     >
+      <SiteConnectionStatus
+        site={selection.site}
+        environment={environment ?? "not configured"}
+        configuration={configuration}
+        analytics={analytics}
+      />
       <section className="card mb-6" aria-label="Site details">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -90,11 +113,6 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
             <p className="m-0">Setup: {selection.site.setup_status}</p>
           </div>
         </div>
-        {selection.site.missing_requirements.length > 0 && (
-          <p className="mb-0 mt-3 text-sm" role="status">
-            Needs attention: {selection.site.missing_requirements.join(", ")}
-          </p>
-        )}
       </section>
       {!environment ? (
         <section className="card">
@@ -102,14 +120,28 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         </section>
       ) : (
         <>
-          <ConfigurationEditor
-            environment={environment}
-            siteId={siteId}
-            result={await loadSiteConfiguration(siteId, environment)}
-          />
+          <ConfigurationEditor environment={environment} siteId={siteId} result={configuration} />
           <DefinitionEditor siteId={siteId} result={await loadSiteDefinitions(siteId)} />
         </>
       )}
     </DashboardShell>
   );
+}
+
+async function loadPageViewEvidence(siteId: string): Promise<PageViewEvidence> {
+  try {
+    const result = await createAnalyticsApiClient({ baseUrl: getAnalyticsApiUrl() }).overview(
+      siteId,
+    );
+
+    return { kind: "ready", pageViews: result.page_views };
+  } catch (cause) {
+    return {
+      kind: "error",
+      message:
+        cause instanceof AnalyticsApiClientError
+          ? cause.message
+          : "Analytics service is unavailable. Try again later.",
+    };
+  }
 }

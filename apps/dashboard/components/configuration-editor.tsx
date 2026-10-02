@@ -1,9 +1,12 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
 import { configurationRequestError } from "../lib/configuration-api/errors";
 import { CAPABILITY_LABELS } from "../lib/configuration-api/types";
+
+import { Button } from "./ui";
 
 import type { ConfigurationLoadResult } from "../lib/configuration-api/server";
 import type {
@@ -29,6 +32,8 @@ export function ConfigurationEditor({
   environment: string;
   result: ConfigurationLoadResult;
 }) {
+  if (result.kind === "missing_capabilities") return <InitializeCapabilities siteId={siteId} />;
+
   if (result.kind !== "ready")
     return (
       <section className="card" role="alert">
@@ -45,6 +50,54 @@ export function ConfigurationEditor({
       initialCapabilities={result.capabilities}
       initialPolicy={result.policy}
     />
+  );
+}
+
+function InitializeCapabilities({ siteId }: { siteId: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function initialize() {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/admin/sites/${encodeURIComponent(siteId)}/capabilities`, {
+        method: "POST",
+        headers: { "If-None-Match": "*" },
+        cache: "no-store",
+      });
+      const body: unknown = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(configurationRequestError(response.status, body));
+      router.refresh();
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Capability configuration could not be initialized.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="card" aria-label="Capability configuration setup">
+      <h2 className="m-0 text-lg font-semibold">Capability configuration is missing</h2>
+      <p className="mb-0 mt-2 text-sm text-muted">
+        Initialize this Site with Page Views enabled and optional capabilities disabled. You can
+        change capabilities after initialization.
+      </p>
+      {error && (
+        <p className="mb-0 mt-3 text-sm text-red-700" role="alert">
+          {error}
+        </p>
+      )}
+      <Button className="mt-4" disabled={busy} onClick={() => void initialize()}>
+        {busy ? "Initializing…" : "Initialize capabilities"}
+      </Button>
+    </section>
   );
 }
 
