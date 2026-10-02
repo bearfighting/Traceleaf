@@ -1,8 +1,10 @@
 # Dashboard UI 改进方案
 
-- Status: M7a complete (2026-10-02); M7b and M7c planned
+- Status: M7a and M7b complete (2026-10-02); M7c.1 complete; M7c.2–M7c.6 planned
 - Scope: Dashboard information architecture and UI foundation
 - Overall sequence and gates: [Platform Improvement Roadmap](platform-improvement-roadmap.md)
+- M7b Analytics reports execution checklist: [M7b Analytics Reports Checklist](m7b-analytics-reports-checklist.md)
+- M7c Settings execution checklist: [M7c Site Settings Checklist](m7c-settings-checklist.md)
 - Related: [Capability-oriented configuration (ADR-007)](decisions/ADR-007-capability-oriented-configuration.md)
 - Site creation and Settings behavior: [Site Onboarding and Settings Design](site-onboarding-settings-design.md)
 

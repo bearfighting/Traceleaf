@@ -2,6 +2,7 @@ import Link from "next/link";
 import React from "react";
 
 import { ANALYTICS_DIMENSIONS } from "../lib/analytics-api/types";
+import { settingsRoute } from "../lib/settings-routes";
 
 import { AnalyticsSidebar } from "./analytics-sidebar";
 import { Button, Select } from "./ui";
@@ -19,6 +20,7 @@ interface DashboardShellProps {
   settingsMode?: boolean;
   definitionVersion?: string;
   definitionVersions?: Array<{ version: string; revision: number }>;
+  environment?: string;
 }
 
 function analyticsUrl({
@@ -26,12 +28,17 @@ function analyticsUrl({
   dateRange,
   dimension,
   definitionVersion,
-}: Pick<DashboardShellProps, "siteId" | "dateRange" | "dimension" | "definitionVersion">) {
+  environment,
+}: Pick<
+  DashboardShellProps,
+  "siteId" | "dateRange" | "dimension" | "definitionVersion" | "environment"
+>) {
   const params = new URLSearchParams({ site_id: siteId });
   if (dateRange.from) params.set("from", dateRange.from);
   if (dateRange.to) params.set("to", dateRange.to);
   if (dimension) params.set("dimension", dimension);
   if (definitionVersion) params.set("definition_version", definitionVersion);
+  if (environment) params.set("environment", environment);
 
   return `/dashboard?${params.toString()}`;
 }
@@ -41,14 +48,19 @@ function settingsUrl({
   dateRange,
   dimension,
   definitionVersion,
-}: Pick<DashboardShellProps, "siteId" | "dateRange" | "dimension" | "definitionVersion">) {
-  const params = new URLSearchParams({ site_id: siteId });
-  if (dateRange.from) params.set("from", dateRange.from);
-  if (dateRange.to) params.set("to", dateRange.to);
-  if (dimension) params.set("dimension", dimension);
-  if (definitionVersion) params.set("definition_version", definitionVersion);
-
-  return `/dashboard/settings?${params.toString()}`;
+  environment,
+}: Pick<
+  DashboardShellProps,
+  "siteId" | "dateRange" | "dimension" | "definitionVersion" | "environment"
+>) {
+  return settingsRoute("overview", {
+    siteId,
+    from: dateRange.from,
+    to: dateRange.to,
+    dimension,
+    definitionVersion,
+    environment,
+  });
 }
 
 export function DashboardHeader({
@@ -92,9 +104,7 @@ export function DashboardHeader({
             aria-current={settingsMode ? "page" : undefined}
             href={
               settingsHref ??
-              (siteId
-                ? `/dashboard/settings?site_id=${encodeURIComponent(siteId)}`
-                : "/dashboard/settings")
+              (siteId ? settingsRoute("overview", { siteId }) : settingsRoute("overview"))
             }
           >
             Settings
@@ -114,9 +124,22 @@ export function DashboardShell({
   settingsMode = false,
   definitionVersion,
   definitionVersions = [],
+  environment,
 }: DashboardShellProps) {
-  const analyticsHref = analyticsUrl({ siteId, dateRange, dimension, definitionVersion });
-  const settingsHref = settingsUrl({ siteId, dateRange, dimension, definitionVersion });
+  const analyticsHref = analyticsUrl({
+    siteId,
+    dateRange,
+    dimension,
+    definitionVersion,
+    environment,
+  });
+  const settingsHref = settingsUrl({
+    siteId,
+    dateRange,
+    dimension,
+    definitionVersion,
+    environment,
+  });
 
   return (
     <main className="dashboard-shell bg-canvas text-ink">
@@ -146,7 +169,7 @@ export function DashboardShell({
           </div>
 
           {settingsMode ? (
-            <form action="/dashboard/settings" className="filters mb-6" method="get">
+            <form action="/dashboard/settings/overview" className="filters mb-6" method="get">
               <label>
                 Site
                 <Select defaultValue={siteId} name="site_id">
@@ -163,6 +186,7 @@ export function DashboardShell({
               {definitionVersion && (
                 <input name="definition_version" type="hidden" value={definitionVersion} />
               )}
+              {environment && <input name="environment" type="hidden" value={environment} />}
               <Button type="submit">Select site</Button>
             </form>
           ) : (
@@ -210,6 +234,7 @@ export function DashboardShell({
                   ))}
                 </Select>
               </label>
+              {environment && <input name="environment" type="hidden" value={environment} />}
               <Button type="submit">Apply filters</Button>
             </form>
           )}

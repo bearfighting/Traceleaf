@@ -1,9 +1,9 @@
-import { DashboardHeader } from "../../../components/dashboard-shell";
+import { DashboardLoadingHeader } from "../../../components/dashboard-loading-header";
 
 export default function SettingsLoading() {
   return (
     <main className="dashboard-shell bg-canvas text-ink">
-      <DashboardHeader settingsMode />
+      <DashboardLoadingHeader settingsMode />
       <div className="dashboard-container py-8">
         <header className="mb-6">
           <p className="eyebrow">Workspace</p>

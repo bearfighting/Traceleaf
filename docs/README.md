@@ -17,6 +17,8 @@
 - [Platform Improvement Roadmap](platform-improvement-roadmap.md)：Site Management、静态运行时模型、站点接入和 Dashboard UI 的总体顺序与跨任务验收。
 - [M0a Baseline and Decisions](m0a-baseline-and-decisions.md)：代码、数据库、配置来源和既有测试证据，以及 Site 与运行配置语义冻结记录。
 - [Dashboard UI Improvements](dashboard-ui-improvements.md)：Dashboard Header、capability Sidebar、筛选布局和 shadcn/Tailwind 改进方案。
+- [M7b Analytics Reports Checklist](m7b-analytics-reports-checklist.md)：Analytics 报表页面迁移、共享筛选、状态、响应式与验收清单。
+- [M7c Site Settings Checklist](m7c-settings-checklist.md)：站点级 Settings 导航、配置任务拆分、密钥生命周期与验收清单。
 - [Site Onboarding and Settings Design](site-onboarding-settings-design.md)：站点创建向导、运行时配置权威来源、Ingest Key 生命周期和可选开发 seed。
 - [Analytics and Site Management Module Boundaries](analytics-site-management-module-boundaries.md)：同一服务内的业务模块、数据 ownership 和只读交界。
 - [Protocol Schema and Static Runtime Models](protocol-static-runtime-design.md)：将运行时 Schema 解释迁移为静态类型与代码校验的渐进方案。

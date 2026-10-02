@@ -172,7 +172,7 @@ async function waitFor(label, url) {
 async function assertDashboardShell(page) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(
-    `${dashboardUrl}/dashboard?site_id=site_playground&from=2026-09-20&to=2026-09-21&dimension=browser`,
+    `${dashboardUrl}/dashboard?site_id=site_playground&environment=config-e2e&from=2026-09-20&to=2026-09-21&dimension=browser`,
   );
   await expect(page.getByRole("navigation", { name: "Primary navigation" })).toBeVisible();
   await expect(page.locator(".analytics-sidebar-desktop")).toBeVisible();
@@ -183,7 +183,7 @@ async function assertDashboardShell(page) {
 
   await page.locator(".analytics-sidebar-desktop a[href='#timeline']").click();
   await expect(page).toHaveURL(
-    /site_id=site_playground&from=2026-09-20&to=2026-09-21&dimension=browser#timeline$/,
+    /site_id=site_playground&environment=config-e2e&from=2026-09-20&to=2026-09-21&dimension=browser#timeline$/,
   );
   await expect(page.locator("#timeline")).toBeInViewport();
   await expect(page.locator(".analytics-sidebar-desktop a[href='#timeline']")).toHaveAttribute(
@@ -193,12 +193,29 @@ async function assertDashboardShell(page) {
 
   await page.getByRole("link", { name: "Settings", exact: true }).click();
   await expect(page).toHaveURL(
-    /\/dashboard\/settings\?site_id=site_playground&from=2026-09-20&to=2026-09-21&dimension=browser/,
+    /\/dashboard\/settings\/overview\?site_id=site_playground&environment=config-e2e&from=2026-09-20&to=2026-09-21&dimension=browser/,
   );
-  await page.getByRole("link", { name: "Analytics", exact: true }).click();
+  const analyticsLink = page.getByRole("link", { name: "Analytics", exact: true });
+  await expect(analyticsLink).toHaveAttribute(
+    "href",
+    /\/dashboard\?site_id=site_playground(?=.*environment=config-e2e)(?=.*from=2026-09-20)(?=.*to=2026-09-21)(?=.*dimension=browser)/,
+  );
+  await analyticsLink.click();
   await expect(page).toHaveURL(
-    /\/dashboard\?site_id=site_playground&from=2026-09-20&to=2026-09-21&dimension=browser/,
+    /\/dashboard\?site_id=site_playground(?=.*environment=config-e2e)(?=.*from=2026-09-20)(?=.*to=2026-09-21)(?=.*dimension=browser)/,
   );
+  const settingsLink = page.getByRole("link", { name: "Settings", exact: true });
+  await expect(settingsLink).toHaveAttribute(
+    "href",
+    /\/dashboard\/settings\/overview\?site_id=site_playground&environment=config-e2e/,
+  );
+  await settingsLink.click();
+  await expect(page).toHaveURL(
+    /\/dashboard\/settings\/overview\?site_id=site_playground&environment=config-e2e&from=2026-09-20&to=2026-09-21&dimension=browser/,
+  );
+
+  await page.getByRole("link", { name: "Analytics", exact: true }).click();
+  await expect(page.locator(".analytics-sidebar-desktop")).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });
   const mobileMenu = page.locator(".mobile-analytics-menu");

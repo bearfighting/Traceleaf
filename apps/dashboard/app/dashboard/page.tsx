@@ -26,6 +26,7 @@ function firstValue(value: string | string[] | undefined): string | undefined {
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const resolvedSearchParams = await searchParams;
+  const environment = firstValue(resolvedSearchParams.environment);
   const directory = await loadSiteDirectory();
   if (directory.kind !== "ready" || directory.sites.length === 0) {
     return (
@@ -56,6 +57,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         siteId={displayedSite.site_id}
         sites={options}
         dimension="browser"
+        environment={environment}
       >
         <section className="card" id="overview">
           <ErrorState
@@ -111,6 +113,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         siteId={displayedSite}
         sites={options}
         dimension="browser"
+        environment={environment}
       >
         <section className="card" id="overview">
           <ErrorState
@@ -132,6 +135,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       siteId={query.params.siteId}
       sites={options}
       dimension={query.params.dimension}
+      environment={environment}
     >
       <DashboardSections
         from={query.params.dateRange.from}

@@ -161,7 +161,7 @@ describe("SiteCreationWizard result lifecycle", () => {
     expect(container?.textContent).toContain("NEXT_PUBLIC_ANALYTICS_ENDPOINT");
     expect(container?.textContent).not.toContain("NEXT_PUBLIC_ANALYTICS_ENVIRONMENT");
     const settingsLink = container?.querySelector(
-      'a[href="/dashboard/settings?site_id=site_example&environment=production"]',
+      'a[href="/dashboard/settings/overview?site_id=site_example&environment=production"]',
     );
     expect(settingsLink?.textContent).toContain("View connection status in Settings");
     expect(settingsLink?.getAttribute("target")).toBe("_blank");
