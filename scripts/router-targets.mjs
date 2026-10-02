@@ -18,7 +18,7 @@ export const ROUTER_TARGETS = Object.freeze({
 
 export const ROUTER_USAGE = `Usage:
   pnpm dev [--router next|react|tanstack] [dev options]
-  pnpm docker:dev [--router next|react|tanstack] [--with-backend]`;
+  pnpm docker:dev [--router next|react|tanstack] [--with-backend [--seed-init|--seed]]`;
 
 export function parseDevArgs(args) {
   const { router, passthrough } = parseRouter(args, { allowBackend: false });
@@ -26,17 +26,21 @@ export function parseDevArgs(args) {
 }
 
 export function parseDockerArgs(args) {
-  const { router, withBackend, passthrough } = parseRouter(args, { allowBackend: true });
+  const { router, withBackend, seedInit, passthrough } = parseRouter(args, { allowBackend: true });
   if (passthrough.length > 0) {
     throw new RouterArgumentError(`Unknown docker:dev argument '${passthrough[0]}'`);
   }
-  return { router, target: ROUTER_TARGETS[router], withBackend };
+  if (seedInit && !withBackend) {
+    throw new RouterArgumentError("--seed-init requires --with-backend");
+  }
+  return { router, target: ROUTER_TARGETS[router], withBackend, seedInit };
 }
 
 function parseRouter(args, { allowBackend }) {
   let router = "next";
   let routerSpecified = false;
   let withBackend = false;
+  let seedInit = false;
   const passthrough = [];
   let forward = false;
 
@@ -56,6 +60,14 @@ function parseRouter(args, { allowBackend }) {
       }
       if (withBackend) throw new RouterArgumentError("--with-backend may only be specified once");
       withBackend = true;
+      continue;
+    }
+    if (argument === "--seed-init" || argument === "--seed") {
+      if (!allowBackend) {
+        throw new RouterArgumentError(`${argument} is only supported by docker:dev --with-backend`);
+      }
+      if (seedInit) throw new RouterArgumentError("--seed-init/--seed may only be specified once");
+      seedInit = true;
       continue;
     }
 
@@ -80,7 +92,7 @@ function parseRouter(args, { allowBackend }) {
     routerSpecified = true;
   }
 
-  return { router, withBackend, passthrough };
+  return { router, withBackend, seedInit, passthrough };
 }
 
 export class RouterArgumentError extends Error {

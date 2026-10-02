@@ -147,7 +147,7 @@ flowchart LR
 
 **实施 checklist**：[M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md)。
 
-**前置**：M5 和 UI 基础切片 M7a。**先交付开发入口**：普通 `pnpm dev:up` 不再自动 seed；`--seed` 是 `--seed-init` 的简写，仅显式初始化本地示例配置。`dev:down` 保留数据卷。此入口先于空站点 UI 验收。
+**前置**：M5 和 UI 基础切片 M7a。**状态（2026-10-01）：M6.0 开发入口完成并通过隔离 Compose E2E；M6.1–M6.4 尚未开始。**普通 `pnpm dev:up` 不再自动 seed；`--seed` 是 `--seed-init` 的简写，仅显式初始化本地示例配置。`dev:down` 保留数据卷。默认空 Registry、显式 seed、仅允许配置的 Origin 采集、手工配置不被 seed 覆盖及数据卷保留均已验收，详见 [M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md)。此入口先于空站点 UI 验收。
 
 **再交付 Dashboard**：独立 Site Management client、动态站点列表、空站点引导、创建向导、一次性 key 页面、SDK 安装说明以及配置应用/首事件状态。Analytics 报表继续使用 Analytics client。凭据未配置、管理 API 不可用和空站点是不同状态。
 

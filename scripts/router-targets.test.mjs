@@ -34,6 +34,13 @@ test("rejects invalid or duplicate Router arguments", () => {
 
 test("parses docker backend selection and rejects unknown options", () => {
   assert.equal(parseDockerArgs(["--router", "tanstack", "--with-backend"]).withBackend, true);
+  assert.equal(parseDockerArgs(["--with-backend", "--seed-init"]).seedInit, true);
+  assert.equal(parseDockerArgs(["--with-backend", "--seed"]).seedInit, true);
   assert.throws(() => parseDockerArgs(["--unknown"]), RouterArgumentError);
+  assert.throws(() => parseDockerArgs(["--seed-init"]), /requires --with-backend/);
+  assert.throws(
+    () => parseDockerArgs(["--with-backend", "--seed", "--seed-init"]),
+    /may only be specified once/,
+  );
   assert.throws(() => parseDevArgs(["--with-backend"]), RouterArgumentError);
 });

@@ -14,4 +14,4 @@ if ! docker compose version >/dev/null 2>&1; then
   exit 1
 fi
 
-exec docker compose -f compose.yaml -f compose.backend.yaml -f compose.dev.yaml --profile backend --profile storage --profile processing --profile playground-next up --build --wait
+exec node ./scripts/dev-compose.mjs processing "$@"

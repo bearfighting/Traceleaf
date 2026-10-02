@@ -188,9 +188,9 @@ Analytics Sidebar 与 Settings Sidebar 是不同上下文：Analytics Sidebar �
 
 ## Development Seed 约定
 
-目标状态下普通 `pnpm dev:up` 不自动运行 seed，以便验证首次 onboarding。显式 seed 入口应在 Dashboard 空站点流程验收之前交付；已存在的数据卷不因启动方式切换而被清空。Seed 作为显式本地快捷项：
+M6.0 已将普通 `pnpm dev:up` 及其他本地后端 Compose 入口改为默认不运行 seed，以便验证首次 onboarding。显式 seed 不会清空已有的数据卷。Seed 作为显式本地快捷项：
 
-- 目标 CLI 将提供显式 `--seed-init`（`--seed` 可作为简写），只创建固定本地演示 Site、capabilities、development policy 和本地 key 摘要；不创建分析事件。当前 `pnpm dev:up` 自动运行开发 seed，切换为默认空站点由 M6 完成。
+- `--seed-init`（`--seed` 可作为简写）显式创建固定 `site_example`、capabilities、development policy 和本地 key 摘要，不创建分析事件。CLI 由 `pnpm dev:up --seed-init`、`pnpm docker:backend --seed-init`、`pnpm docker:processing --seed-init` 或 `pnpm docker:dev --with-backend --seed-init` 调用。
 - 将来可单独提供 `--seed-init` 和 `--seed-analysis`。前者初始化配置；后者只导入固定的合成分析数据，并要求 demo Site 已存在。组合运行可以使用 `--seed --seed-analysis`。
 - Seed 只允许在开发 Compose workflow 使用，必须有明确 flag；CI/E2E 使用各自隔离 fixture，不受影响。
 - Seed 数据应固定、明确标注为 demo/local only；不得从常规平台 `.env` 推导 Site runtime config。

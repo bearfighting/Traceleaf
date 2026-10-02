@@ -1,6 +1,6 @@
 # M6 Site Onboarding Checklist
 
-- Status: Planned
+- Status: M6.0 complete; M6.1–M6.4 planned
 - Prerequisites: M5 Site Management backend complete; M7a Dashboard UI foundation complete
 - Scope: Empty-site local development workflow and Dashboard onboarding for creating and connecting Sites
 - Design references: [Platform Improvement Roadmap](platform-improvement-roadmap.md), [Site Onboarding and Settings Design](site-onboarding-settings-design.md), [Dashboard UI Improvements](dashboard-ui-improvements.md), [M5 Site Management Backend Checklist](m5-site-management-checklist.md)
@@ -14,7 +14,7 @@ M6 consumes the M5 Site Management and configuration contracts. It does not add 
 ## Frozen behavior and boundaries
 
 - Ordinary `pnpm dev:up` starts without creating or requiring a demo Site. It must work with a fresh database and must not erase or rewrite Sites in an existing database volume.
-- `pnpm dev:up -- --seed-init` explicitly creates the fixed local demo Site and its `development` environment policy. `--seed` is a documented shorthand. Seeding is idempotent and does not overwrite hand-edited configuration or create analytics events.
+- `pnpm dev:up --seed-init` explicitly creates the fixed local demo Site and its `development` environment policy. `--seed` is a documented shorthand. Seeding is idempotent and does not overwrite hand-edited configuration or create analytics events.
 - `pnpm dev:down` preserves database volumes. Resetting local data, if needed, remains a separate explicit destructive operation.
 - The Site Registry API is the source for Dashboard Site lists and selectors. Remove runtime dependence on `DASHBOARD_SITES`, `DASHBOARD_DEFAULT_SITE`, and `DASHBOARD_DEFAULT_ENVIRONMENT` as M6 migrates the UI.
 - `CONFIG_ADMIN_TOKENS` and `DASHBOARD_CONFIG_ADMIN_TOKEN` are deployment-admin credentials. The Dashboard token remains server-side and is never sent to browser code or included in client-visible page data.
@@ -28,12 +28,14 @@ M6 consumes the M5 Site Management and configuration contracts. It does not add 
 
 ### M6.0 — Explicit empty and demo local startup
 
-- [ ] Change the standard development Compose workflow so `pnpm dev:up` does not start the `dev-seed` service as a prerequisite for backend services or playgrounds.
-- [ ] Add explicit `--seed-init` and `--seed` options to the development entry point and document their exact behavior.
-- [ ] Keep seed limited to a fixed demo Site, capability defaults, `development` policy, and local key digest; do not emit synthetic analytics events.
-- [ ] Make seed safe to repeat and non-destructive to existing/manual configuration.
-- [ ] Confirm `pnpm dev:down` leaves the PostgreSQL volume intact; document any separate reset command as destructive.
-- [ ] Ensure CI and isolated E2E Compose projects do not depend on the optional development seed.
+- [x] Change local development Compose startup to default to an empty Registry without starting `dev-seed` as a backend or Playground dependency.
+- [x] Add `--seed-init` and `--seed` options to all local backend Compose entry points and document the behavior.
+- [x] Keep seed limited to the fixed `site_example`, capability defaults, `development` policy, and local key digest; do not emit synthetic analytics events.
+- [x] Make seed safe to repeat and non-destructive to existing/manual configuration.
+- [x] Confirm `pnpm dev:down` leaves the PostgreSQL volume intact; data reset remains a separate destructive operation.
+- [x] Ensure CI and isolated E2E Compose projects do not depend on the optional development seed.
+
+**M6.0 validation (2026-10-01):** `pnpm e2e:dev-startup` passed in an isolated Compose project: backend services, Dashboard and Next.js Playground were healthy with an empty Registry by default; explicit seed created the fixed Site; only the configured Origin could ingest; seed created no events, preserved manual policy and capability changes on replay, and data survived `down`/`up`. `pnpm test` (including new argument and seed tests), `pnpm test:integration`, `pnpm test:migrations`, `pnpm protocol:validate`, `pnpm check`, `pnpm build`, `pnpm format:check` and `pnpm format:check:docs` passed. `pnpm check` reported five pre-existing generated-code ESLint warnings and no errors.
 
 **Exit:** Fresh ordinary startup reaches healthy services with an empty Registry; explicit seed startup produces the demo Site; existing data survives a normal restart/down-up cycle.
 
@@ -93,6 +95,6 @@ M6 consumes the M5 Site Management and configuration contracts. It does not add 
 
 ## Decisions to resolve before implementation
 
-- [ ] Confirm the exact `pnpm dev:up` argument form and whether `--seed-init` belongs on the root command or a dedicated seed command; keep the documented `--seed` shorthand consistent.
+- [x] Confirm the exact `pnpm dev:up --seed-init` argument form and the `--seed` shorthand; pnpm passes script flags without an extra `--` separator.
 - [ ] Confirm the current Analytics query/API signal used to determine that a first event has arrived. If no suitable signal exists, propose a minimal contract separately before adding new backend behavior.
 - [ ] Confirm how the create success step handles a lost response and key replacement without storing the plaintext key or changing M5 idempotency semantics.
