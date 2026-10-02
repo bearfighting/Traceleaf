@@ -6,6 +6,7 @@
 - Related: [Dashboard UI Improvements](dashboard-ui-improvements.md), [Capability-oriented configuration (ADR-007)](decisions/ADR-007-capability-oriented-configuration.md)
 - Runtime contract direction: [Protocol Schema and Static Runtime Models](protocol-static-runtime-design.md)
 - Backend owner: [Analytics and Site Management Module Boundaries](analytics-site-management-module-boundaries.md)
+- M6 execution checklist: [M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md)
 
 ## 背景与问题
 
