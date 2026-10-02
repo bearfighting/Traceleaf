@@ -14,7 +14,7 @@ export function WebVitalsTable({
   state: DashboardReportState<WebVitalsResponse>;
 }) {
   return (
-    <section className="card" aria-labelledby="web-vitals-heading">
+    <section className="card scroll-mt-6" id="web-vitals" aria-labelledby="web-vitals-heading">
       <h2 id="web-vitals-heading">Web Vitals</h2>
       {state.status === "error" ? (
         <ErrorState context={context} message={state.error.message} />

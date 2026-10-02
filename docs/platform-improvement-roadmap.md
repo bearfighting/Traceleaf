@@ -153,6 +153,8 @@ flowchart LR
 
 ### M7：Dashboard 视觉与信息架构
 
+**状态（2026-10-02）：M7a 完成**。Tailwind 主题与基础控件、Global Header、Analytics Sidebar、响应式导航及 Analytics/Settings 筛选状态保持已实现并验证；记录见 [Dashboard UI 改进方案](dashboard-ui-improvements.md)。
+
 **M7a 可在 M0a 后与 M1–M5 并行**：接入 Tailwind/shadcn，建立主题 token、基础控件、Global Header、页面骨架、Analytics Sidebar 和筛选状态规则。使用可替换的站点数据入口承接当前静态列表，不把环境变量固定进新 Shell。
 
 **M7b 在 M7a 后独立完成**：把现有 Analytics 报表分配到对应页面，统一 contextual filters、空数据/禁用/错误状态和窄屏交互。只依赖现有 Analytics 查询 API，可与 M3–M6 并行。

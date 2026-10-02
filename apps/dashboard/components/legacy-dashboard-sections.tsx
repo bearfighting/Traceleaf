@@ -29,12 +29,12 @@ export async function LegacyDashboardSections({ context, client }: LegacyDashboa
   return (
     <>
       {overview.status === "error" ? (
-        <section className="card" aria-label="Overview">
+        <section className="card" id="overview" aria-label="Overview">
           <h2>Overview</h2>
           <ErrorState context={context} message={overview.error.message} />
         </section>
       ) : (
-        <section className="overview-grid" aria-label="Overview">
+        <section className="overview-grid" id="overview" aria-label="Overview">
           <OverviewCard
             context={context}
             label="Site total Page Views"

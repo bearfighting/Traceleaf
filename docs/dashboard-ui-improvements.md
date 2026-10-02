@@ -1,6 +1,6 @@
 # Dashboard UI 改进方案
 
-- Status: Proposed
+- Status: M7a complete (2026-10-02); M7b and M7c planned
 - Scope: Dashboard information architecture and UI foundation
 - Overall sequence and gates: [Platform Improvement Roadmap](platform-improvement-roadmap.md)
 - Related: [Capability-oriented configuration (ADR-007)](decisions/ADR-007-capability-oriented-configuration.md)

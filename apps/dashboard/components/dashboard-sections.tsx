@@ -48,7 +48,7 @@ export function DashboardSections({
 
     return (
       <>
-        <section className="card" aria-label="Overview">
+        <section className="card" id="overview" aria-label="Overview">
           <h2>Overview</h2>
           <ErrorState context={context} message={error.message} />
         </section>
@@ -60,8 +60,10 @@ export function DashboardSections({
           conversions={{ status: "error", error }}
           funnels={{ status: "error", error }}
         />
-        <section className="card" aria-label="Phase 6 analytics">
+        <section className="card" id="visitors" aria-label="Phase 6 analytics">
+          <span aria-hidden="true" className="report-anchor" id="sessions" />
           <ErrorState context={context} message={error.message} />
+          <span aria-hidden="true" className="report-anchor" id="dimensions" />
         </section>
       </>
     );
@@ -72,26 +74,26 @@ export function DashboardSections({
       <Suspense
         fallback={
           <>
-            <section className="card" aria-label="Overview">
+            <section className="card" id="overview" aria-label="Overview">
               <LoadingState context={context} />
             </section>
-            <section className="card" aria-label="Custom Events">
+            <section className="card" id="custom-events" aria-label="Custom Events">
               <h2>Custom Events</h2>
               <p role="status">Loading custom events...</p>
             </section>
-            <section className="card" aria-label="Geo countries">
+            <section className="card" id="countries" aria-label="Geo countries">
               <h2>Countries</h2>
               <p role="status">Loading country data...</p>
             </section>
-            <section className="card" aria-label="Web Vitals">
+            <section className="card" id="web-vitals" aria-label="Web Vitals">
               <h2>Web Vitals</h2>
               <p role="status">Loading Web Vitals...</p>
             </section>
-            <section className="card" aria-label="Conversions">
+            <section className="card" id="conversions" aria-label="Conversions">
               <h2>Conversions</h2>
               <p role="status">Loading conversions...</p>
             </section>
-            <section className="card" aria-label="Funnels">
+            <section className="card" id="funnels" aria-label="Funnels">
               <h2>Funnels</h2>
               <p role="status">Loading funnels...</p>
             </section>
@@ -103,8 +105,13 @@ export function DashboardSections({
       <Suspense
         fallback={
           <>
-            <Phase6LoadingState heading="Visitors and Sessions" />
-            <Phase6LoadingState heading="Dimension Report" />
+            <div id="visitors">
+              <Phase6LoadingState heading="Visitors and Sessions" />
+              <span aria-hidden="true" className="report-anchor" id="sessions" />
+            </div>
+            <div id="dimensions">
+              <Phase6LoadingState heading="Dimension Report" />
+            </div>
           </>
         }
       >

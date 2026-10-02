@@ -1,7 +1,7 @@
 import React from "react";
 
 import { DashboardSections } from "../../components/dashboard-sections";
-import { DashboardShell } from "../../components/dashboard-shell";
+import { DashboardHeader, DashboardShell } from "../../components/dashboard-shell";
 import { ErrorState } from "../../components/states/error-state";
 import { getDashboardSiteConfig } from "../../config/sites";
 import { loadDefinitionRevisions } from "../../lib/dashboard-page-data";
@@ -27,14 +27,14 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   if (siteConfig.error || !siteConfig.config) {
     return (
-      <main className="dashboard-shell">
-        <header className="dashboard-header">
-          <p className="eyebrow">Web Analytics</p>
-          <h1>Dashboard configuration</h1>
-        </header>
-        <section className="card">
-          <ErrorState message={`Dashboard site configuration is invalid: ${siteConfig.error}.`} />
-        </section>
+      <main className="dashboard-shell bg-canvas text-ink">
+        <DashboardHeader />
+        <div className="dashboard-container py-8">
+          <h1 className="mb-6 text-3xl font-bold tracking-tight">Dashboard configuration</h1>
+          <section className="card">
+            <ErrorState message={`Dashboard site configuration is invalid: ${siteConfig.error}.`} />
+          </section>
+        </div>
       </main>
     );
   }
@@ -64,7 +64,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         sites={siteConfig.config.sites}
         dimension="browser"
       >
-        <section className="card">
+        <section className="card" id="overview">
           <ErrorState
             context={{ siteId: requestedSite, dateRange: displayedDateRange }}
             message={query.error.message}

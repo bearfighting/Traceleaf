@@ -15,7 +15,7 @@ export function GeoCountryTable({
   state: DashboardReportState<GeoCountryResponse>;
 }) {
   return (
-    <section className="card" aria-labelledby="geo-country-heading">
+    <section className="card scroll-mt-6" id="countries" aria-labelledby="geo-country-heading">
       <h2 id="geo-country-heading">Countries</h2>
       {state.status === "success" && state.data.freshness_status !== "current" && (
         <p

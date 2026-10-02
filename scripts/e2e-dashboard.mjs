@@ -169,6 +169,54 @@ async function waitFor(label, url) {
   throw new Error(`${label} did not become ready at ${url}`);
 }
 
+async function assertDashboardShell(page) {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(
+    `${dashboardUrl}/dashboard?site_id=site_playground&from=2026-09-20&to=2026-09-21&dimension=browser`,
+  );
+  await expect(page.getByRole("navigation", { name: "Primary navigation" })).toBeVisible();
+  await expect(page.locator(".analytics-sidebar-desktop")).toBeVisible();
+  await expect(page.locator(".analytics-sidebar-desktop a[href='#overview']")).toHaveAttribute(
+    "aria-current",
+    "location",
+  );
+
+  await page.locator(".analytics-sidebar-desktop a[href='#timeline']").click();
+  await expect(page).toHaveURL(
+    /site_id=site_playground&from=2026-09-20&to=2026-09-21&dimension=browser#timeline$/,
+  );
+  await expect(page.locator("#timeline")).toBeInViewport();
+  await expect(page.locator(".analytics-sidebar-desktop a[href='#timeline']")).toHaveAttribute(
+    "aria-current",
+    "location",
+  );
+
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
+  await expect(page).toHaveURL(
+    /\/dashboard\/settings\?site_id=site_playground&from=2026-09-20&to=2026-09-21&dimension=browser/,
+  );
+  await page.getByRole("link", { name: "Analytics", exact: true }).click();
+  await expect(page).toHaveURL(
+    /\/dashboard\?site_id=site_playground&from=2026-09-20&to=2026-09-21&dimension=browser/,
+  );
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileMenu = page.locator(".mobile-analytics-menu");
+  await expect(mobileMenu).toBeVisible();
+  await expect(page.locator(".analytics-sidebar-desktop")).toBeHidden();
+  const summary = mobileMenu.locator("summary");
+  await summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(mobileMenu).toHaveAttribute("open", "");
+  const dimensionsLink = mobileMenu.getByRole("link", { name: "Dimensions" });
+  await dimensionsLink.click();
+  await expect(page).toHaveURL(/#dimensions$/);
+  await expect(mobileMenu.locator("a[href='#dimensions']")).toHaveAttribute(
+    "aria-current",
+    "location",
+  );
+}
+
 async function resetDatabase() {
   runCompose([
     "exec",
@@ -1694,6 +1742,10 @@ try {
   browserTracingActive = true;
   page = await browserContext.newPage();
 
+  await assertDashboardShell(page);
+  console.log(
+    "PASS responsive Dashboard shell, report anchors, filter context, and keyboard navigation",
+  );
   await assertSinglePageView(page);
   console.log("PASS single-page-view dashboard");
   await assertGeoCountries(page);

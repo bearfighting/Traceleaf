@@ -17,7 +17,7 @@ export function ConversionFunnelTables({
 }) {
   return (
     <>
-      <section className="card" aria-labelledby="conversions-heading">
+      <section className="card scroll-mt-6" id="conversions" aria-labelledby="conversions-heading">
         <h2 id="conversions-heading">Conversions</h2>
         {conversions.status === "success" && (
           <p>Definition revision: {conversions.data.definition_version}</p>
@@ -64,7 +64,7 @@ export function ConversionFunnelTables({
           </>
         )}
       </section>
-      <section className="card" aria-labelledby="funnels-heading">
+      <section className="card scroll-mt-6" id="funnels" aria-labelledby="funnels-heading">
         <h2 id="funnels-heading">Funnels</h2>
         {funnels.status === "success" && (
           <p>Definition revision: {funnels.data.definition_version}</p>
