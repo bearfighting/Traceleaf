@@ -18,6 +18,8 @@
     "e2e:analytics": "node ./scripts/e2e-analytics.mjs",
     "e2e:configuration": "node ./scripts/e2e-configuration.mjs",
     "e2e:site-management": "node ./scripts/e2e-site-management.mjs",
+    "e2e:dev-startup": "node ./scripts/e2e-dev-startup.mjs",
+    "e2e:site-onboarding": "node ./scripts/e2e-site-onboarding.mjs",
     "e2e:dashboard": "node ./scripts/e2e-dashboard.mjs",
     "e2e:router-adapters": "node ./scripts/e2e-router-adapters.mjs",
     "e2e:router-compose": "node ./scripts/e2e-router-compose.mjs",
@@ -26,8 +28,8 @@
     "format": "./scripts/format.sh",
     "format:check": "./scripts/format-check.sh",
     "docker:dev": "./scripts/docker-dev.sh",
-    "docker:backend": "./scripts/docker-backend.sh",
-    "docker:processing": "./scripts/docker-processing.sh",
+    "docker:backend": "node ./scripts/dev-compose.mjs backend",
+    "docker:processing": "node ./scripts/dev-compose.mjs processing",
     "db:migrate": "./scripts/db-migrate.sh",
     "db:purge-configuration-audit": "./scripts/purge-configuration-audit.sh",
     "test:migrations": "bash ./scripts/test-migrations.sh",
@@ -41,7 +43,7 @@
     "test:geo-mmdb": "cargo test -p collector geo::tests",
     "test:geo-mmdb-local": "cargo test -p collector operator_dbip_city_lite_mmdb_smoke -- --ignored --nocapture",
     "format:check:docs": "./scripts/format-docs-check.sh",
-    "dev:up": "docker compose -f compose.yaml -f compose.dev.yaml --profile storage --profile backend --profile processing --profile dashboard --profile playground-next up --build --wait",
+    "dev:up": "node ./scripts/dev-compose.mjs full",
     "dev:down": "docker compose -f compose.yaml -f compose.dev.yaml down"
   },
   "devDependencies": {

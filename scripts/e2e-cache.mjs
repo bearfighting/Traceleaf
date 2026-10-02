@@ -16,10 +16,16 @@ const cacheInputs = [
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
   "compose.e2e.yaml",
+  "compose.yaml",
+  "compose.backend.yaml",
+  "compose.dev.yaml",
   "docker/collector.Dockerfile",
   "docker/processor.Dockerfile",
   "docker/analytics-api.Dockerfile",
   "docker/dashboard.Dockerfile",
+  "docker/dev-seed.Dockerfile",
+  "scripts/dev-seed.mjs",
+  "scripts/capability-seed.mjs",
 ];
 
 export function prepareE2ECaches(root, scope) {

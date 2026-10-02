@@ -1,11 +1,11 @@
 services:
   dev-seed:
+    profiles: ["dev-seed"]
     build:
       context: .
       dockerfile: docker/dev-seed.Dockerfile
     environment:
       DATABASE_URL: ${COLLECTOR_DATABASE_URL:-postgres://analytics:analytics@postgres:5432/analytics}
-      DEV_SEED_SITE_ID: ${NEXT_PUBLIC_ANALYTICS_SITE_ID:-site_example}
       DEV_SEED_ORIGINS: ${PLAYGROUND_ORIGINS:-http://localhost:3000,http://localhost:3101,http://localhost:3102}
       DEV_SEED_INGEST_KEY: ${NEXT_PUBLIC_ANALYTICS_INGEST_KEY:-}
     depends_on:
@@ -14,38 +14,18 @@ services:
       db-migrate:
         condition: service_completed_successfully
 
-  collector:
-    depends_on:
-      dev-seed:
-        condition: service_completed_successfully
-
-  processor:
-    depends_on:
-      dev-seed:
-        condition: service_completed_successfully
-
-  analytics-api:
-    depends_on:
-      dev-seed:
-        condition: service_completed_successfully
-
   playground-next:
-    depends_on:
-      dev-seed:
-        condition: service_completed_successfully
+    environment:
+      NEXT_PUBLIC_ANALYTICS_SITE_ID: site_example
 
   playground-react:
-    depends_on:
-      dev-seed:
-        condition: service_completed_successfully
+    environment:
+      NEXT_PUBLIC_ANALYTICS_SITE_ID: site_example
 
   playground-tanstack:
-    depends_on:
-      dev-seed:
-        condition: service_completed_successfully
+    environment:
+      NEXT_PUBLIC_ANALYTICS_SITE_ID: site_example
 
   dashboard:
     environment:
-      DASHBOARD_SITES: ${DASHBOARD_SITES:-site_example}
-      DASHBOARD_DEFAULT_SITE: ${DASHBOARD_DEFAULT_SITE:-site_example}
       DASHBOARD_DEFAULT_ENVIRONMENT: ${DASHBOARD_DEFAULT_ENVIRONMENT:-development}

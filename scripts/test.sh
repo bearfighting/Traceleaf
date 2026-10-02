@@ -33,3 +33,5 @@ pnpm --filter @web-analytics/playground-support test
 pnpm --filter @web-analytics/dashboard test
 node --test scripts/router-targets.test.mjs
 node --test scripts/capability-seed.test.mjs
+node --test scripts/dev-compose.test.mjs
+node --test scripts/dev-seed.test.mjs

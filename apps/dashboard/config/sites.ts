@@ -1,56 +1,29 @@
-export interface DashboardSiteConfig {
-  sites: string[];
-  defaultSite: string;
-}
+import type { ManagedSite } from "../lib/site-management/client";
 
-export type DashboardSiteConfigError =
-  "missing_sites" | "missing_default_site" | "default_site_not_allowed";
+export type SiteSelection =
+  | { kind: "selected"; site: ManagedSite }
+  | { kind: "unknown"; requestedSiteId: string }
+  | { kind: "no_sites" }
+  | { kind: "no_active_sites" };
 
-export interface DashboardSiteConfigResult {
-  config?: DashboardSiteConfig;
-  error?: DashboardSiteConfigError;
-}
+export function selectDashboardSite(
+  sites: readonly ManagedSite[],
+  requestedSiteId?: string,
+): SiteSelection {
+  if (requestedSiteId) {
+    const requested = sites.find((site) => site.site_id === requestedSiteId);
 
-export interface DashboardEnvironment {
-  DASHBOARD_SITES?: string;
-  DASHBOARD_DEFAULT_SITE?: string;
-}
-
-function parseSites(value: string | undefined): string[] {
-  return [
-    ...new Set(
-      (value ?? "")
-        .split(",")
-        .map((site) => site.trim())
-        .filter(Boolean),
-    ),
-  ];
-}
-
-export function parseDashboardSiteConfig(
-  environment: DashboardEnvironment,
-): DashboardSiteConfigResult {
-  const sites = parseSites(environment.DASHBOARD_SITES);
-  const defaultSite = environment.DASHBOARD_DEFAULT_SITE?.trim() ?? "";
-
-  if (sites.length === 0) {
-    return { error: "missing_sites" };
+    return requested ? { kind: "selected", site: requested } : { kind: "unknown", requestedSiteId };
   }
+  if (sites.length === 0) return { kind: "no_sites" };
+  const firstActive = sites.find((site) => site.lifecycle_status === "active");
 
-  if (!defaultSite) {
-    return { error: "missing_default_site" };
-  }
-
-  if (!sites.includes(defaultSite)) {
-    return { error: "default_site_not_allowed" };
-  }
-
-  return { config: { sites, defaultSite } };
+  return firstActive ? { kind: "selected", site: firstActive } : { kind: "no_active_sites" };
 }
 
-export function getDashboardSiteConfig(): DashboardSiteConfigResult {
-  return parseDashboardSiteConfig({
-    DASHBOARD_SITES: process.env.DASHBOARD_SITES,
-    DASHBOARD_DEFAULT_SITE: process.env.DASHBOARD_DEFAULT_SITE,
-  });
+export function siteOptions(sites: readonly ManagedSite[]): Array<{ id: string; label: string }> {
+  return sites.map((site) => ({
+    id: site.site_id,
+    label: `${site.display_name || site.site_id}${site.lifecycle_status === "archived" ? " (archived)" : ""}`,
+  }));
 }

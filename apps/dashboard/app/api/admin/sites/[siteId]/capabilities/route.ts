@@ -14,6 +14,12 @@ export async function GET(request: Request, context: Context): Promise<Response>
   return proxyConfigurationRequest(request, await upstreamPath(context), "GET", siteId);
 }
 
+export async function POST(request: Request, context: Context): Promise<Response> {
+  const { siteId } = await context.params;
+
+  return proxyConfigurationRequest(request, await upstreamPath(context), "POST", siteId);
+}
+
 export async function PUT(request: Request, context: Context): Promise<Response> {
   const { siteId } = await context.params;
 

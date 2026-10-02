@@ -145,13 +145,17 @@ flowchart LR
 
 ### M6：交付空站点开发入口与 Dashboard 接入流程
 
-**前置**：M5 和 UI 基础切片 M7a。**先交付开发入口**：普通 `pnpm dev:up` 不再自动 seed；`--seed` 是 `--seed-init` 的简写，仅显式初始化本地示例配置。`dev:down` 保留数据卷。此入口先于空站点 UI 验收。
+**实施 checklist**：[M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md)。
 
-**再交付 Dashboard**：独立 Site Management client、动态站点列表、空站点引导、创建向导、一次性 key 页面、SDK 安装说明以及配置应用/首事件状态。Analytics 报表继续使用 Analytics client。凭据未配置、管理 API 不可用和空站点是不同状态。
+**前置**：M5 和 UI 基础切片 M7a。**状态（2026-10-02）：M6.0–M6.4 全部完成。**普通 `pnpm dev:up` 不自动 seed；`--seed` 是 `--seed-init` 的简写，仅显式初始化本地示例配置。Dashboard 站点目录由 Site Registry 驱动，并区分空目录、未配置/拒绝授权及服务不可用状态；Dashboard onboarding 已从空 Registry 创建首个 Site，展示一次性 key，并指引 SDK 接入。`DASHBOARD_SITES` 和 `DASHBOARD_DEFAULT_SITE` 已从 Compose 与运行说明移除。`DASHBOARD_DEFAULT_ENVIRONMENT` 暂留到后续环境选择界面切片。`dev:down` 保留数据卷。M6 的默认空 Registry、显式 seed、手工配置不被 seed 覆盖、真实 Browser SDK 首事件和 Settings Page Views 状态均已验收，详见 [M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md)。
+
+**Dashboard 已交付**：独立 Site Management client、动态站点列表、空站点引导、创建向导、一次性 key 页面、SDK 安装说明以及配置应用/首事件状态。Analytics 报表继续使用 Analytics client。凭据未配置、管理 API 不可用和空站点是不同状态；独立浏览器 E2E 已从 Dashboard 创建 Site 并验证真实 SDK Page View 到达 Analytics。
 
 **完成条件**：完成一次性基础设施凭据配置后，新用户不用为每个 Site 修改平台 `.env`、Compose 或 Collector TOML 即可接入网站；普通 `dev:up` 验收空站点，显式 seed 验收已有站点。Dashboard 区分未配置管理权限、未创建站点、旧站点待补齐、等待应用、等待首事件、已连接和错误。URL 可达 probe 属于后续任务。
 
 ### M7：Dashboard 视觉与信息架构
+
+**状态（2026-10-02）：M7a 完成**。Tailwind 主题与基础控件、Global Header、Analytics Sidebar、响应式导航及 Analytics/Settings 筛选状态保持已实现并验证；记录见 [Dashboard UI 改进方案](dashboard-ui-improvements.md)。
 
 **M7a 可在 M0a 后与 M1–M5 并行**：接入 Tailwind/shadcn，建立主题 token、基础控件、Global Header、页面骨架、Analytics Sidebar 和筛选状态规则。使用可替换的站点数据入口承接当前静态列表，不把环境变量固定进新 Shell。
 
@@ -163,7 +167,7 @@ flowchart LR
 
 ### M8：旧配置入口清理
 
-**前置**：M6、M7c。**交付**：移除 `DASHBOARD_SITES` 等平台运行时站点清单和用于平台数据库初始化的 Playground site/key wiring；保留 Playground 自身作为被观测网站所需的 SDK 接入配置。文档和 Compose 不再把 Site runtime config 当作平台基础设施变量。未来 `--seed-analysis` 是独立的合成分析数据任务。
+**前置**：M6、M7c。M6.1 已移除 Dashboard 的 `DASHBOARD_SITES` / `DASHBOARD_DEFAULT_SITE` 配置。M8 剩余交付是移除用于平台数据库初始化的 Playground site/key wiring，同时保留 Playground 自身作为被观测网站所需的 SDK 接入配置。未来 `--seed-analysis` 是独立的合成分析数据任务。
 
 **完成条件**：动态站点目录和显式 `--seed-init` 是本地初始化入口；`dev:down` 保留数据卷；CI/E2E fixture 不受可选 seed 影响。
 
@@ -172,6 +176,16 @@ flowchart LR
 **可在 M0b 的事件 contract/fixtures 与静态类型策略确定后独立推进**：将 Collector event batch/event 解析迁移到版本化静态类型和显式校验；Rust 类型按 ADR-016 手工维护并通过共享 fixture parity。保留 Schema/fixtures 的 CI 验证，再评估移除 production JSON Schema runtime。这一切片须验证 Page View 对 Schema 允许扩展字段的保留、可选字段缺省时不序列化为 Schema 禁止的 `null`，并通过 wire round-trip parity。事件 TypeScript 生成、固定版本、产物 `--check` 和 parity CI 门禁与 M2 共用生成基础设施，不重复建设。此切片不阻塞 M3–M8。
 
 **最终验收**：联合检查 Rust 模块依赖、repository SQL 写入、Schema/类型 parity、历史数据兼容和 Site 创建至报表查询链路。是否拆 crate、进程或数据库由后续实际需求另行决定。
+
+### M10：站点验证与管理身份扩展（后续规划）
+
+**前置**：需要独立设计和安全评审；不阻塞 M6–M9 的本地 MVP 或受信任部署。
+
+- 网站 URL 可达性检查：先定义产品目的和结果语义，再完成 SSRF 防护、DNS rebinding、重定向、超时、响应大小和目标网络限制设计。可达性只说明检查时 HTTP endpoint 可访问，不代表域名归属或 SDK 已接入。
+- 域名所有权验证：作为独立于可达性检查的能力设计，可评估 DNS TXT 或 well-known 文件 challenge，并定义验证状态、过期与重验证行为。
+- 多用户身份与 RBAC：在对外开放管理界面或支持多个管理员前，设计用户身份、角色、Site 访问范围、审计 actor 和凭据迁移；完成前继续将全局 deployment-admin token 限定在受信任的管理环境。
+
+这些工作可以拆成独立交付，不要求 URL 检查、域名验证和 RBAC 同步上线。是否启动 M10 由真实部署与产品需求触发。
 
 ## 并行工作与合并顺序
 
@@ -194,9 +208,9 @@ flowchart LR
 5. **版本兼容**：Schema 与静态实现对同一组正负 fixtures 有一致的接受/拒绝结果；definition revision 的历史查询含义稳定。
 6. **本地两种入口**：完成管理员基础设施凭据设置后，普通启动展示空站点；显式 seed 提供可重复的示例站点，且不自动生成分析事件。凭据缺失单独显示设置错误。
 
-## 暂缓的独立任务
+## 暂缓的独立任务与阶段归属
 
-- 网站 URL 的服务端可达性 probe：需要独立的 SSRF、安全和网络策略设计；首版用 URL/Origin 校验与后续首事件确认。
-- 多用户认证与 RBAC：对外开放管理界面前单独设计。
+- 网站 URL 的服务端可达性 probe 和域名所有权验证：归入后续 M10 规划；首版用 URL/Origin 校验与后续首事件确认。
+- 多用户认证与 RBAC：归入后续 M10 规划，在对外开放管理界面或支持多个管理员前完成设计与实现。
 - `--seed-analysis` 的演示数据集：在 `--seed-init` 流程稳定后设计，不进入首版站点创建关键路径。
 - Rust crate、独立进程或数据库物理拆分：由实际部署、权限或性能要求触发新的决策。

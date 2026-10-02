@@ -30,7 +30,9 @@ pub(crate) fn router(state: SiteManagementState) -> Router {
         )
         .route(
             "/v1/admin/sites/{site_id}/capabilities",
-            get(configuration::get_capabilities).put(configuration::put_capabilities),
+            get(configuration::get_capabilities)
+                .post(configuration::create_capabilities)
+                .put(configuration::put_capabilities),
         )
         .route(
             "/v1/admin/sites/{site_id}/environments/{environment}/ingest-policy",

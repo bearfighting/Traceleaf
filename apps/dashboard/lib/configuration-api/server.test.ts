@@ -58,6 +58,53 @@ describe("Dashboard configuration server loader", () => {
     }
   });
 
+  it("distinguishes a missing legacy capability configuration from a service failure", async () => {
+    vi.stubEnv("DASHBOARD_CONFIG_ADMIN_TOKEN", "server-admin-token");
+    vi.stubEnv("ANALYTICS_API_URL", "http://analytics-api:4002");
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(Response.json({ error: { message: "Not found." } }, { status: 404 }))
+        .mockResolvedValueOnce(new Response(null, { status: 404 })),
+    );
+
+    await expect(loadSiteConfiguration("legacy-site", "production")).resolves.toEqual({
+      kind: "missing_capabilities",
+      message: "No capability configuration exists for this Site.",
+    });
+  });
+
+  it.each([
+    { status: 401, kind: "unauthorized", message: "Policy token rejected." },
+    { status: 503, kind: "error", message: "Policy service unavailable." },
+  ])(
+    "preserves policy HTTP $status when the capability configuration is missing",
+    async ({ status, kind, message }) => {
+      vi.stubEnv("DASHBOARD_CONFIG_ADMIN_TOKEN", "server-admin-token");
+      vi.stubEnv("ANALYTICS_API_URL", "http://analytics-api:4002");
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn()
+          .mockResolvedValueOnce(
+            Response.json(
+              { error: { message: "Capability configuration missing." } },
+              {
+                status: 404,
+              },
+            ),
+          )
+          .mockResolvedValueOnce(Response.json({ error: { message } }, { status })),
+      );
+
+      await expect(loadSiteConfiguration("legacy-site", "production")).resolves.toEqual({
+        kind,
+        message,
+      });
+    },
+  );
+
   it("shows API errors and maps network failures to unavailable state", async () => {
     vi.stubEnv("DASHBOARD_CONFIG_ADMIN_TOKEN", "server-admin-token");
     vi.stubEnv("ANALYTICS_API_URL", "http://analytics-api:4002");
@@ -70,7 +117,7 @@ describe("Dashboard configuration server loader", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(loadSiteConfiguration("site-one", "production")).resolves.toEqual({
-      kind: "error",
+      kind: "unauthorized",
       message: "Admin token rejected.",
     });
 

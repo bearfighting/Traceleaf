@@ -169,6 +169,54 @@ async function waitFor(label, url) {
   throw new Error(`${label} did not become ready at ${url}`);
 }
 
+async function assertDashboardShell(page) {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(
+    `${dashboardUrl}/dashboard?site_id=site_playground&from=2026-09-20&to=2026-09-21&dimension=browser`,
+  );
+  await expect(page.getByRole("navigation", { name: "Primary navigation" })).toBeVisible();
+  await expect(page.locator(".analytics-sidebar-desktop")).toBeVisible();
+  await expect(page.locator(".analytics-sidebar-desktop a[href='#overview']")).toHaveAttribute(
+    "aria-current",
+    "location",
+  );
+
+  await page.locator(".analytics-sidebar-desktop a[href='#timeline']").click();
+  await expect(page).toHaveURL(
+    /site_id=site_playground&from=2026-09-20&to=2026-09-21&dimension=browser#timeline$/,
+  );
+  await expect(page.locator("#timeline")).toBeInViewport();
+  await expect(page.locator(".analytics-sidebar-desktop a[href='#timeline']")).toHaveAttribute(
+    "aria-current",
+    "location",
+  );
+
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
+  await expect(page).toHaveURL(
+    /\/dashboard\/settings\?site_id=site_playground&from=2026-09-20&to=2026-09-21&dimension=browser/,
+  );
+  await page.getByRole("link", { name: "Analytics", exact: true }).click();
+  await expect(page).toHaveURL(
+    /\/dashboard\?site_id=site_playground&from=2026-09-20&to=2026-09-21&dimension=browser/,
+  );
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileMenu = page.locator(".mobile-analytics-menu");
+  await expect(mobileMenu).toBeVisible();
+  await expect(page.locator(".analytics-sidebar-desktop")).toBeHidden();
+  const summary = mobileMenu.locator("summary");
+  await summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(mobileMenu).toHaveAttribute("open", "");
+  const dimensionsLink = mobileMenu.getByRole("link", { name: "Dimensions" });
+  await dimensionsLink.click();
+  await expect(page).toHaveURL(/#dimensions$/);
+  await expect(mobileMenu.locator("a[href='#dimensions']")).toHaveAttribute(
+    "aria-current",
+    "location",
+  );
+}
+
 async function resetDatabase() {
   runCompose([
     "exec",
@@ -1591,9 +1639,9 @@ async function assertApiError(browser) {
         "-e",
         "ANALYTICS_API_URL=http://dashboard-api-error:4999",
         "-e",
-        "DASHBOARD_SITES=site_playground,site_alpha,site_beta",
+        "SITE_MANAGEMENT_API_URL=http://dashboard-api-error:4999",
         "-e",
-        "DASHBOARD_DEFAULT_SITE=site_playground",
+        "DASHBOARD_CONFIG_ADMIN_TOKEN=e2e-admin-token",
         "-e",
         "DASHBOARD_DEFAULT_ENVIRONMENT=config-e2e",
         "dashboard",
@@ -1604,13 +1652,12 @@ async function assertApiError(browser) {
     await waitFor("Dashboard error instance", `${errorUrl}/dashboard`);
     const page = await browser.newPage();
     await page.goto(`${errorUrl}/dashboard?site_id=site_playground&from=2026-09-18&to=2026-09-18`);
-    const overviewError = page.locator('[aria-label="Overview"]').getByRole("alert");
-    await overviewError.waitFor();
+    const directoryError = page.locator('[aria-label="Site directory status"]').getByRole("alert");
+    await directoryError.waitFor();
     assert(
-      (await overviewError.textContent()).includes("Analytics API"),
-      "Missing API error state",
+      (await directoryError.textContent()).includes("Analytics API simulated failure"),
+      "Missing Site Registry API error state",
     );
-    await page.getByText("Site: site_playground · 2026-09-18 to 2026-09-18 UTC").first().waitFor();
     await page.close();
   } catch (error) {
     scenarioError = error;
@@ -1674,8 +1721,6 @@ try {
         NEXT_PUBLIC_ANALYTICS_ENDPOINT: `${collectorUrl}/v1/events`,
         NEXT_PUBLIC_ANALYTICS_INGEST_KEY: keys.site_playground,
         NEXT_PUBLIC_ANALYTICS_SITE_ID: "site_playground",
-        DASHBOARD_SITES: "site_playground,site_alpha,site_beta",
-        DASHBOARD_DEFAULT_SITE: "site_playground",
         CONFIG_ADMIN_TOKENS: JSON.stringify([adminToken]),
         DASHBOARD_CONFIG_ADMIN_TOKEN: adminToken,
         DASHBOARD_DEFAULT_ENVIRONMENT: "config-e2e",
@@ -1694,6 +1739,10 @@ try {
   browserTracingActive = true;
   page = await browserContext.newPage();
 
+  await assertDashboardShell(page);
+  console.log(
+    "PASS responsive Dashboard shell, report anchors, filter context, and keyboard navigation",
+  );
   await assertSinglePageView(page);
   console.log("PASS single-page-view dashboard");
   await assertGeoCountries(page);
@@ -1763,8 +1812,6 @@ try {
           env: {
             CONFIG_ADMIN_TOKENS: JSON.stringify([adminToken]),
             DASHBOARD_CONFIG_ADMIN_TOKEN: adminToken,
-            DASHBOARD_SITES: "site_playground,site_alpha,site_beta",
-            DASHBOARD_DEFAULT_SITE: "site_playground",
             DASHBOARD_DEFAULT_ENVIRONMENT: "config-e2e",
           },
         }),

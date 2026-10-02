@@ -14,8 +14,9 @@ interface VisitorSessionTrendTableProps {
 
 export function VisitorSessionTrendTable({ context, state }: VisitorSessionTrendTableProps) {
   return (
-    <section className="card" aria-labelledby="visitor-session-heading">
+    <section className="card scroll-mt-6" id="visitors" aria-labelledby="visitor-session-heading">
       <h2 id="visitor-session-heading">Visitors and Sessions</h2>
+      <span aria-hidden="true" className="report-anchor" id="sessions" />
       {state.status === "error" ? (
         <ErrorState context={context} message={state.error.message} />
       ) : state.status === "disabled" ? (

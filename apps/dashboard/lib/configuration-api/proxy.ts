@@ -1,7 +1,6 @@
-import { getDashboardSiteConfig } from "../../config/sites";
-import { getAnalyticsApiUrl } from "../analytics-api/config";
+import { getSiteManagementApiUrl } from "../site-management/config";
 
-const FORWARDED_HEADERS = ["if-match", "if-none-match"] as const;
+const FORWARDED_HEADERS = ["if-match", "if-none-match", "idempotency-key"] as const;
 
 export async function proxyConfigurationRequest(
   request: Request,
@@ -9,30 +8,7 @@ export async function proxyConfigurationRequest(
   method: string,
   siteId: string,
 ): Promise<Response> {
-  const siteConfig = getDashboardSiteConfig();
-  if (!siteConfig.config) {
-    return Response.json(
-      {
-        error: {
-          code: "dashboard_site_configuration_invalid",
-          message: "Dashboard site configuration is invalid.",
-        },
-      },
-      { status: 503, headers: { "Cache-Control": "no-store" } },
-    );
-  }
-  if (!siteConfig.config.sites.includes(siteId)) {
-    return Response.json(
-      {
-        error: {
-          code: "site_not_allowed",
-          message: "The requested site is not configured for this Dashboard.",
-        },
-      },
-      { status: 404, headers: { "Cache-Control": "no-store" } },
-    );
-  }
-
+  void siteId;
   if (method !== "GET" && method !== "HEAD") {
     const origin = request.headers.get("origin");
     if (!origin || !isSameOrigin(request, origin)) {
@@ -68,7 +44,7 @@ export async function proxyConfigurationRequest(
       if (value) headers.set(name, value);
     }
     const hasBody = method !== "GET" && method !== "HEAD";
-    const upstream = await fetch(`${getAnalyticsApiUrl()}${upstreamPath}`, {
+    const upstream = await fetch(`${getSiteManagementApiUrl()}${upstreamPath}`, {
       method,
       headers,
       body: hasBody ? await request.arrayBuffer() : undefined,

@@ -25,6 +25,7 @@ fn map_database_error(error: sqlx::Error) -> StoreError {
         match database.constraint() {
             Some("site_environment_origin_unique") => return StoreError::OriginConflict,
             Some("site_environment_policies_pkey") => return StoreError::AlreadyExists,
+            Some("site_capability_configurations_pkey") => return StoreError::AlreadyExists,
             _ => {}
         }
     }
@@ -117,6 +118,79 @@ pub(crate) async fn get_capabilities(
     .await
     .map(|row| row.map(|(version, document)| ConfigurationRow { version, document }))
     .map_err(map_database_error)
+}
+
+pub(crate) async fn create_capabilities(
+    pool: &PgPool,
+    site_id: &str,
+    capabilities: Value,
+) -> Result<ConfigurationRow, StoreError> {
+    let mut transaction = pool.begin().await.map_err(map_database_error)?;
+    let site_exists = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS (SELECT 1 FROM site_registry WHERE site_id = $1)",
+    )
+    .bind(site_id)
+    .fetch_one(&mut *transaction)
+    .await
+    .map_err(map_database_error)?;
+    if !site_exists {
+        return Err(StoreError::NotFound);
+    }
+
+    let now = sqlx::query_scalar::<_, DateTime<Utc>>("SELECT NOW()")
+        .fetch_one(&mut *transaction)
+        .await
+        .map_err(map_database_error)?;
+    let updated_at = now.to_rfc3339_opts(SecondsFormat::Micros, true);
+    let document = json!({
+        "schema_version": 1,
+        "site_id": site_id,
+        "version": 1,
+        "updated_at": updated_at,
+        "capabilities": capabilities,
+        "consent_policy": "required",
+        "privacy_constraints": ["no_ip_persistence", "no_fingerprinting", "consent_required"],
+    });
+    sqlx::query(
+        "INSERT INTO site_capability_configurations (site_id, version, updated_at, document)
+         VALUES ($1, 1, $2, $3)",
+    )
+    .bind(site_id)
+    .bind(now)
+    .bind(document.clone())
+    .execute(&mut *transaction)
+    .await
+    .map_err(map_database_error)?;
+
+    if let Some(values) = capabilities.as_object() {
+        for (capability_id, value) in values {
+            if value["enabled"] == true {
+                sqlx::query(
+                    "INSERT INTO site_capability_activation_windows (site_id, capability_id, enabled_since)
+                     VALUES ($1, $2, '0001-01-01T00:00:00Z'::timestamptz)",
+                )
+                .bind(site_id)
+                .bind(capability_id)
+                .execute(&mut *transaction)
+                .await
+                .map_err(map_database_error)?;
+            }
+        }
+    }
+
+    write_audit(
+        &mut transaction,
+        json!({"kind":"site_capabilities", "site_id":site_id}),
+        1,
+        "created",
+        vec!["capabilities".to_owned()],
+    )
+    .await?;
+    transaction.commit().await.map_err(map_database_error)?;
+    Ok(ConfigurationRow {
+        version: 1,
+        document,
+    })
 }
 
 pub(crate) async fn get_ingest_policy(

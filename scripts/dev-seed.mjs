@@ -1,7 +1,10 @@
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 
 import { buildCapabilityConfigurationSeedSql } from "./capability-seed.mjs";
+
+export const DEV_SEED_SITE_ID = "site_example";
 
 function requiredEnvironment(name) {
   const value = process.env[name]?.trim();
@@ -27,7 +30,9 @@ function parseOrigins(value) {
       url.search ||
       url.hash
     ) {
-      throw new Error("DEV_SEED_ORIGINS must contain only HTTP(S) origins without paths, queries, or fragments.");
+      throw new Error(
+        "DEV_SEED_ORIGINS must contain only HTTP(S) origins without paths, queries, or fragments.",
+      );
     }
   }
   return origins;
@@ -66,13 +71,26 @@ ON CONFLICT (site_id, environment) DO NOTHING;
 `;
 }
 
-function main() {
-  const siteId = requiredEnvironment("DEV_SEED_SITE_ID");
-  if (siteId.length > 64) throw new Error("DEV_SEED_SITE_ID must be at most 64 characters.");
+export function buildDevelopmentSiteSeedSql({ origins, ingestKey }) {
+  const siteId = DEV_SEED_SITE_ID;
+  const registrySql = `
+INSERT INTO site_registry (site_id, display_name, website_url)
+VALUES (${sqlLiteral(siteId)}, 'Local Example Site', 'http://localhost:3000')
+ON CONFLICT (site_id) DO NOTHING;
+`;
+
+  return [
+    registrySql,
+    buildCapabilityConfigurationSeedSql([siteId]),
+    buildDevelopmentPolicySeedSql({ siteId, origins, ingestKey }),
+  ].join("\n");
+}
+
+export function main() {
   const origins = requiredEnvironment("DEV_SEED_ORIGINS");
   const ingestKey = requiredEnvironment("DEV_SEED_INGEST_KEY");
   const databaseUrl = requiredEnvironment("DATABASE_URL");
-  const sql = `BEGIN;\n${buildCapabilityConfigurationSeedSql([siteId])}\n${buildDevelopmentPolicySeedSql({ siteId, origins, ingestKey })}\nCOMMIT;`;
+  const sql = `BEGIN;\n${buildDevelopmentSiteSeedSql({ origins, ingestKey })}\nCOMMIT;`;
   const result = spawnSync(
     "psql",
     ["--no-psqlrc", "--set=ON_ERROR_STOP=1", "--dbname", databaseUrl, "--command", sql],
@@ -84,12 +102,14 @@ function main() {
 
   if (result.error) throw result.error;
   if (result.status !== 0) process.exit(result.status ?? 1);
-  process.stdout.write(`Initialized local development configuration for ${siteId}.\n`);
+  process.stdout.write(`Initialized local development configuration for ${DEV_SEED_SITE_ID}.\n`);
 }
 
-try {
-  main();
-} catch (error) {
-  process.stderr.write(`${error.message}\n`);
-  process.exitCode = 1;
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  try {
+    main();
+  } catch (error) {
+    process.stderr.write(`${error.message}\n`);
+    process.exitCode = 1;
+  }
 }

@@ -207,6 +207,48 @@
           }
         }
       },
+      "post": {
+        "operationId": "createSiteCapabilities",
+        "summary": "Initialize missing site-scoped capability state",
+        "description": "Creates the default capability configuration only when none exists. Page Views is enabled; optional capabilities are disabled. Requires If-None-Match: *. The response is pending until affected services apply version 1.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default capabilities created; runtime application may still be pending",
+            "headers": {
+              "ETag": {
+                "$ref": "#/components/headers/VersionETag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilityConfigurationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/VersionConflict"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "428": {
+            "$ref": "#/components/responses/PreconditionRequired"
+          }
+        }
+      },
       "put": {
         "operationId": "putSiteCapabilities",
         "summary": "Replace site-scoped capability state",
@@ -669,7 +711,7 @@
         "name": "If-None-Match",
         "in": "header",
         "required": true,
-        "description": "Must be * to create a policy only when no environment resource exists.",
+        "description": "Must be * to create a resource only when no configuration exists.",
         "schema": {
           "const": "*"
         }

@@ -1,17 +1,24 @@
 # 站点接入与 Settings 重构设计
 
-- Status: Proposed
+- Status: M6 onboarding implemented and accepted; full Settings information architecture remains in M7c
 - Scope: Site onboarding, runtime configuration ownership, Settings information architecture, optional development seed
 - Overall sequence and gates: [Platform Improvement Roadmap](platform-improvement-roadmap.md)
 - Related: [Dashboard UI Improvements](dashboard-ui-improvements.md), [Capability-oriented configuration (ADR-007)](decisions/ADR-007-capability-oriented-configuration.md)
 - Runtime contract direction: [Protocol Schema and Static Runtime Models](protocol-static-runtime-design.md)
 - Backend owner: [Analytics and Site Management Module Boundaries](analytics-site-management-module-boundaries.md)
+- M6 execution checklist: [M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md)
+
+## 已交付的 M6 onboarding
+
+空 Registry 时 Dashboard 提供首站引导与创建向导，收集 Site 名称、Website URL、首个 Environment、Allowed Origins 和可选能力。Site 创建成功后，Dashboard 只在当前结果页内存中显示一次性 Ingest Key，并提供 SDK 配置示例。管理员可在 Settings 查看 Site Page Views、capability 和 ingest-policy 的运行时状态，以及等待首事件/已收到事件状态。真实 Browser SDK 的空数据库端到端验收由 [M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md) 中的 `pnpm e2e:site-onboarding` 覆盖。
+
+完整 Settings 二级导航与配置页面重组继续留在 M7c；旧 Playground 平台初始化 site/key wiring 清理属于 M8。服务端 URL 可达性检查、域名所有权验证及多用户身份/RBAC 暂列 M10 后续规划，需各自完成产品与安全设计后再启动。本节后续目标模型和迁移讨论保留为设计依据。
 
 ## 背景与问题
 
-当前 Dashboard 的站点清单和默认站点来自 `DASHBOARD_SITES`、`DASHBOARD_DEFAULT_SITE`；默认 Settings 环境来自 `DASHBOARD_DEFAULT_ENVIRONMENT`。开发 Compose seed 又从 `NEXT_PUBLIC_ANALYTICS_SITE_ID`、`NEXT_PUBLIC_ANALYTICS_INGEST_KEY` 和 Origin 环境变量初始化站点策略。Collector 只从数据库加载 environment policy；旧 TOML 示例不再作为运行时 fallback。Processor 还提供显式 `--import-definitions-if-empty` 命令，可从 `ANALYTICS_DEFINITIONS_FILE` 初始化 definition revisions；普通处理循环不会自动执行该导入。
+Dashboard 的站点目录和选择器现从 Site Registry 获取；没有显式 `site_id` 时默认选择 Registry 顺序中的首个 active Site。`DASHBOARD_DEFAULT_ENVIRONMENT` 仍用于 Settings 默认环境，后续环境选择 UI 切片会替代该默认值。Dashboard 首站创建、一次性 key 和 SDK 接入已在 M6 交付。开发 Compose seed 仍从 `NEXT_PUBLIC_ANALYTICS_SITE_ID`、`NEXT_PUBLIC_ANALYTICS_INGEST_KEY` 和 Origin 环境变量初始化站点策略，计划在 M8 清理平台初始化用途。Collector 只从数据库加载 environment policy；旧 TOML 示例不再作为运行时 fallback。Processor 还提供显式 `--import-definitions-if-empty` 命令，可从 `ANALYTICS_DEFINITIONS_FILE` 初始化 definition revisions；普通处理循环不会自动执行该导入。
 
-Settings 页面目前把 capability 开关、环境接收策略、Allowed Origins、Ingest Keys 和 conversion/funnel definitions 放在一张长页面里。它能管理已知站点的部分配置，但没有创建站点的完整 workflow。UI 站点列表由环境变量维护，因此用户无法通过产品界面新增一个可观测网站。
+Settings 页面目前把 capability 开关、环境接收策略、Allowed Origins、Ingest Keys 和 conversion/funnel definitions 放在一张长页面里。它能管理 Registry 中站点的部分配置；M6 首站 onboarding 已提供创建和接入流程，但完整任务型 Settings 导航及配置页面拆分仍由 M7c 跟踪。
 
 这些问题同时涉及产品流程、持久化模型、API、Collector 配置优先级和 UI，不应只通过调整表单布局解决。
 
@@ -187,9 +194,9 @@ Analytics Sidebar 与 Settings Sidebar 是不同上下文：Analytics Sidebar �
 
 ## Development Seed 约定
 
-目标状态下普通 `pnpm dev:up` 不自动运行 seed，以便验证首次 onboarding。显式 seed 入口应在 Dashboard 空站点流程验收之前交付；已存在的数据卷不因启动方式切换而被清空。Seed 作为显式本地快捷项：
+M6.0 已将普通 `pnpm dev:up` 及其他本地后端 Compose 入口改为默认不运行 seed，以便验证首次 onboarding。显式 seed 不会清空已有的数据卷。Seed 作为显式本地快捷项：
 
-- 目标 CLI 将提供显式 `--seed-init`（`--seed` 可作为简写），只创建固定本地演示 Site、capabilities、development policy 和本地 key 摘要；不创建分析事件。当前 `pnpm dev:up` 自动运行开发 seed，切换为默认空站点由 M6 完成。
+- `--seed-init`（`--seed` 可作为简写）显式创建固定 `site_example`、capabilities、development policy 和本地 key 摘要，不创建分析事件。CLI 由 `pnpm dev:up --seed-init`、`pnpm docker:backend --seed-init`、`pnpm docker:processing --seed-init` 或 `pnpm docker:dev --with-backend --seed-init` 调用。
 - 将来可单独提供 `--seed-init` 和 `--seed-analysis`。前者初始化配置；后者只导入固定的合成分析数据，并要求 demo Site 已存在。组合运行可以使用 `--seed --seed-analysis`。
 - Seed 只允许在开发 Compose workflow 使用，必须有明确 flag；CI/E2E 使用各自隔离 fixture，不受影响。
 - Seed 数据应固定、明确标注为 demo/local only；不得从常规平台 `.env` 推导 Site runtime config。
