@@ -7,11 +7,11 @@
 
 ## 背景
 
-当前 Dashboard 同时提供两类能力：查询观测数据，以及管理 Site 的运行配置。前端已经有 Analytics API client 和 Configuration API helper 的代码区分，但两类调用使用同一个 `ANALYTICS_API_URL`。后端则在同一个 `analytics-api` Axum router 中注册 analytics report 和 admin configuration 路由，并共享 `AppState` 与 PostgreSQL pool。
+当前 Dashboard 同时提供两类能力：查询观测数据，以及管理 Site 的运行配置。Analytics API client 与 Site Management / Configuration API client 在代码和 URL 配置上分别隔离；后端仍在同一个 `analytics-api` Axum router 中注册 analytics report 和 admin configuration 路由，并共享 `AppState` 与 PostgreSQL pool。
 
 本设计不要求将两类能力立即拆为独立进程、容器或数据库。要求先在代码的 Rust `mod` 层面建立清楚、可检查的业务边界，使两边可以独立演进，并限制它们之间必要的数据交集。
 
-当前还有一个相关产品缺口：Dashboard 的站点列表来自 `DASHBOARD_SITES` 环境变量；配置 API 能修改已存在的站点配置，但没有完整的站点目录和原子化创建流程。站点目录和 onboarding 归 Site Management 领域，具体用户流程见 [Site Onboarding and Settings Design](site-onboarding-settings-design.md)。
+Dashboard 现已从 Site Registry API 获取站点目录，替代 `DASHBOARD_SITES` 作为运行时来源。后续产品切片仍需完成面向用户的站点创建与接入向导；站点目录和 onboarding 归 Site Management 领域，具体流程见 [Site Onboarding and Settings Design](site-onboarding-settings-design.md)。
 
 ## 目标
 
@@ -175,9 +175,9 @@ Dashboard 应分别拥有：
 - Analytics API client、response types、query/report helpers。
 - Site Management API client、configuration types、site onboarding/settings helpers。
 
-即使迁移初期都指向同一服务地址，也应分别通过例如 `ANALYTICS_API_URL` 和 `SITE_MANAGEMENT_API_URL` 配置。可在部署配置中令两个值相同；客户端代码不应因为共用 origin 而耦合在一起。管理 token 只由 Dashboard server-side management client 使用，不进入 Analytics client 或浏览器 bundle。
+即使迁移初期都指向同一服务地址，也应分别通过 `ANALYTICS_API_URL` 和 `SITE_MANAGEMENT_API_URL` 配置。`SITE_MANAGEMENT_API_URL` 未设置时可回退到 Analytics API 地址，Compose 也可将两者指向同一服务；客户端代码不因共用 origin 而耦合。管理 token 只由 Dashboard server-side management client 使用，不进入 Analytics client 或浏览器 bundle。
 
-Site Management API 后续应提供动态站点目录和创建能力，取代 `DASHBOARD_SITES` 作为运行时站点事实来源。环境变量可以保留用于默认选择或部署配置，但不能限制数据库里可管理的站点集合。
+Site Management API 已提供动态站点目录和创建能力，Dashboard 使用该目录替代 `DASHBOARD_SITES` 作为运行时站点事实来源。面向用户的创建向导仍按 M6 计划交付。环境变量可以配置 API 地址或部署凭据，但不能限制数据库里可管理的站点集合。
 
 ## 渐进迁移计划
 

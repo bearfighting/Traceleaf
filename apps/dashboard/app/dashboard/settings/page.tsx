@@ -3,14 +3,16 @@ import React from "react";
 import { ConfigurationEditor } from "../../../components/configuration-editor";
 import { DashboardHeader, DashboardShell } from "../../../components/dashboard-shell";
 import { DefinitionEditor } from "../../../components/definition-editor";
+import { SiteDirectoryState, SiteSelectionState } from "../../../components/site-directory-state";
 import { ErrorState } from "../../../components/states/error-state";
-import { getDashboardSiteConfig } from "../../../config/sites";
+import { selectDashboardSite, siteOptions } from "../../../config/sites";
 import { ANALYTICS_DIMENSIONS } from "../../../lib/analytics-api/types";
 import {
   getConfigurationEnvironment,
   loadSiteConfiguration,
   loadSiteDefinitions,
 } from "../../../lib/configuration-api/server";
+import { loadSiteDirectory } from "../../../lib/site-management/client";
 
 export const dynamic = "force-dynamic";
 
@@ -29,26 +31,34 @@ function firstValue(value: string | string[] | undefined): string | undefined {
 }
 
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
-  const siteConfig = getDashboardSiteConfig();
-  if (!siteConfig.config) {
+  const params = await searchParams;
+  const directory = await loadSiteDirectory();
+  if (directory.kind !== "ready" || directory.sites.length === 0) {
     return (
       <main className="dashboard-shell bg-canvas text-ink">
         <DashboardHeader settingsMode />
         <div className="dashboard-container py-8">
-          <section className="card">
-            <ErrorState message={`Dashboard site configuration is invalid: ${siteConfig.error}.`} />
-          </section>
+          <h1 className="mb-6 text-3xl font-bold tracking-tight">Site settings</h1>
+          <SiteDirectoryState result={directory} />
         </div>
       </main>
     );
   }
 
-  const params = await searchParams;
   const requestedSite = firstValue(params.site_id);
-  const siteId =
-    requestedSite && siteConfig.config.sites.includes(requestedSite)
-      ? requestedSite
-      : siteConfig.config.defaultSite;
+  const selection = selectDashboardSite(directory.sites, requestedSite);
+  if (selection.kind !== "selected") {
+    return (
+      <main className="dashboard-shell bg-canvas text-ink">
+        <DashboardHeader settingsMode />
+        <div className="dashboard-container py-8">
+          <h1 className="mb-6 text-3xl font-bold tracking-tight">Site settings</h1>
+          <SiteSelectionState selection={selection} sites={directory.sites} />
+        </div>
+      </main>
+    );
+  }
+  const siteId = selection.site.site_id;
   const environment = getConfigurationEnvironment();
   const requestedDimension = firstValue(params.dimension);
   const dimension = ANALYTICS_DIMENSIONS.find((value) => value === requestedDimension) ?? "browser";
@@ -59,11 +69,33 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     <DashboardShell
       dateRange={dateRange}
       siteId={siteId}
-      sites={siteConfig.config.sites}
+      sites={siteOptions(directory.sites)}
       dimension={dimension}
       definitionVersion={definitionVersion}
       settingsMode
     >
+      <section className="card mb-6" aria-label="Site details">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="eyebrow">{selection.site.site_id}</p>
+            <h2 className="m-0 text-xl font-semibold">
+              {selection.site.display_name || selection.site.site_id}
+            </h2>
+            <p className="mb-0 mt-1 text-sm text-muted">
+              {selection.site.website_url || "Website URL missing"}
+            </p>
+          </div>
+          <div className="text-sm">
+            <p className="m-0">Lifecycle: {selection.site.lifecycle_status}</p>
+            <p className="m-0">Setup: {selection.site.setup_status}</p>
+          </div>
+        </div>
+        {selection.site.missing_requirements.length > 0 && (
+          <p className="mb-0 mt-3 text-sm" role="status">
+            Needs attention: {selection.site.missing_requirements.join(", ")}
+          </p>
+        )}
+      </section>
       {!environment ? (
         <section className="card">
           <ErrorState message="DASHBOARD_DEFAULT_ENVIRONMENT is not configured on the Dashboard server." />

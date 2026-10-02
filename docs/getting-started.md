@@ -100,8 +100,6 @@ hash
 Phase 4 的 Dashboard 运行在独立的 Next.js app 中，已接入 Overview、Timeline、Top Pages、站点选择和日期范围查询。Dashboard 只通过服务端 Query Client 请求 Analytics API。
 
 ```bash
-DASHBOARD_SITES=site_playground,site_alpha \
-DASHBOARD_DEFAULT_SITE=site_playground \
 ANALYTICS_API_URL=http://localhost:4002 \
 pnpm --filter @web-analytics/dashboard dev
 ```
@@ -118,7 +116,7 @@ Dashboard 支持以下 URL 参数：
 /dashboard?site_id=site_playground&from=2026-09-01&to=2026-09-18
 ```
 
-`DASHBOARD_SITES` 和 `DASHBOARD_DEFAULT_SITE` 必须配置且默认站点必须属于允许列表。`ANALYTICS_API_URL` 必须是绝对的 HTTP(S) URL，例如 `http://localhost:4002`。Dashboard 通过服务端 Query Client 请求 Overview、Timeline 和 Top Pages；页面不会直接从浏览器请求 Analytics API。
+Dashboard 从 Site Registry API 获取站点列表；首次启动时需配置匹配的 `CONFIG_ADMIN_TOKENS` 与服务端 `DASHBOARD_CONFIG_ADMIN_TOKEN`。没有显式 `site_id` 时默认选择 Registry 顺序中的首个 active Site。`ANALYTICS_API_URL` 必须是绝对的 HTTP(S) URL，例如 `http://localhost:4002`。Site Management 默认复用该地址，也可通过服务端 `SITE_MANAGEMENT_API_URL` 独立配置。Dashboard 通过服务端 client 请求两个 API；浏览器不会收到管理 token。
 
 管理配置时，设置 `DASHBOARD_DEFAULT_ENVIRONMENT`（默认 `production`），并将 `DASHBOARD_CONFIG_ADMIN_TOKEN` 设置为 `CONFIG_ADMIN_TOKENS` 中的一把 deployment-admin token。配置入口为 `http://localhost:3000/dashboard/settings`；Dashboard 服务端 BFF 使用该凭据调用受保护配置 API，浏览器不会获得 Admin token。生产部署还必须由可信反向代理保护 Dashboard 管理入口。
 

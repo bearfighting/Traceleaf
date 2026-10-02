@@ -1,6 +1,6 @@
 # M6 Site Onboarding Checklist
 
-- Status: M6.0 complete; M6.1–M6.4 planned
+- Status: M6.0–M6.1 complete; M6.2–M6.4 planned
 - Prerequisites: M5 Site Management backend complete; M7a Dashboard UI foundation complete
 - Scope: Empty-site local development workflow and Dashboard onboarding for creating and connecting Sites
 - Design references: [Platform Improvement Roadmap](platform-improvement-roadmap.md), [Site Onboarding and Settings Design](site-onboarding-settings-design.md), [Dashboard UI Improvements](dashboard-ui-improvements.md), [M5 Site Management Backend Checklist](m5-site-management-checklist.md)
@@ -16,7 +16,7 @@ M6 consumes the M5 Site Management and configuration contracts. It does not add 
 - Ordinary `pnpm dev:up` starts without creating or requiring a demo Site. It must work with a fresh database and must not erase or rewrite Sites in an existing database volume.
 - `pnpm dev:up --seed-init` explicitly creates the fixed local demo Site and its `development` environment policy. `--seed` is a documented shorthand. Seeding is idempotent and does not overwrite hand-edited configuration or create analytics events.
 - `pnpm dev:down` preserves database volumes. Resetting local data, if needed, remains a separate explicit destructive operation.
-- The Site Registry API is the source for Dashboard Site lists and selectors. Remove runtime dependence on `DASHBOARD_SITES`, `DASHBOARD_DEFAULT_SITE`, and `DASHBOARD_DEFAULT_ENVIRONMENT` as M6 migrates the UI.
+- The Site Registry API is the source for Dashboard Site lists and selectors. M6 removes runtime dependence on `DASHBOARD_SITES` and `DASHBOARD_DEFAULT_SITE`; `DASHBOARD_DEFAULT_ENVIRONMENT` remains until the later environment-selection UI slice.
 - `CONFIG_ADMIN_TOKENS` and `DASHBOARD_CONFIG_ADMIN_TOKEN` are deployment-admin credentials. The Dashboard token remains server-side and is never sent to browser code or included in client-visible page data.
 - Missing Dashboard admin credentials, rejected credentials, unavailable management API, an empty Site Registry, and a Registry containing Sites are distinct states. Do not treat an auth/service error as an empty Registry.
 - Site URL is informational metadata. Allowed Origins control ingest acceptance. An HTTP reachability probe or domain ownership claim is outside M6.
@@ -41,12 +41,14 @@ M6 consumes the M5 Site Management and configuration contracts. It does not add 
 
 ### M6.1 — Server-side Site Management client and directory
 
-- [ ] Add a typed Dashboard client for Site list/detail/create and the existing capability, environment policy, key, and definitions management APIs needed by onboarding.
-- [ ] Keep admin credentials in server-only code. Use the existing same-origin server proxy pattern for browser mutations where appropriate; do not expose Analytics API admin routes directly to untrusted browser code.
-- [ ] Replace `DASHBOARD_SITES` and default-site configuration with the Site Registry response for Dashboard selectors and pages.
-- [ ] Define empty, loading, unauthorized/unconfigured, unavailable, and populated directory states with distinct user guidance.
-- [ ] Preserve current Analytics query parameters and historical report behavior when the selected Site comes from the Registry.
-- [ ] Show legacy Sites with missing metadata or configuration as repairable `needs_attention` entries without blocking their historical Analytics reports.
+- [x] Add a typed server-side Dashboard client for Site list/detail/create and capability, environment policy, key, and definitions management APIs.
+- [x] Keep admin credentials in server-only code. Browser mutations continue through the same-origin server proxy; Analytics API admin routes are not exposed to the browser.
+- [x] Replace `DASHBOARD_SITES` and default-site configuration with the Site Registry response for Dashboard selectors and pages.
+- [x] Define empty, loading, unauthorized/unconfigured, unavailable, and populated directory states with distinct user guidance.
+- [x] Preserve current Analytics query parameters and historical report behavior when the selected Site comes from the Registry.
+- [x] Show legacy Sites with missing metadata or configuration as repairable `needs_attention` entries without blocking their historical Analytics reports.
+
+**M6.1 validation (2026-10-02):** Dashboard tests (26 files, 119 tests), TypeScript, ESLint, Prettier and production build passed. Site Management list pagination, detail/create calls, credential handling, empty/error distinctions, active/archived selection, unknown Site handling, and settings metadata are covered. `pnpm e2e:dashboard` passed its report, multi-site, empty-data, and Settings workflows on its first run, then exposed an outdated API-error assertion. After updating that assertion for the Registry error state, the rerun stopped before browser checks because the `playground-next` container exited during startup; the full E2E is not recorded as passing.
 
 **Exit:** Dashboard Site choices are dynamic and API-backed; operational failures cannot masquerade as an empty onboarding state.
 

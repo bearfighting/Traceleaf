@@ -13,7 +13,10 @@ describe("DashboardShell", () => {
         definitionVersions={[{ version: "definitions-v2", revision: 2 }]}
         dimension="browser"
         siteId="site_playground"
-        sites={["site_playground", "site_alpha"]}
+        sites={[
+          { id: "site_playground", label: "Playground" },
+          { id: "site_alpha", label: "Alpha" },
+        ]}
       >
         <div id="overview">Report content</div>
       </DashboardShell>,
@@ -41,7 +44,7 @@ describe("DashboardShell", () => {
         dimension="browser"
         settingsMode
         siteId="site_playground"
-        sites={["site_playground"]}
+        sites={[{ id: "site_playground", label: "Playground" }]}
       >
         <div>Settings content</div>
       </DashboardShell>,

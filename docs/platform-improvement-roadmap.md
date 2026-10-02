@@ -147,7 +147,7 @@ flowchart LR
 
 **实施 checklist**：[M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md)。
 
-**前置**：M5 和 UI 基础切片 M7a。**状态（2026-10-01）：M6.0 开发入口完成并通过隔离 Compose E2E；M6.1–M6.4 尚未开始。**普通 `pnpm dev:up` 不再自动 seed；`--seed` 是 `--seed-init` 的简写，仅显式初始化本地示例配置。`dev:down` 保留数据卷。默认空 Registry、显式 seed、仅允许配置的 Origin 采集、手工配置不被 seed 覆盖及数据卷保留均已验收，详见 [M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md)。此入口先于空站点 UI 验收。
+**前置**：M5 和 UI 基础切片 M7a。**状态（2026-10-02）：M6.0 与 M6.1 完成；M6.2–M6.4 待实施。**普通 `pnpm dev:up` 不再自动 seed；`--seed` 是 `--seed-init` 的简写，仅显式初始化本地示例配置。Dashboard 站点目录现由 Site Registry 驱动，并区分空目录、未配置/拒绝授权及服务不可用状态；`DASHBOARD_SITES` 和 `DASHBOARD_DEFAULT_SITE` 已从 Compose 与运行说明移除。`DASHBOARD_DEFAULT_ENVIRONMENT` 暂留到后续环境选择界面切片。`dev:down` 保留数据卷。M6.0 的默认空 Registry、显式 seed、仅允许配置的 Origin 采集、手工配置不被 seed 覆盖及数据卷保留均已验收，详见 [M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md)。
 
 **再交付 Dashboard**：独立 Site Management client、动态站点列表、空站点引导、创建向导、一次性 key 页面、SDK 安装说明以及配置应用/首事件状态。Analytics 报表继续使用 Analytics client。凭据未配置、管理 API 不可用和空站点是不同状态。
 
@@ -167,7 +167,7 @@ flowchart LR
 
 ### M8：旧配置入口清理
 
-**前置**：M6、M7c。**交付**：移除 `DASHBOARD_SITES` 等平台运行时站点清单和用于平台数据库初始化的 Playground site/key wiring；保留 Playground 自身作为被观测网站所需的 SDK 接入配置。文档和 Compose 不再把 Site runtime config 当作平台基础设施变量。未来 `--seed-analysis` 是独立的合成分析数据任务。
+**前置**：M6、M7c。M6.1 已移除 Dashboard 的 `DASHBOARD_SITES` / `DASHBOARD_DEFAULT_SITE` 配置。M8 剩余交付是移除用于平台数据库初始化的 Playground site/key wiring，同时保留 Playground 自身作为被观测网站所需的 SDK 接入配置。未来 `--seed-analysis` 是独立的合成分析数据任务。
 
 **完成条件**：动态站点目录和显式 `--seed-init` 是本地初始化入口；`dev:down` 保留数据卷；CI/E2E fixture 不受可选 seed 影响。
 

@@ -1,18 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { proxyConfigurationRequest } from "./proxy";
 
 describe("configuration BFF proxy", () => {
-  beforeEach(() => {
-    process.env.DASHBOARD_SITES = "site-one";
-    process.env.DASHBOARD_DEFAULT_SITE = "site-one";
-  });
-
   afterEach(() => {
     vi.unstubAllGlobals();
     delete process.env.DASHBOARD_CONFIG_ADMIN_TOKEN;
-    delete process.env.DASHBOARD_SITES;
-    delete process.env.DASHBOARD_DEFAULT_SITE;
     delete process.env.ANALYTICS_API_URL;
   });
 
@@ -72,7 +65,7 @@ describe("configuration BFF proxy", () => {
   it("rejects cross-origin mutations before contacting the API", async () => {
     process.env.DASHBOARD_CONFIG_ADMIN_TOKEN = "deployment-secret";
     process.env.ANALYTICS_API_URL = "http://analytics-api:4002";
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ allowed: true }));
     vi.stubGlobal("fetch", fetchMock);
     const response = await proxyConfigurationRequest(
       new Request("http://dashboard.test/api/admin/sites/site-one/capabilities", {
@@ -87,10 +80,10 @@ describe("configuration BFF proxy", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("rejects sites outside the Dashboard allowlist before contacting the API", async () => {
+  it("uses the management API as the Site Registry authority instead of an environment allowlist", async () => {
     process.env.DASHBOARD_CONFIG_ADMIN_TOKEN = "deployment-secret";
     process.env.ANALYTICS_API_URL = "http://analytics-api:4002";
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ allowed: true }));
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await proxyConfigurationRequest(
@@ -100,14 +93,8 @@ describe("configuration BFF proxy", () => {
       "site-two",
     );
 
-    expect(response.status).toBe(404);
-    expect(await response.json()).toEqual({
-      error: {
-        code: "site_not_allowed",
-        message: "The requested site is not configured for this Dashboard.",
-      },
-    });
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
   it("fails closed when the server admin credential is missing", async () => {

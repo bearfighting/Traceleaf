@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getAnalyticsApiUrl } from "../analytics-api/config";
+import { getSiteManagementApiUrl } from "../site-management/config";
 
 import type { CapabilityResponse, IngestPolicyResponse } from "./types";
 
@@ -28,7 +28,7 @@ export async function loadSiteConfiguration(
   }
 
   try {
-    const base = getAnalyticsApiUrl();
+    const base = getSiteManagementApiUrl();
     const headers = { Authorization: `Bearer ${token}` };
     const [capabilitiesResponse, policyResponse] = await Promise.all([
       fetch(`${base}/v1/admin/sites/${encodeURIComponent(siteId)}/capabilities`, {
@@ -83,7 +83,7 @@ export async function loadSiteDefinitions(siteId: string): Promise<DefinitionLoa
     };
   try {
     const response = await fetch(
-      `${getAnalyticsApiUrl()}/v1/admin/sites/${encodeURIComponent(siteId)}/conversion-funnel-definitions`,
+      `${getSiteManagementApiUrl()}/v1/admin/sites/${encodeURIComponent(siteId)}/conversion-funnel-definitions`,
       {
         headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",

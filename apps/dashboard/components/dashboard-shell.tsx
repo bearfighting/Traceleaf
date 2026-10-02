@@ -13,7 +13,7 @@ import type { ReactNode } from "react";
 interface DashboardShellProps {
   dateRange: DashboardDateRange;
   siteId: string;
-  sites: string[];
+  sites: Array<{ id: string; label: string }>;
   dimension: AnalyticsDimension;
   children: ReactNode;
   settingsMode?: boolean;
@@ -151,8 +151,8 @@ export function DashboardShell({
                 Site
                 <Select defaultValue={siteId} name="site_id">
                   {sites.map((site) => (
-                    <option key={site} value={site}>
-                      {site}
+                    <option key={site.id} value={site.id}>
+                      {site.label}
                     </option>
                   ))}
                 </Select>
@@ -175,8 +175,8 @@ export function DashboardShell({
                 Site
                 <Select defaultValue={siteId} name="site_id">
                   {sites.map((site) => (
-                    <option key={site} value={site}>
-                      {site}
+                    <option key={site.id} value={site.id}>
+                      {site.label}
                     </option>
                   ))}
                 </Select>

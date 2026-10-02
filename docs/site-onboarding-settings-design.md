@@ -10,9 +10,9 @@
 
 ## 背景与问题
 
-当前 Dashboard 的站点清单和默认站点来自 `DASHBOARD_SITES`、`DASHBOARD_DEFAULT_SITE`；默认 Settings 环境来自 `DASHBOARD_DEFAULT_ENVIRONMENT`。开发 Compose seed 又从 `NEXT_PUBLIC_ANALYTICS_SITE_ID`、`NEXT_PUBLIC_ANALYTICS_INGEST_KEY` 和 Origin 环境变量初始化站点策略。Collector 只从数据库加载 environment policy；旧 TOML 示例不再作为运行时 fallback。Processor 还提供显式 `--import-definitions-if-empty` 命令，可从 `ANALYTICS_DEFINITIONS_FILE` 初始化 definition revisions；普通处理循环不会自动执行该导入。
+Dashboard 的站点目录和选择器现从 Site Registry 获取；没有显式 `site_id` 时默认选择 Registry 顺序中的首个 active Site。`DASHBOARD_DEFAULT_ENVIRONMENT` 仍用于 Settings 默认环境，后续环境选择 UI 切片会替代该默认值。面向用户的站点创建与接入向导仍待 M6 后续切片交付。开发 Compose seed 仍从 `NEXT_PUBLIC_ANALYTICS_SITE_ID`、`NEXT_PUBLIC_ANALYTICS_INGEST_KEY` 和 Origin 环境变量初始化站点策略，计划在 M8 清理平台初始化用途。Collector 只从数据库加载 environment policy；旧 TOML 示例不再作为运行时 fallback。Processor 还提供显式 `--import-definitions-if-empty` 命令，可从 `ANALYTICS_DEFINITIONS_FILE` 初始化 definition revisions；普通处理循环不会自动执行该导入。
 
-Settings 页面目前把 capability 开关、环境接收策略、Allowed Origins、Ingest Keys 和 conversion/funnel definitions 放在一张长页面里。它能管理已知站点的部分配置，但没有创建站点的完整 workflow。UI 站点列表由环境变量维护，因此用户无法通过产品界面新增一个可观测网站。
+Settings 页面目前把 capability 开关、环境接收策略、Allowed Origins、Ingest Keys 和 conversion/funnel definitions 放在一张长页面里。它能管理 Registry 中站点的部分配置，但没有创建站点的完整 workflow。虽然 Dashboard 已动态显示 Registry 站点，用户仍需等待后续 M6 切片才能通过产品界面新增并接入可观测网站。
 
 这些问题同时涉及产品流程、持久化模型、API、Collector 配置优先级和 UI，不应只通过调整表单布局解决。
 

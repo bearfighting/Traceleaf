@@ -2,6 +2,8 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("server-only", () => ({}));
+
 import DashboardPage from "./page";
 
 afterEach(() => {
@@ -11,19 +13,56 @@ afterEach(() => {
 });
 
 describe("DashboardPage server contract", () => {
+  const site = {
+    site_id: "site_playground",
+    display_name: "Playground",
+    website_url: "https://playground.example",
+    lifecycle_status: "active",
+    setup_status: "ready",
+    missing_requirements: [],
+    version: 1,
+    created_at: "2026-10-01T00:00:00Z",
+    updated_at: "2026-10-01T00:00:00Z",
+  };
+
+  function configureRegistry(response: Response) {
+    vi.stubEnv("DASHBOARD_CONFIG_ADMIN_TOKEN", "server-token");
+    vi.stubEnv("ANALYTICS_API_URL", "http://analytics-api:4002");
+    const fetchMock = vi.fn().mockResolvedValue(response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    return fetchMock;
+  }
+
   it.each([
-    ["unknown site", { site_id: "site_unknown" }, "The selected site is not configured"],
+    ["unknown site", { site_id: "site_unknown" }, "is not present in the Site Registry"],
     ["partial date range", { from: "2026-09-01" }, "Both from and to dates are required"],
   ])("does not query Analytics API for %s", async (_caseName, searchParams, message) => {
-    vi.stubEnv("DASHBOARD_SITES", "site_playground,site_alpha");
-    vi.stubEnv("DASHBOARD_DEFAULT_SITE", "site_playground");
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+    const fetchMock = configureRegistry(Response.json({ items: [site], next_cursor: null }));
 
     const element = await DashboardPage({ searchParams: Promise.resolve(searchParams) });
     const markup = renderToStaticMarkup(element);
 
     expect(markup).toContain(message);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("renders an empty registry distinctly from management errors", async () => {
+    configureRegistry(Response.json({ items: [], next_cursor: null }));
+    const element = await DashboardPage({ searchParams: Promise.resolve({}) });
+    const markup = renderToStaticMarkup(element);
+    expect(markup).toContain("No Sites registered");
+    expect(markup).not.toContain("Site directory unavailable");
+  });
+
+  it("does not present unauthorized management access as an empty registry", async () => {
+    configureRegistry(
+      Response.json({ error: { message: "Admin token rejected." } }, { status: 401 }),
+    );
+    const element = await DashboardPage({ searchParams: Promise.resolve({}) });
+    const markup = renderToStaticMarkup(element);
+    expect(markup).toContain("Site directory unavailable");
+    expect(markup).toContain("Admin token rejected.");
+    expect(markup).not.toContain("No Sites registered");
   });
 });

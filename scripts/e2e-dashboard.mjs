@@ -1639,9 +1639,7 @@ async function assertApiError(browser) {
         "-e",
         "ANALYTICS_API_URL=http://dashboard-api-error:4999",
         "-e",
-        "DASHBOARD_SITES=site_playground,site_alpha,site_beta",
-        "-e",
-        "DASHBOARD_DEFAULT_SITE=site_playground",
+        "DASHBOARD_CONFIG_ADMIN_TOKEN=e2e-admin-token",
         "-e",
         "DASHBOARD_DEFAULT_ENVIRONMENT=config-e2e",
         "dashboard",
@@ -1652,13 +1650,12 @@ async function assertApiError(browser) {
     await waitFor("Dashboard error instance", `${errorUrl}/dashboard`);
     const page = await browser.newPage();
     await page.goto(`${errorUrl}/dashboard?site_id=site_playground&from=2026-09-18&to=2026-09-18`);
-    const overviewError = page.locator('[aria-label="Overview"]').getByRole("alert");
-    await overviewError.waitFor();
+    const directoryError = page.locator('[aria-label="Site directory status"]').getByRole("alert");
+    await directoryError.waitFor();
     assert(
-      (await overviewError.textContent()).includes("Analytics API"),
-      "Missing API error state",
+      (await directoryError.textContent()).includes("Analytics API simulated failure"),
+      "Missing Site Registry API error state",
     );
-    await page.getByText("Site: site_playground · 2026-09-18 to 2026-09-18 UTC").first().waitFor();
     await page.close();
   } catch (error) {
     scenarioError = error;
@@ -1722,8 +1719,6 @@ try {
         NEXT_PUBLIC_ANALYTICS_ENDPOINT: `${collectorUrl}/v1/events`,
         NEXT_PUBLIC_ANALYTICS_INGEST_KEY: keys.site_playground,
         NEXT_PUBLIC_ANALYTICS_SITE_ID: "site_playground",
-        DASHBOARD_SITES: "site_playground,site_alpha,site_beta",
-        DASHBOARD_DEFAULT_SITE: "site_playground",
         CONFIG_ADMIN_TOKENS: JSON.stringify([adminToken]),
         DASHBOARD_CONFIG_ADMIN_TOKEN: adminToken,
         DASHBOARD_DEFAULT_ENVIRONMENT: "config-e2e",
@@ -1815,8 +1810,6 @@ try {
           env: {
             CONFIG_ADMIN_TOKENS: JSON.stringify([adminToken]),
             DASHBOARD_CONFIG_ADMIN_TOKEN: adminToken,
-            DASHBOARD_SITES: "site_playground,site_alpha,site_beta",
-            DASHBOARD_DEFAULT_SITE: "site_playground",
             DASHBOARD_DEFAULT_ENVIRONMENT: "config-e2e",
           },
         }),

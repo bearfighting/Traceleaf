@@ -28,6 +28,4 @@ services:
 
   dashboard:
     environment:
-      DASHBOARD_SITES: ${DASHBOARD_SITES:-site_example}
-      DASHBOARD_DEFAULT_SITE: ${DASHBOARD_DEFAULT_SITE:-site_example}
       DASHBOARD_DEFAULT_ENVIRONMENT: ${DASHBOARD_DEFAULT_ENVIRONMENT:-development}
