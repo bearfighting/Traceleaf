@@ -1,13 +1,14 @@
 import { getSiteManagementApiUrl } from "../site-management/config";
 
-const FORWARDED_HEADERS = ["if-match", "if-none-match"] as const;
+const FORWARDED_HEADERS = ["if-match", "if-none-match", "idempotency-key"] as const;
 
 export async function proxyConfigurationRequest(
   request: Request,
   upstreamPath: string,
   method: string,
-  _siteId: string,
+  siteId: string,
 ): Promise<Response> {
+  void siteId;
   if (method !== "GET" && method !== "HEAD") {
     const origin = request.headers.get("origin");
     if (!origin || !isSameOrigin(request, origin)) {

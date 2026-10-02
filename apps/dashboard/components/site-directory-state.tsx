@@ -25,8 +25,14 @@ export function SiteDirectoryState({ result }: { result: SiteDirectoryResult }) 
       <section className="card" aria-label="Site directory status">
         <h2 className="m-0 text-lg font-semibold">No Sites registered</h2>
         <p className="mb-0 mt-2 text-sm text-muted">
-          The Site Registry is empty. Add a Site from the onboarding workflow when it is available.
+          The Site Registry is empty. Add a Site to start collecting Page Views.
         </p>
+        <Link
+          className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-brand bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-dark"
+          href="/dashboard/sites/new"
+        >
+          Add a Site
+        </Link>
       </section>
     );
   }

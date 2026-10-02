@@ -12,9 +12,12 @@ describe("configuration BFF proxy", () => {
   it("forwards the admin credential and version precondition only upstream", async () => {
     process.env.DASHBOARD_CONFIG_ADMIN_TOKEN = "deployment-secret";
     process.env.ANALYTICS_API_URL = "http://analytics-api:4002";
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
-      Response.json({ saved: true }, { status: 200, headers: { ETag: '"2"' } }),
-    );
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      void _input;
+      void _init;
+
+      return Response.json({ saved: true }, { status: 200, headers: { ETag: '"2"' } });
+    });
     vi.stubGlobal("fetch", fetchMock);
     const response = await proxyConfigurationRequest(
       new Request("http://dashboard.test/api/admin/sites/site-one/capabilities", {
@@ -37,6 +40,38 @@ describe("configuration BFF proxy", () => {
     expect(response.headers.get("ETag")).toBe('"2"');
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(await response.text()).not.toContain("deployment-secret");
+  });
+
+  it("forwards creation idempotency while keeping the mutation response private and uncached", async () => {
+    process.env.DASHBOARD_CONFIG_ADMIN_TOKEN = "deployment-secret";
+    process.env.ANALYTICS_API_URL = "http://analytics-api:4002";
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      void _input;
+      void _init;
+
+      return Response.json({ site: { site_id: "site_one" } }, { status: 201 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await proxyConfigurationRequest(
+      new Request("http://dashboard.test/api/admin/sites", {
+        method: "POST",
+        headers: {
+          Origin: "http://dashboard.test",
+          "Idempotency-Key": "request-1",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ display_name: "One" }),
+      }),
+      "/v1/admin/sites",
+      "POST",
+      "",
+    );
+    const [, init] = fetchMock.mock.calls[0];
+    const upstreamHeaders = new Headers(init?.headers);
+    expect(upstreamHeaders.get("Idempotency-Key")).toBe("request-1");
+    expect(upstreamHeaders.get("Authorization")).toBe("Bearer deployment-secret");
+    expect(await response.text()).not.toContain("deployment-secret");
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
   });
 
   it("uses the public host forwarded by a trusted TLS-terminating proxy", async () => {

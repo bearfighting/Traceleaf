@@ -1,6 +1,6 @@
 # M6 Site Onboarding Checklist
 
-- Status: M6.0–M6.1 complete; M6.2–M6.4 planned
+- Status: M6.0–M6.2 complete; M6.3–M6.4 planned
 - Prerequisites: M5 Site Management backend complete; M7a Dashboard UI foundation complete
 - Scope: Empty-site local development workflow and Dashboard onboarding for creating and connecting Sites
 - Design references: [Platform Improvement Roadmap](platform-improvement-roadmap.md), [Site Onboarding and Settings Design](site-onboarding-settings-design.md), [Dashboard UI Improvements](dashboard-ui-improvements.md), [M5 Site Management Backend Checklist](m5-site-management-checklist.md)
@@ -54,15 +54,17 @@ M6 consumes the M5 Site Management and configuration contracts. It does not add 
 
 ### M6.2 — First-Site onboarding and create flow
 
-- [ ] Add an empty-Registry landing state with a clear Add Site action.
-- [ ] Build a Site creation flow for display name, Website URL, first environment, Allowed Origins, and optional supported capabilities.
-- [ ] Make the distinction between Website URL and the Collector's Allowed Origins clear. Initialize the Origin suggestion from the Website URL and allow edits before submission.
-- [ ] Keep capability dependency hints aligned with the canonical capability manifest; rely on the server for final validation.
-- [ ] Use a client-generated `Idempotency-Key` for creation. Display field and API validation errors without losing safe form values.
-- [ ] On a first successful response, show the Site ID, environment, Origins, and one-time Ingest Key in a dedicated success step with a copy action.
-- [ ] Do not automatically replay an ambiguous create and imply the key can be recovered. Explain that a committed request replay returns metadata only and direct the administrator to create a replacement key if the secret was lost.
-- [ ] Provide an SDK installation example using the created Site ID, environment, and key; label which values belong in the observed website's configuration.
-- [ ] Handle refresh/navigation of the one-time secret step safely; do not claim a lost key can be displayed again.
+- [x] Add an empty-Registry landing state with a clear Add Site action.
+- [x] Build a Site creation flow for display name, Website URL, first environment, Allowed Origins, and optional supported capabilities.
+- [x] Make the distinction between Website URL and the Collector's Allowed Origins clear. Initialize the Origin suggestion from the Website URL and allow edits before submission.
+- [x] Keep capability dependency hints aligned with the canonical capability manifest; rely on the server for final validation.
+- [x] Use a client-generated `Idempotency-Key` for creation. Display field and API validation errors without losing safe form values.
+- [x] On a first successful response, show the Site ID, environment, Origins, and one-time Ingest Key in a dedicated success step with a copy action.
+- [x] Do not automatically replay an ambiguous create and imply the key can be recovered. Explain that a committed request replay returns metadata only and direct the administrator to create a replacement key if the secret was lost.
+- [x] Provide an SDK installation example using the created Site ID, environment, and key; label which values belong in the observed website's configuration.
+- [x] Handle refresh/navigation of the one-time secret step safely; do not claim a lost key can be displayed again.
+
+**M6.2 validation (2026-10-02):** Dashboard tests (28 files, 131 tests), TypeScript typecheck, production build, targeted ESLint, Prettier check, and `git diff --check` passed. Coverage includes Origin parsing and URL suggestion updates, capability dependency closure, JSON Pointer field mapping, validation-value retention, first-create/replay/refresh credential behavior, missing-policy handling, ambiguous replacement-key response recovery, and the same-origin creation proxy's idempotency forwarding, token isolation, and no-store response. The dedicated empty-database-to-first-event E2E remains in M6.4.
 
 **Exit:** An administrator can create the first Site from the empty state and leave with the correct client-side setup instructions, while the plaintext key remains one-time.
 
@@ -99,4 +101,4 @@ M6 consumes the M5 Site Management and configuration contracts. It does not add 
 
 - [x] Confirm the exact `pnpm dev:up --seed-init` argument form and the `--seed` shorthand; pnpm passes script flags without an extra `--` separator.
 - [ ] Confirm the current Analytics query/API signal used to determine that a first event has arrived. If no suitable signal exists, propose a minimal contract separately before adding new backend behavior.
-- [ ] Confirm how the create success step handles a lost response and key replacement without storing the plaintext key or changing M5 idempotency semantics.
+- [x] Confirm how the create success step handles a lost response and key replacement without storing the plaintext key or changing M5 idempotency semantics.
