@@ -147,9 +147,9 @@ flowchart LR
 
 **实施 checklist**：[M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md)。
 
-**前置**：M5 和 UI 基础切片 M7a。**状态（2026-10-02）：M6.0 与 M6.1 完成；M6.2–M6.4 待实施。**普通 `pnpm dev:up` 不再自动 seed；`--seed` 是 `--seed-init` 的简写，仅显式初始化本地示例配置。Dashboard 站点目录现由 Site Registry 驱动，并区分空目录、未配置/拒绝授权及服务不可用状态；`DASHBOARD_SITES` 和 `DASHBOARD_DEFAULT_SITE` 已从 Compose 与运行说明移除。`DASHBOARD_DEFAULT_ENVIRONMENT` 暂留到后续环境选择界面切片。`dev:down` 保留数据卷。M6.0 的默认空 Registry、显式 seed、仅允许配置的 Origin 采集、手工配置不被 seed 覆盖及数据卷保留均已验收，详见 [M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md)。
+**前置**：M5 和 UI 基础切片 M7a。**状态（2026-10-02）：M6.0–M6.4 全部完成。**普通 `pnpm dev:up` 不自动 seed；`--seed` 是 `--seed-init` 的简写，仅显式初始化本地示例配置。Dashboard 站点目录由 Site Registry 驱动，并区分空目录、未配置/拒绝授权及服务不可用状态；Dashboard onboarding 已从空 Registry 创建首个 Site，展示一次性 key，并指引 SDK 接入。`DASHBOARD_SITES` 和 `DASHBOARD_DEFAULT_SITE` 已从 Compose 与运行说明移除。`DASHBOARD_DEFAULT_ENVIRONMENT` 暂留到后续环境选择界面切片。`dev:down` 保留数据卷。M6 的默认空 Registry、显式 seed、手工配置不被 seed 覆盖、真实 Browser SDK 首事件和 Settings Page Views 状态均已验收，详见 [M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md)。
 
-**再交付 Dashboard**：独立 Site Management client、动态站点列表、空站点引导、创建向导、一次性 key 页面、SDK 安装说明以及配置应用/首事件状态。Analytics 报表继续使用 Analytics client。凭据未配置、管理 API 不可用和空站点是不同状态。
+**Dashboard 已交付**：独立 Site Management client、动态站点列表、空站点引导、创建向导、一次性 key 页面、SDK 安装说明以及配置应用/首事件状态。Analytics 报表继续使用 Analytics client。凭据未配置、管理 API 不可用和空站点是不同状态；独立浏览器 E2E 已从 Dashboard 创建 Site 并验证真实 SDK Page View 到达 Analytics。
 
 **完成条件**：完成一次性基础设施凭据配置后，新用户不用为每个 Site 修改平台 `.env`、Compose 或 Collector TOML 即可接入网站；普通 `dev:up` 验收空站点，显式 seed 验收已有站点。Dashboard 区分未配置管理权限、未创建站点、旧站点待补齐、等待应用、等待首事件、已连接和错误。URL 可达 probe 属于后续任务。
 

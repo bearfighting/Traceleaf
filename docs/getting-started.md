@@ -137,6 +137,8 @@ Seed 在 migration 成功后创建固定的 `site_example`、capabilities、acti
 
 同一显式开关也适用于 `pnpm docker:backend --seed-init`、`pnpm docker:processing --seed-init` 和 `pnpm docker:dev --with-backend --seed-init`。这些后端启动入口默认都不 seed。
 
+首次接入网站时，保持默认空 Registry 并打开 `http://localhost:13000/dashboard`。选择 **Add a Site**，填写名称和 Website URL，确认 Environment 与 Allowed Origins，再提交创建。创建结果页只显示一次明文 Ingest Key；复制它和 Site ID 到目标网站的 SDK 环境配置。配置生效后，Settings 会分别显示 capabilities、ingest policy 的运行时状态，以及 Site 是否收到 Page Views。若离开结果页后丢失 key，可从 Settings 创建 replacement key。
+
 Playground 默认访问 `http://localhost:3000`，Dashboard 访问 `http://localhost:13000/dashboard`。关闭服务但保留数据库数据和 Docker volumes：
 
 ```bash
@@ -156,6 +158,14 @@ Visitor、Session 和 Dimensions 由 Dashboard 的 Site capabilities 配置管�
 pnpm playwright:install
 pnpm e2e:dashboard
 ```
+
+完整验收空数据库到首个 Page View 的 Dashboard onboarding（需要 Docker 和本机 Chromium）：
+
+```bash
+pnpm e2e:site-onboarding
+```
+
+该命令使用独立 Compose 项目和 PostgreSQL 数据卷，不读取开发 seed；浏览器从 Dashboard 创建 Site 后，测试 Playground 使用创建所得 Site ID 与 key，通过允许的 Origin 发送真实 SDK 事件。结束时只清理该测试项目及其数据卷。另用 `pnpm e2e:dev-startup` 验收默认空 Registry 和显式 seed 的幂等行为。
 
 配置管理跨层 E2E 使用隔离的 Compose 项目和数据卷，覆盖受保护配置写入、运行时版本收敛、存储故障恢复、站点隔离和 Dashboard 展示：
 

@@ -19,6 +19,7 @@
     "e2e:configuration": "node ./scripts/e2e-configuration.mjs",
     "e2e:site-management": "node ./scripts/e2e-site-management.mjs",
     "e2e:dev-startup": "node ./scripts/e2e-dev-startup.mjs",
+    "e2e:site-onboarding": "node ./scripts/e2e-site-onboarding.mjs",
     "e2e:dashboard": "node ./scripts/e2e-dashboard.mjs",
     "e2e:router-adapters": "node ./scripts/e2e-router-adapters.mjs",
     "e2e:router-compose": "node ./scripts/e2e-router-compose.mjs",

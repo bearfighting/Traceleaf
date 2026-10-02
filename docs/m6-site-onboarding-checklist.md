@@ -1,6 +1,6 @@
 # M6 Site Onboarding Checklist
 
-- Status: M6.0–M6.3 complete; M6.4 planned
+- Status: M6.0–M6.4 complete (2026-10-02)
 - Prerequisites: M5 Site Management backend complete; M7a Dashboard UI foundation complete
 - Scope: Empty-site local development workflow and Dashboard onboarding for creating and connecting Sites
 - Design references: [Platform Improvement Roadmap](platform-improvement-roadmap.md), [Site Onboarding and Settings Design](site-onboarding-settings-design.md), [Dashboard UI Improvements](dashboard-ui-improvements.md), [M5 Site Management Backend Checklist](m5-site-management-checklist.md)
@@ -83,12 +83,14 @@ M6 consumes the M5 Site Management and configuration contracts. M6.3 adds a crea
 
 ### M6.4 — Integrated acceptance and closeout
 
-- [ ] Add an isolated Dashboard onboarding E2E that starts with an empty database and does not use development seed data.
-- [ ] Verify first Site creation from Dashboard, one-time key handling, an event sent from an allowed Origin, runtime application, Processor aggregation, and Analytics visibility.
-- [ ] Verify denied/unconfigured management access and service-unavailable states render as errors rather than empty onboarding.
-- [ ] Verify the explicit demo seed workflow separately, including repeat execution and preservation of manually changed data.
-- [ ] Run Dashboard tests, check, build, protocol/contract validation, relevant backend integration tests, and the isolated onboarding E2E using documented project scripts.
-- [ ] Update this checklist, the Platform Improvement Roadmap, local development instructions, and onboarding documentation with actual results. Mark only executed and passing items complete.
+- [x] Add an isolated Dashboard onboarding E2E that starts with an empty database and does not use development seed data.
+- [x] Verify first Site creation from Dashboard, one-time key handling, an event sent by the real Next.js Browser SDK from an allowed Origin, Collector capability and ingest-policy runtime application, Processor aggregation, and Analytics visibility.
+- [x] Verify missing and invalid management credentials and an unavailable Site Management API render as errors rather than empty onboarding.
+- [x] Re-run the explicit demo seed workflow separately, including repeat execution and preservation of manually changed data.
+- [x] Run Dashboard tests, check, build, protocol/contract validation, PostgreSQL integration tests, and both isolated onboarding and dev-startup E2Es using documented project scripts.
+- [x] Update this checklist, the Platform Improvement Roadmap, local development instructions, and onboarding documentation with actual results.
+
+**M6.4 validation (2026-10-02):** `pnpm e2e:site-onboarding` passed against a dedicated empty Compose project and database volume. The browser created a Site in Dashboard, confirmed the one-time key was absent from the URL and browser storage, enabled Web Vitals for the Playground SDK's automatically emitted Web Vitals events, and verified SDK Page Views reached Collector from the configured Origin. Collector capability and ingest-policy runtime status converged, Analytics API exposed the processed `/about` Page View, and Settings showed a nonzero Site Page View count. Missing/invalid management credentials and unavailable Site Management API each rendered an operational error instead of empty onboarding. `pnpm --filter @web-analytics/dashboard test` passed (30 files, 142 tests); `pnpm check` passed with five pre-existing generated-code ESLint warnings; `pnpm build`, `pnpm protocol:validate`, `pnpm test:integration` (PostgreSQL-backed), `pnpm e2e:dev-startup`, and `pnpm format:check:docs` passed. The integration suite used a disposable PostgreSQL instance; E2Es used isolated Compose projects and removed their database volumes.
 
 **M6 exit:** On a fresh local installation, an administrator can create and connect the first observed Site in Dashboard without editing per-Site platform `.env`, Compose, or Collector TOML values. The default development workflow remains empty; demo configuration is opt-in; old Sites and reports remain usable.
 

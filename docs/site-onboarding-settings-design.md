@@ -1,6 +1,6 @@
 # 站点接入与 Settings 重构设计
 
-- Status: Proposed
+- Status: M6 onboarding implemented and accepted; full Settings information architecture remains in M7c
 - Scope: Site onboarding, runtime configuration ownership, Settings information architecture, optional development seed
 - Overall sequence and gates: [Platform Improvement Roadmap](platform-improvement-roadmap.md)
 - Related: [Dashboard UI Improvements](dashboard-ui-improvements.md), [Capability-oriented configuration (ADR-007)](decisions/ADR-007-capability-oriented-configuration.md)
@@ -8,11 +8,17 @@
 - Backend owner: [Analytics and Site Management Module Boundaries](analytics-site-management-module-boundaries.md)
 - M6 execution checklist: [M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md)
 
+## 已交付的 M6 onboarding
+
+空 Registry 时 Dashboard 提供首站引导与创建向导，收集 Site 名称、Website URL、首个 Environment、Allowed Origins 和可选能力。Site 创建成功后，Dashboard 只在当前结果页内存中显示一次性 Ingest Key，并提供 SDK 配置示例。管理员可在 Settings 查看 Site Page Views、capability 和 ingest-policy 的运行时状态，以及等待首事件/已收到事件状态。真实 Browser SDK 的空数据库端到端验收由 [M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md) 中的 `pnpm e2e:site-onboarding` 覆盖。
+
+完整 Settings 二级导航与配置页面重组继续留在 M7c；本节后续目标模型和迁移讨论保留为设计依据。
+
 ## 背景与问题
 
-Dashboard 的站点目录和选择器现从 Site Registry 获取；没有显式 `site_id` 时默认选择 Registry 顺序中的首个 active Site。`DASHBOARD_DEFAULT_ENVIRONMENT` 仍用于 Settings 默认环境，后续环境选择 UI 切片会替代该默认值。面向用户的站点创建与接入向导仍待 M6 后续切片交付。开发 Compose seed 仍从 `NEXT_PUBLIC_ANALYTICS_SITE_ID`、`NEXT_PUBLIC_ANALYTICS_INGEST_KEY` 和 Origin 环境变量初始化站点策略，计划在 M8 清理平台初始化用途。Collector 只从数据库加载 environment policy；旧 TOML 示例不再作为运行时 fallback。Processor 还提供显式 `--import-definitions-if-empty` 命令，可从 `ANALYTICS_DEFINITIONS_FILE` 初始化 definition revisions；普通处理循环不会自动执行该导入。
+Dashboard 的站点目录和选择器现从 Site Registry 获取；没有显式 `site_id` 时默认选择 Registry 顺序中的首个 active Site。`DASHBOARD_DEFAULT_ENVIRONMENT` 仍用于 Settings 默认环境，后续环境选择 UI 切片会替代该默认值。Dashboard 首站创建、一次性 key 和 SDK 接入已在 M6 交付。开发 Compose seed 仍从 `NEXT_PUBLIC_ANALYTICS_SITE_ID`、`NEXT_PUBLIC_ANALYTICS_INGEST_KEY` 和 Origin 环境变量初始化站点策略，计划在 M8 清理平台初始化用途。Collector 只从数据库加载 environment policy；旧 TOML 示例不再作为运行时 fallback。Processor 还提供显式 `--import-definitions-if-empty` 命令，可从 `ANALYTICS_DEFINITIONS_FILE` 初始化 definition revisions；普通处理循环不会自动执行该导入。
 
-Settings 页面目前把 capability 开关、环境接收策略、Allowed Origins、Ingest Keys 和 conversion/funnel definitions 放在一张长页面里。它能管理 Registry 中站点的部分配置，但没有创建站点的完整 workflow。虽然 Dashboard 已动态显示 Registry 站点，用户仍需等待后续 M6 切片才能通过产品界面新增并接入可观测网站。
+Settings 页面目前把 capability 开关、环境接收策略、Allowed Origins、Ingest Keys 和 conversion/funnel definitions 放在一张长页面里。它能管理 Registry 中站点的部分配置；M6 首站 onboarding 已提供创建和接入流程，但完整任务型 Settings 导航及配置页面拆分仍由 M7c 跟踪。
 
 这些问题同时涉及产品流程、持久化模型、API、Collector 配置优先级和 UI，不应只通过调整表单布局解决。
 
