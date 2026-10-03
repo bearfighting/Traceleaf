@@ -128,7 +128,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         configuration={configuration}
         analytics={analytics}
       />
-      <section className="card mb-6" aria-label="Site details">
+      <section className="card mb-6" aria-label="Site overview">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="eyebrow">{selection.site.site_id}</p>
@@ -141,7 +141,8 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
           </div>
           <div className="text-sm">
             <p className="m-0">Lifecycle: {selection.site.lifecycle_status}</p>
-            <p className="m-0">Setup: {selection.site.setup_status}</p>
+            <p className="m-0">Setup readiness: {selection.site.setup_status}</p>
+            <p className="m-0">Environment: {environment ?? "not configured"}</p>
           </div>
         </div>
       </section>

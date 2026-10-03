@@ -6,7 +6,48 @@ vi.mock("server-only", () => ({}));
 vi.mock("../../../../lib/site-management/client", () => ({
   loadSiteDirectory: vi.fn(),
 }));
+vi.mock("../../../../lib/configuration-api/server", () => ({
+  getConfigurationEnvironment: vi.fn(() => "production"),
+  loadSiteConfiguration: vi.fn(),
+  loadSiteDefinitions: vi.fn(),
+}));
+vi.mock("../../../../lib/analytics-api/client", () => ({
+  createAnalyticsApiClient: vi.fn(() => ({
+    overview: vi.fn().mockResolvedValue({ page_views: 0 }),
+  })),
+}));
+vi.mock("../../../../lib/analytics-api/config", () => ({
+  getAnalyticsApiUrl: vi.fn(() => "http://analytics.test"),
+}));
+vi.mock("../../../../components/dashboard-shell", () => ({
+  DashboardHeader: ({
+    analyticsHref,
+    settingsHref,
+  }: {
+    analyticsHref: string;
+    settingsHref: string;
+  }) => (
+    <header>
+      <a href={analyticsHref}>Analytics</a>
+      <a href={settingsHref}>Settings</a>
+    </header>
+  ),
+  DashboardShell: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+vi.mock("../../../../components/site-connection-status", () => ({
+  SiteConnectionStatus: () => <div>Connection summary</div>,
+}));
+vi.mock("../../../../components/configuration-editor", () => ({
+  ConfigurationEditor: () => <div>Configuration controls</div>,
+}));
+vi.mock("../../../../components/definition-editor", () => ({
+  DefinitionEditor: () => <div>Definition controls</div>,
+}));
 
+import {
+  loadSiteConfiguration,
+  loadSiteDefinitions,
+} from "../../../../lib/configuration-api/server";
 import {
   loadSiteDirectory,
   type SiteDirectoryResult,
@@ -71,5 +112,48 @@ describe("SettingsPage status navigation", () => {
     expect(markup).toContain(
       'href="/dashboard?site_id=site_unknown&amp;environment=staging&amp;from=2026-09-01&amp;to=2026-09-30&amp;dimension=browser&amp;definition_version=r2"',
     );
+  });
+
+  it("renders the Site summary, selected Environment, and keeps both editors on Overview", async () => {
+    vi.mocked(loadSiteDirectory).mockResolvedValue({
+      kind: "ready",
+      sites: [
+        {
+          site_id: "site_alpha",
+          display_name: "Alpha Analytics",
+          website_url: "https://alpha.example",
+          lifecycle_status: "active",
+          setup_status: "ready",
+          missing_requirements: [],
+          version: 1,
+          created_at: "2026-09-01T00:00:00Z",
+          updated_at: "2026-09-01T00:00:00Z",
+        },
+      ],
+    });
+    vi.mocked(loadSiteConfiguration).mockResolvedValue({
+      kind: "error",
+      message: "Configuration API unavailable",
+    });
+    vi.mocked(loadSiteDefinitions).mockResolvedValue({
+      kind: "error",
+      message: "Configuration API unavailable",
+    });
+
+    const element = await SettingsPage({
+      searchParams: Promise.resolve({ site_id: "site_alpha", environment: "staging" }),
+    });
+    const markup = renderToStaticMarkup(element);
+
+    expect(markup).toContain("site_alpha");
+    expect(markup).toContain("Alpha Analytics");
+    expect(markup).toContain("https://alpha.example");
+    expect(markup).toContain("Lifecycle: active");
+    expect(markup).toContain("Setup readiness: ready");
+    expect(markup).toContain("Environment: staging");
+    expect(markup).toContain("Connection summary");
+    expect(markup).toContain("Configuration controls");
+    expect(markup).toContain("Definition controls");
+    expect(loadSiteConfiguration).toHaveBeenCalledWith("site_alpha", "staging");
   });
 });

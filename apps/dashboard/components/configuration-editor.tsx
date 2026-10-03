@@ -36,7 +36,7 @@ export function ConfigurationEditor({
 
   if (result.kind !== "ready")
     return (
-      <section className="card" role="alert">
+      <section className="card" role="alert" id="capabilities">
         <h2>Configuration unavailable</h2>
         <p>{result.message}</p>
       </section>
@@ -83,7 +83,7 @@ function InitializeCapabilities({ siteId }: { siteId: string }) {
   }
 
   return (
-    <section className="card" aria-label="Capability configuration setup">
+    <section className="card" aria-label="Capability configuration setup" id="capabilities">
       <h2 className="m-0 text-lg font-semibold">Capability configuration is missing</h2>
       <p className="mb-0 mt-2 text-sm text-muted">
         Initialize this Site with Page Views enabled and optional capabilities disabled. You can
@@ -269,7 +269,7 @@ function Editor({
 
   return (
     <div className="configuration-page" data-hydrated={hydrated}>
-      <section className="card">
+      <section className="card" id="capabilities">
         <h2>Site capabilities</h2>
         <EffectiveStateView state={capabilities.effective_state} />
         <div className="configuration-list">
@@ -303,7 +303,7 @@ function Editor({
           Save capabilities
         </button>
       </section>
-      <section className="card">
+      <section className="card" id="environment-policy">
         <h2>Website access</h2>
         <p>
           Environment: <strong>{environment}</strong>
@@ -364,7 +364,7 @@ function Editor({
           {policy ? "Save access settings" : "Create environment policy"}
         </button>
       </section>
-      <section className="card">
+      <section className="card" id="ingest-keys">
         <h2>Ingest Keys</h2>
         <p>Create a replacement before revoking a key currently used by your website.</p>
         <button type="button" disabled={busy || !hydrated || !policy} onClick={createKey}>

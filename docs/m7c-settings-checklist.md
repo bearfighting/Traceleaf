@@ -1,6 +1,6 @@
 # M7c Site Settings Checklist
 
-- Status: M7c.1 complete; M7c.2–M7c.6 planned (2026-10-02)
+- Status: M7c.1–M7c.2 complete; M7c.3–M7c.6 planned (2026-10-02)
 - Prerequisites: M6 Site onboarding complete; M7a Dashboard UI foundation complete; Site Management and configuration APIs available
 - Scope: Organize existing Site configuration and onboarding status into task-focused Settings pages
 - Design references: [Platform Improvement Roadmap](platform-improvement-roadmap.md), [Dashboard UI Improvements](dashboard-ui-improvements.md), [Site Onboarding and Settings Design](site-onboarding-settings-design.md), [M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md)
@@ -42,11 +42,13 @@ The Site Registry remains the only source for Site selectors. The first Environm
 
 ### M7c.2 — Overview and connection status
 
-- [ ] Show Site ID, display name, Website URL, lifecycle, setup readiness, and relevant Environment summary.
-- [ ] Show capability and ingest-policy effective states with clear applied, pending, stale, missing, and error distinctions.
-- [ ] Show waiting-for-first-event separately from runtime readiness and show Page Views evidence with its Site-level/all-environments limitation.
-- [ ] Provide the existing refresh/retry actions and useful links to the page that can resolve an incomplete setup.
-- [ ] Keep missing credentials, rejected credentials, unavailable Site Management API, unavailable Analytics API, empty Registry, and archived Site states distinct.
+- [x] Show Site ID, display name, Website URL, lifecycle, setup readiness, and relevant Environment summary.
+- [x] Show capability and ingest-policy effective states with clear applied, pending, stale, missing, and error distinctions.
+- [x] Show waiting-for-first-event separately from runtime readiness and show Page Views evidence with its Site-level/all-environments limitation.
+- [x] Provide the existing refresh/retry actions and useful links to the page that can resolve an incomplete setup.
+- [x] Keep missing credentials, rejected credentials, unavailable Site Management API, unavailable Analytics API, empty Registry, and archived Site states distinct.
+
+Implementation note (2026-10-02): Overview now presents Site identity/readiness and selected Environment, separates Site Management API, Analytics API, and Site-level Page View evidence, and links setup gaps to stable capability, policy, key, and definitions anchors. Management API health is explicitly marked unchecked when no default Environment is configured. Archived Sites suppress setup-resolution links because they cannot receive new events. Existing configuration editors and mutation behavior remain on Overview for M7c.3–M7c.5. Tests assert the Site summary fields, Environment selection, editor presence, Analytics failure visibility alongside missing management credentials, human-readable current/pending/stale runtime states for capabilities and policy, hidden setup-resolution links for archived Sites, and the unchecked management API status without an Environment.
 
 ### M7c.3 — Capabilities and environment policy
 
@@ -104,3 +106,13 @@ The Site Registry remains the only source for Site selectors. The first Environm
 The first Dashboard E2E run exposed a test timing issue: it clicked Analytics while the Settings loading shell was still shown. The E2E now waits for the Settings connection status before checking the Analytics return link.
 
 Review follow-ups (2026-10-02): preserved the selected Environment across Settings → Analytics → Settings and Analytics filter submissions; made both Dashboard and Settings loading headers preserve URL context, including the Suspense fallback; retained Site and reporting context in Settings Registry and Site-selection error states. Unit tests cover both loading shells, the suspended fallback, and the empty, unavailable, and unknown-Site states. Dashboard E2E verifies loaded Settings ↔ Analytics context retention without depending on a loading shell's timing. Dashboard tests passed (35 files, 156 tests), `pnpm check` passed, `pnpm --filter @web-analytics/dashboard build` passed, `pnpm e2e:dashboard` passed, and `pnpm e2e:site-onboarding` passed.
+
+2026-10-02 — M7c.2 validation:
+
+- `pnpm --filter @web-analytics/dashboard test` — passed (35 files, 165 tests).
+- `pnpm check` — passed (5 pre-existing generated-code ESLint warnings, no errors).
+- `pnpm build` — passed.
+- `pnpm format:check` — passed.
+- `pnpm format:check:docs` — passed.
+- `E2E_POSTGRES_PORT=15445 node ./scripts/e2e-dashboard.mjs` — passed; used an unused local PostgreSQL port because the default 15432 was already occupied. Verified Dashboard workflows, Settings configuration editing, one-time key lifecycle, and API error handling.
+- `pnpm e2e:site-onboarding` — passed; verified Site-level Page Views and distinct missing/invalid management credential and unavailable Site Management API states across the onboarding workflow.

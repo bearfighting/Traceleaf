@@ -35,7 +35,7 @@ export function DefinitionEditor({
 }) {
   if (result.kind !== "ready")
     return (
-      <section className="card" role="alert">
+      <section className="card" role="alert" id="definitions">
         <h2>Definition management unavailable</h2>
         <p>{result.message}</p>
       </section>
@@ -139,7 +139,7 @@ function Editor({ siteId, initial }: { siteId: string; initial: DefinitionSetRes
   }
 
   return (
-    <section className="card" aria-label="Conversion and funnel definitions">
+    <section className="card" aria-label="Conversion and funnel definitions" id="definitions">
       <h2>Conversions and funnels</h2>
       <p>
         Each save creates an immutable site revision. Deactivate definitions to preserve their IDs

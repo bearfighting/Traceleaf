@@ -126,13 +126,15 @@ export function SiteConnectionStatus({
         <dl className="mb-0 mt-4 grid gap-2 text-sm sm:grid-cols-2">
           <div>
             <dt className="inline font-semibold">Capabilities: </dt>
-            <dd className="inline">{configuration.capabilities.effective_state.status}</dd>
+            <dd className="inline">
+              {effectiveStateLabel(configuration.capabilities.effective_state.status)}
+            </dd>
           </div>
           <div>
             <dt className="inline font-semibold">Ingest policy: </dt>
             <dd className="inline">
               {configuration.policy
-                ? configuration.policy.effective_state.status
+                ? effectiveStateLabel(configuration.policy.effective_state.status)
                 : "not configured"}
             </dd>
           </div>
@@ -144,6 +146,89 @@ export function SiteConnectionStatus({
           </div>
         </dl>
       )}
+      <dl className="mb-0 mt-4 grid gap-2 border-t border-line pt-3 text-sm sm:grid-cols-3">
+        <div>
+          <dt className="font-semibold">Site Management API</dt>
+          <dd className="m-0">{managementStatus(configuration)}</dd>
+        </div>
+        <div>
+          <dt className="font-semibold">Analytics API</dt>
+          <dd className="m-0">
+            {analytics.kind === "ready" ? "Available" : `Unavailable: ${analytics.message}`}
+          </dd>
+        </div>
+        <div>
+          <dt className="font-semibold">Page View evidence</dt>
+          <dd className="m-0">
+            {analytics.kind === "ready"
+              ? `${analytics.pageViews} cumulative Site Page Views (all environments)`
+              : "Unavailable; Analytics API request failed"}
+          </dd>
+        </div>
+      </dl>
+      {site.lifecycle_status !== "archived" && (
+        <nav
+          aria-label="Resolve setup status"
+          className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm"
+        >
+          {configuration.kind === "missing_capabilities" && (
+            <a href="#capabilities">Initialize capabilities</a>
+          )}
+          {configuration.kind === "ready" && !configuration.policy && (
+            <a href="#environment-policy">Configure environment policy</a>
+          )}
+          {configuration.kind === "ready" &&
+            configuration.policy &&
+            !configuration.policy.policy.enabled && (
+              <a href="#environment-policy">Enable environment ingestion</a>
+            )}
+          {configuration.kind === "ready" &&
+            configuration.policy?.policy.allowed_origins.length === 0 && (
+              <a href="#environment-policy">Add an Allowed Origin</a>
+            )}
+          {configuration.kind === "ready" &&
+            configuration.policy &&
+            configuration.policy.policy.keys.length === 0 && (
+              <a href="#ingest-keys">Create an Ingest Key</a>
+            )}
+          {configuration.kind === "ready" && (
+            <>
+              <a href="#capabilities">Capabilities</a>
+              <a href="#environment-policy">Environment policy</a>
+              <a href="#ingest-keys">Ingest Keys</a>
+              <a href="#definitions">Definitions</a>
+            </>
+          )}
+        </nav>
+      )}
     </section>
   );
+}
+
+function effectiveStateLabel(status: "current" | "pending" | "stale"): string {
+  switch (status) {
+    case "current":
+      return "Applied (current)";
+    case "pending":
+      return "Waiting to apply";
+    case "stale":
+      return "Application out of date";
+  }
+}
+
+function managementStatus(configuration: ConfigurationLoadResult): string {
+  switch (configuration.kind) {
+    case "ready":
+      return "Available";
+    case "missing_capabilities":
+      return "Available; capabilities not configured";
+    case "environment_unconfigured":
+      return "Not checked; default Environment not configured";
+    case "unconfigured":
+      return "Credentials not configured";
+    case "unauthorized":
+      return "Authorization failed";
+    case "error":
+      return "Unavailable";
+  }
 }
