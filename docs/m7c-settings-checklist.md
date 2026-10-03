@@ -1,6 +1,6 @@
 # M7c Site Settings Checklist
 
-- Status: M7c.1–M7c.5 complete; M7c.6 planned (2026-10-03)
+- Status: M7c.1–M7c.5 complete; M7c.6 implementation underway (2026-10-03)
 - Prerequisites: M6 Site onboarding complete; M7a Dashboard UI foundation complete; Site Management and configuration APIs available
 - Scope: Organize existing Site configuration and onboarding status into task-focused Settings pages
 - Design references: [Platform Improvement Roadmap](platform-improvement-roadmap.md), [Dashboard UI Improvements](dashboard-ui-improvements.md), [Site Onboarding and Settings Design](site-onboarding-settings-design.md), [M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md)
@@ -86,12 +86,12 @@ Verification (2026-10-03): Dashboard unit/component tests (39 files, 184 tests),
 
 ### M7c.6 — Responsive UI, tests, and closeout
 
-- [ ] Verify Site navigation and Settings forms at desktop and narrow mobile viewport sizes.
-- [ ] Verify keyboard navigation, focus visibility, semantic labels, breadcrumbs, active states, and screen-reader status updates.
-- [ ] Add or update tests for every Settings route, Site/environment context, status precedence, configuration update/recovery, and one-time key lifecycle.
-- [ ] Run Dashboard tests, `pnpm check`, `pnpm build`, `pnpm e2e:dashboard`, `pnpm e2e:site-onboarding`, `pnpm format:check`, and `pnpm format:check:docs`.
-- [ ] Record each command and its actual result below; mark only executed and passing items complete.
-- [ ] Update the Dashboard UI plan, roadmap, and this checklist with the delivered navigation and any deferred items.
+- [x] Verify Site navigation and Settings forms at desktop and narrow mobile viewport sizes. (Dashboard E2E verifies Capabilities, Environment policy, Ingest Keys, and Definitions sections, representative controls, section bounds, and page overflow at 1440px and 390px. At 390px it also checks the Ingest Keys section while showing its one-time secret.)
+- [ ] Verify keyboard navigation, focus visibility, semantic labels, breadcrumbs, active states, and screen-reader status updates. (Dashboard E2E verified Settings link keyboard navigation, visible keyboard focus, current-page state, and breadcrumb context. Automated UI semantics are covered by component tests. Manual screen-reader status announcement review remains deferred.)
+- [x] Add or update tests for every Settings route, Site/environment context, status precedence, configuration update/recovery, and one-time key lifecycle. (Added task-page rendering/context and policy-unavailable coverage; existing Overview, Definitions, configuration editor, key manager, and E2E scenarios cover the remaining behavior.)
+- [x] Run Dashboard tests, `pnpm check`, `pnpm build`, `pnpm e2e:dashboard`, `pnpm e2e:site-onboarding`, `pnpm format:check`, and `pnpm format:check:docs`.
+- [x] Record each command and its actual result below; mark only executed and passing items complete.
+- [x] Update the Dashboard UI plan, roadmap, and this checklist with the delivered navigation and any deferred items.
 
 ## Exit criteria
 
@@ -102,6 +102,17 @@ Verification (2026-10-03): Dashboard unit/component tests (39 files, 184 tests),
 - Analytics and Settings behavior remain covered by tests and documented E2E workflows.
 
 ## Validation record
+
+2026-10-03 — M7c.6 progress:
+
+- `pnpm --filter @web-analytics/dashboard test` — passed (40 files, 188 tests).
+- `pnpm check` — passed; 5 existing unused ESLint-disable warnings in generated protocol files, no errors.
+- `pnpm build` — passed; all five Settings task routes were included in the Dashboard build.
+- `pnpm format:check` — passed.
+- `pnpm format:check:docs` — passed.
+- `E2E_POSTGRES_PORT=15445 pnpm e2e:dashboard` — passed; verified Settings navigation and Capabilities/Environment/Ingest Keys/Definitions section bounds and representative controls at 1440px and 390px, including the one-time key state, keyboard focus and navigation, task context, dashboard reports, configuration edits, and key lifecycle.
+- `E2E_POSTGRES_PORT=15445 pnpm e2e:site-onboarding` — passed; verified empty-database onboarding through event ingestion and Settings evidence, plus missing/invalid credential and unavailable management API states.
+- Responsive and keyboard browser assertions in `scripts/e2e-dashboard.mjs` passed, including 1440px and 390px bounds/overflow checks for all form-bearing Settings tasks. Manual screen-reader review remains outstanding and is deferred.
 
 2026-10-02 — All listed M7c.1 checks completed:
 

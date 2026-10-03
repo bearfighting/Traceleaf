@@ -91,6 +91,19 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+async function assertSettingsSectionFitsViewport(page, section, label) {
+  const viewportWidth = page.viewportSize().width;
+  const bounds = await section.boundingBox();
+  assert(
+    bounds && bounds.x >= 0 && bounds.x + bounds.width <= viewportWidth,
+    `${label} exceeds the ${viewportWidth}px viewport`,
+  );
+  const horizontalOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+  );
+  assert(!horizontalOverflow, `${label} causes horizontal page overflow at ${viewportWidth}px`);
+}
+
 function assertDashboardIsolation() {
   const config = runCompose(["config"], { capture: true });
   const dashboardMatch = config.match(
@@ -195,6 +208,60 @@ async function assertDashboardShell(page) {
   await expect(page).toHaveURL(
     /\/dashboard\/settings\/overview\?site_id=site_playground&environment=config-e2e&from=2026-09-20&to=2026-09-21&dimension=browser/,
   );
+  const desktopSettingsNavigation = page.getByRole("navigation", {
+    name: "Settings navigation",
+  });
+  await desktopSettingsNavigation.getByRole("link", { name: "Capabilities" }).click();
+  await expect(page).toHaveURL(/\/dashboard\/settings\/capabilities\?site_id=site_playground/);
+  const desktopCapabilityForm = page.locator("#capabilities");
+  await expect(
+    desktopCapabilityForm.getByRole("heading", { name: "Site capabilities" }),
+  ).toBeVisible();
+  await expect(
+    desktopCapabilityForm.getByRole("checkbox", { name: "Enable Page Views" }),
+  ).toBeVisible();
+  await expect(
+    desktopCapabilityForm.getByRole("button", { name: "Save capabilities" }),
+  ).toBeVisible();
+  const desktopFormBounds = await desktopCapabilityForm.boundingBox();
+  assert(
+    desktopFormBounds &&
+      desktopFormBounds.x >= 0 &&
+      desktopFormBounds.x + desktopFormBounds.width <= 1440,
+    "Capabilities form exceeds the 1440px viewport",
+  );
+  const desktopFormOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+  );
+  assert(!desktopFormOverflow, "Capabilities form causes horizontal page overflow at 1440px");
+
+  await page.goto(
+    `${dashboardUrl}/dashboard/settings/environments?site_id=site_playground&environment=e2e`,
+  );
+  await expect(page.getByRole("heading", { name: "Website access" })).toBeVisible();
+  const environmentForm = page.locator("#environment-policy");
+  await expect(environmentForm.locator("textarea")).toBeVisible();
+  await expect(environmentForm.getByRole("button", { name: "Save access settings" })).toBeVisible();
+  await assertSettingsSectionFitsViewport(page, environmentForm, "Environment policy form");
+
+  await page.goto(
+    `${dashboardUrl}/dashboard/settings/ingest-keys?site_id=site_playground&environment=e2e`,
+  );
+  const ingestKeySection = page.locator('[aria-label="Ingest Keys"]');
+  await expect(
+    ingestKeySection.getByRole("button", { name: "Create replacement key" }),
+  ).toBeVisible();
+  await expect(ingestKeySection.locator(".key-list li")).toHaveCount(1);
+  await assertSettingsSectionFitsViewport(page, ingestKeySection, "Ingest Keys section");
+
+  await page.goto(
+    `${dashboardUrl}/dashboard/settings/definitions?site_id=site_playground&environment=config-e2e&from=2026-09-20&to=2026-09-21&dimension=browser`,
+  );
+  const definitionsForm = page.locator('[aria-label="Conversion and funnel definitions"]');
+  await expect(definitionsForm.getByRole("button", { name: "Save new revision" })).toBeVisible();
+  await expect(definitionsForm.getByLabel("Name", { exact: true }).first()).toBeVisible();
+  await assertSettingsSectionFitsViewport(page, definitionsForm, "Definitions form");
+
   const analyticsLink = page.getByRole("link", { name: "Analytics", exact: true });
   await expect(analyticsLink).toHaveAttribute(
     "href",
@@ -232,6 +299,44 @@ async function assertDashboardShell(page) {
     "aria-current",
     "location",
   );
+
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard\/settings\/overview\?/);
+  const settingsNavigation = page.getByRole("navigation", { name: "Settings navigation" });
+  await expect(settingsNavigation).toBeVisible();
+  await expect(settingsNavigation.getByRole("link", { name: "Overview" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  const settingsOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+  );
+  assert(!settingsOverflow, "Settings navigation overflows the 390px viewport");
+  const capabilitiesLink = settingsNavigation.getByRole("link", { name: "Capabilities" });
+  await capabilitiesLink.focus();
+  await page.keyboard.press("Tab");
+  const environmentsLink = settingsNavigation.getByRole("link", { name: "Environments & Origins" });
+  const focusOutline = await environmentsLink.evaluate(
+    (element) => getComputedStyle(element).outlineStyle,
+  );
+  assert(focusOutline !== "none", "Settings navigation focus indicator is not visible");
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/dashboard\/settings\/capabilities\?site_id=site_playground/);
+  await expect(page.getByRole("navigation", { name: "Breadcrumb" })).toContainText("Capabilities");
+  const capabilityForm = page.locator("#capabilities");
+  await expect(capabilityForm.getByRole("heading", { name: "Site capabilities" })).toBeVisible();
+  await expect(capabilityForm.getByRole("checkbox", { name: "Enable Page Views" })).toBeVisible();
+  await expect(capabilityForm.getByRole("button", { name: "Save capabilities" })).toBeVisible();
+  const formBounds = await capabilityForm.boundingBox();
+  assert(
+    formBounds && formBounds.x >= 0 && formBounds.x + formBounds.width <= 390,
+    "Capabilities form exceeds the 390px viewport width",
+  );
+  const formOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+  );
+  assert(!formOverflow, "Capabilities form causes horizontal page overflow at 390px");
 }
 
 async function resetDatabase() {
@@ -1157,6 +1262,12 @@ async function assertDashboardConfiguration(page) {
   await page.getByRole("button", { name: "Load environment" }).click();
   await page.waitForURL(/environment=config-e2e/);
   await page.getByRole("heading", { name: "Website access" }).waitFor();
+  const environmentPolicySection = page.locator("#environment-policy");
+  await assertSettingsSectionFitsViewport(
+    page,
+    environmentPolicySection,
+    "Mobile Environment policy form",
+  );
 
   const origins = page.locator("textarea");
   await origins.fill("not-an-origin");
@@ -1260,9 +1371,17 @@ async function assertDashboardConfiguration(page) {
     `${dashboardUrl}/dashboard/settings/ingest-keys?site_id=site_playground&environment=config-e2e`,
   );
   await page.getByRole("heading", { name: "Ingest Keys" }).waitFor();
+  const ingestKeySection = page.locator('[aria-label="Ingest Keys"]');
+  await page.getByRole("button", { name: "Create Ingest Key" }).waitFor();
+  await assertSettingsSectionFitsViewport(page, ingestKeySection, "Mobile Ingest Keys section");
   await page.getByRole("button", { name: "Create Ingest Key" }).click();
   const displayedKey = page.locator(".one-time-secret code");
   await displayedKey.waitFor();
+  await assertSettingsSectionFitsViewport(
+    page,
+    ingestKeySection,
+    "Mobile Ingest Keys section with one-time secret",
+  );
   const plaintext = await displayedKey.textContent();
   assert(
     plaintext && /^[A-Za-z0-9_-]{43}$/.test(plaintext),
@@ -1370,6 +1489,8 @@ async function assertDefinitionManagement(page) {
 
   await page.goto(`${dashboardUrl}/dashboard/settings/definitions?site_id=site_playground`);
   const editor = page.locator('section[aria-label="Conversion and funnel definitions"]');
+  await expect(editor.getByRole("button", { name: "Save new revision" })).toBeVisible();
+  await assertSettingsSectionFitsViewport(page, editor, "Mobile Definitions form");
   const conversion = editor.locator("fieldset.card").nth(0);
   const funnel = editor.locator("fieldset.card").nth(1);
   await conversion.getByLabel("Name", { exact: true }).fill("Purchase completed managed");
