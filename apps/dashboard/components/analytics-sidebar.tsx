@@ -1,9 +1,11 @@
 import Link from "next/link";
 
+import { analyticsReportRoute, type AnalyticsReport } from "../lib/settings-routes";
+
 interface SidebarItem {
   id: string;
   label: string;
-  href: string;
+  href: AnalyticsReport;
 }
 
 interface SidebarGroup {
@@ -12,38 +14,38 @@ interface SidebarGroup {
 }
 
 const groups: SidebarGroup[] = [
-  { label: "Overview", items: [{ id: "overview", label: "Overview", href: "/dashboard" }] },
+  { label: "Overview", items: [{ id: "overview", label: "Overview", href: "overview" }] },
   {
     label: "Traffic",
     items: [
-      { id: "pages", label: "Pages", href: "/dashboard/pages" },
-      { id: "dimensions", label: "Dimensions", href: "/dashboard/dimensions" },
+      { id: "pages", label: "Pages", href: "pages" },
+      { id: "dimensions", label: "Dimensions", href: "dimensions" },
     ],
   },
   {
     label: "Audience",
     items: [
-      { id: "visitors", label: "Visitors", href: "/dashboard/visitors" },
-      { id: "sessions", label: "Sessions", href: "/dashboard/sessions" },
+      { id: "visitors", label: "Visitors", href: "visitors" },
+      { id: "sessions", label: "Sessions", href: "sessions" },
     ],
   },
   {
     label: "Engagement",
-    items: [{ id: "custom-events", label: "Custom events", href: "/dashboard/custom-events" }],
+    items: [{ id: "custom-events", label: "Custom events", href: "custom-events" }],
   },
   {
     label: "Experience",
-    items: [{ id: "web-vitals", label: "Web Vitals", href: "/dashboard/web-vitals" }],
+    items: [{ id: "web-vitals", label: "Web Vitals", href: "web-vitals" }],
   },
   {
     label: "Geography",
-    items: [{ id: "countries", label: "Countries", href: "/dashboard/countries" }],
+    items: [{ id: "countries", label: "Countries", href: "countries" }],
   },
   {
     label: "Outcomes",
     items: [
-      { id: "conversions", label: "Conversions", href: "/dashboard/conversions" },
-      { id: "funnels", label: "Funnels", href: "/dashboard/funnels" },
+      { id: "conversions", label: "Conversions", href: "conversions" },
+      { id: "funnels", label: "Funnels", href: "funnels" },
     ],
   },
 ];
@@ -53,7 +55,7 @@ function SidebarLinks({
   hrefFor,
 }: {
   activePath: string;
-  hrefFor: (href: string) => string;
+  hrefFor: (href: AnalyticsReport) => string;
 }) {
   return (
     <nav aria-label="Analytics reports" className="analytics-sidebar-nav">
@@ -62,7 +64,11 @@ function SidebarLinks({
           {group.items.length > 1 && <p className="analytics-sidebar-heading">{group.label}</p>}
           {group.items.map((item) => (
             <Link
-              aria-current={activePath === item.href ? "page" : undefined}
+              aria-current={
+                activePath === (item.href === "overview" ? "/dashboard" : `/dashboard/${item.href}`)
+                  ? "page"
+                  : undefined
+              }
               className="analytics-sidebar-link"
               href={hrefFor(item.href)}
               key={item.id}
@@ -83,7 +89,16 @@ export function AnalyticsSidebar({
   pathname?: string;
   search?: string;
 }) {
-  const hrefFor = (href: string) => `${href}${search ? `?${search}` : ""}`;
+  const searchParams = new URLSearchParams(search);
+  const context = {
+    siteId: searchParams.get("site_id") ?? undefined,
+    from: searchParams.get("from") ?? undefined,
+    to: searchParams.get("to") ?? undefined,
+    environment: searchParams.get("environment") ?? undefined,
+    dimension: searchParams.get("dimension") ?? undefined,
+    definitionVersion: searchParams.get("definition_version") ?? undefined,
+  };
+  const hrefFor = (report: AnalyticsReport) => analyticsReportRoute(report, context);
 
   return (
     <aside aria-label="Analytics navigation" className="analytics-sidebar">

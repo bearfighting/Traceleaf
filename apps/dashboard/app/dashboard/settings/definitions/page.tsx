@@ -16,6 +16,7 @@ import {
 } from "../../../../lib/configuration-api/server";
 import { loadDefinitionRevisionHistory } from "../../../../lib/dashboard-page-data";
 import {
+  analyticsReportRoute,
   dashboardRoute,
   settingsRoute,
   type SettingsRouteContext,
@@ -107,7 +108,12 @@ export default async function DefinitionsPage({
             <ol>
               {history.revisions.map((item) => (
                 <li key={item.version}>
-                  <Link href={dashboardRoute({ ...routeContext, definitionVersion: item.version })}>
+                  <Link
+                    href={analyticsReportRoute("conversions", {
+                      ...routeContext,
+                      definitionVersion: item.version,
+                    })}
+                  >
                     Revision {item.revision} · {item.version}
                   </Link>
                   {" · Effective "}

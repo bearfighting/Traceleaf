@@ -71,7 +71,7 @@ describe("SettingsPage status navigation", () => {
     const markup = renderToStaticMarkup(element);
 
     expect(markup).toContain(
-      'href="/dashboard?site_id=site_missing&amp;environment=staging&amp;from=2026-09-01&amp;to=2026-09-30&amp;dimension=browser&amp;definition_version=r2"',
+      'href="/dashboard?site_id=site_missing&amp;from=2026-09-01&amp;to=2026-09-30&amp;environment=staging"',
     );
     expect(markup).toContain(
       'href="/dashboard/settings/overview?site_id=site_missing&amp;environment=staging&amp;from=2026-09-01&amp;to=2026-09-30&amp;dimension=browser&amp;definition_version=r2"',
@@ -102,7 +102,7 @@ describe("SettingsPage status navigation", () => {
     const markup = renderToStaticMarkup(element);
 
     expect(markup).toContain(
-      'href="/dashboard?site_id=site_unknown&amp;environment=staging&amp;from=2026-09-01&amp;to=2026-09-30&amp;dimension=browser&amp;definition_version=r2"',
+      'href="/dashboard?site_id=site_unknown&amp;from=2026-09-01&amp;to=2026-09-30&amp;environment=staging"',
     );
   });
 

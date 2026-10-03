@@ -26,6 +26,15 @@ function contextFromSearchParams(searchParams: Pick<URLSearchParams, "get">): Se
   };
 }
 
+function settingsOverviewContext(context: SettingsRouteContext): SettingsRouteContext {
+  return {
+    siteId: context.siteId,
+    environment: context.environment,
+    from: context.from,
+    to: context.to,
+  };
+}
+
 let locationSubscribers = 0;
 let originalPushState: History["pushState"] | undefined;
 let originalReplaceState: History["replaceState"] | undefined;
@@ -102,7 +111,7 @@ function DashboardLoadingFallbackHeader({ settingsMode }: { settingsMode: boolea
     <DashboardHeader
       settingsMode={settingsMode}
       analyticsHref={dashboardRoute(context)}
-      settingsHref={settingsRoute("overview", context)}
+      settingsHref={settingsRoute("overview", settingsOverviewContext(context))}
     />
   );
 }
@@ -115,7 +124,7 @@ function DashboardLoadingHeaderContent({ settingsMode = false }: { settingsMode?
     <DashboardHeader
       settingsMode={settingsMode}
       analyticsHref={dashboardRoute(context)}
-      settingsHref={settingsRoute("overview", context)}
+      settingsHref={settingsRoute("overview", settingsOverviewContext(context))}
     />
   );
 }

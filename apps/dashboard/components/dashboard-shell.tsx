@@ -2,7 +2,12 @@ import Link from "next/link";
 import React from "react";
 
 import { ANALYTICS_DIMENSIONS } from "../lib/analytics-api/types";
-import { settingsRoute, type SettingsSection } from "../lib/settings-routes";
+import {
+  analyticsReportRoute,
+  settingsRoute,
+  type AnalyticsReport,
+  type SettingsSection,
+} from "../lib/settings-routes";
 
 import { AnalyticsSidebar } from "./analytics-sidebar";
 import { Button, Select } from "./ui";
@@ -57,6 +62,7 @@ const reportTitles: Record<string, { title: string; description: string }> = {
 };
 
 function analyticsUrl({
+  report,
   siteId,
   dateRange,
   dimension,
@@ -65,15 +71,15 @@ function analyticsUrl({
 }: Pick<
   DashboardShellProps,
   "siteId" | "dateRange" | "dimension" | "definitionVersion" | "environment"
->) {
-  const params = new URLSearchParams({ site_id: siteId });
-  if (dateRange.from) params.set("from", dateRange.from);
-  if (dateRange.to) params.set("to", dateRange.to);
-  if (dimension) params.set("dimension", dimension);
-  if (definitionVersion) params.set("definition_version", definitionVersion);
-  if (environment) params.set("environment", environment);
-
-  return `/dashboard?${params.toString()}`;
+> & { report: AnalyticsReport }) {
+  return analyticsReportRoute(report, {
+    siteId,
+    from: dateRange.from,
+    to: dateRange.to,
+    dimension,
+    definitionVersion,
+    environment,
+  });
 }
 
 function settingsUrl({
@@ -83,10 +89,8 @@ function settingsUrl({
   definitionVersion,
   environment,
   settingsSection = "overview",
-}: Pick<
-  DashboardShellProps,
-  "siteId" | "dateRange" | "dimension" | "definitionVersion" | "environment" | "settingsSection"
->) {
+}: Pick<DashboardShellProps, "siteId" | "dateRange" | "environment" | "settingsSection"> &
+  Partial<Pick<DashboardShellProps, "dimension" | "definitionVersion">>) {
   return settingsRoute(settingsSection, {
     siteId,
     from: dateRange.from,
@@ -164,6 +168,7 @@ export function DashboardShell({
 }: DashboardShellProps) {
   const reportInfo = reportTitles[report] ?? reportTitles.overview;
   const analyticsHref = analyticsUrl({
+    report: "overview",
     siteId,
     dateRange,
     dimension,
@@ -173,11 +178,19 @@ export function DashboardShell({
   const settingsHref = settingsUrl({
     siteId,
     dateRange,
-    dimension,
-    definitionVersion,
+    dimension: settingsMode && settingsSection === "definitions" ? dimension : undefined,
+    definitionVersion:
+      settingsMode && settingsSection === "definitions" ? definitionVersion : undefined,
     environment,
     settingsSection,
   });
+  const sidebarSearch = settingsUrl({
+    siteId,
+    dateRange,
+    dimension,
+    definitionVersion,
+    environment,
+  }).split("?")[1];
 
   return (
     <main className="dashboard-shell bg-canvas text-ink">
@@ -193,7 +206,7 @@ export function DashboardShell({
         {!settingsMode && (
           <AnalyticsSidebar
             pathname={report === "overview" ? "/dashboard" : `/dashboard/${report}`}
-            search={analyticsHref.split("?")[1]}
+            search={sidebarSearch}
           />
         )}
         <div className="min-w-0">
@@ -260,27 +273,31 @@ export function DashboardShell({
                 To
                 <input defaultValue={dateRange.to} name="to" type="date" />
               </label>
-              <label>
-                Definition revision
-                <Select defaultValue={definitionVersion ?? ""} name="definition_version">
-                  <option value="">Current</option>
-                  {definitionVersions.map((item) => (
-                    <option key={item.version} value={item.version}>
-                      r{item.revision} · {item.version}
-                    </option>
-                  ))}
-                </Select>
-              </label>
-              <label>
-                Dimension
-                <Select defaultValue={dimension} name="dimension">
-                  {ANALYTICS_DIMENSIONS.map((value) => (
-                    <option key={value} value={value}>
-                      {value}
-                    </option>
-                  ))}
-                </Select>
-              </label>
+              {(report === "conversions" || report === "funnels") && (
+                <label>
+                  Definition revision
+                  <Select defaultValue={definitionVersion ?? ""} name="definition_version">
+                    <option value="">Current</option>
+                    {definitionVersions.map((item) => (
+                      <option key={item.version} value={item.version}>
+                        r{item.revision} · {item.version}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+              )}
+              {report === "dimensions" && (
+                <label>
+                  Dimension
+                  <Select defaultValue={dimension} name="dimension">
+                    {ANALYTICS_DIMENSIONS.map((value) => (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+              )}
               {environment && <input name="environment" type="hidden" value={environment} />}
               <Button type="submit">Apply filters</Button>
             </form>

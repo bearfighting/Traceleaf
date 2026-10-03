@@ -38,20 +38,20 @@ The inventory is limited to reports already supported in the Dashboard and Analy
 
 ### M7b.1 — Report routes and navigation
 
-- [ ] Create a stable route for Overview and each supported report, reusing the M7a Dashboard shell and Analytics Sidebar.
-- [ ] Mark the current report in navigation with an accessible current-page state; browser back/forward and direct route loads select the matching item.
-- [ ] Keep report titles and descriptions in the page content area, separate from navigation and shared filters.
-- [ ] Keep Settings as a separate primary navigation context without the Analytics Sidebar.
-- [ ] Remove duplicate full report content from Overview; keep a concise summary and links to detail reports.
+- [x] Create a stable route for Overview and each supported report, reusing the M7a Dashboard shell and Analytics Sidebar.
+- [x] Mark the current report in navigation with an accessible current-page state; browser back/forward and direct route loads select the matching item.
+- [x] Keep report titles and descriptions in the page content area, separate from navigation and shared filters.
+- [x] Keep Settings as a separate primary navigation context without the Analytics Sidebar.
+- [x] Remove duplicate full report content from Overview; keep a concise summary and links to detail reports.
 
 ### M7b.2 — Shared filters and URL state
 
-- [ ] Keep Site and date range filters consistent across report pages and preserve them in shareable URLs.
-- [ ] Preserve the selected Site when moving between Analytics reports and Settings, where applicable.
-- [ ] Show Dimension only on Dimensions; show definition revision only on Conversions and Funnels.
-- [ ] Preserve valid page-specific parameters when navigating between compatible reports; remove or ignore parameters that do not apply to the destination.
-- [ ] Handle invalid or unknown Site, date, dimension, and definition parameters with the existing explicit validation/error behavior.
-- [ ] Ensure form submission, route navigation, refresh, and browser history restore the visible filter values.
+- [x] Keep Site and date range filters consistent across report pages and preserve them in shareable URLs.
+- [x] Preserve the selected Site when moving between Analytics reports and Settings, where applicable.
+- [x] Show Dimension only on Dimensions; show definition revision only on Conversions and Funnels.
+- [x] Preserve valid page-specific parameters when navigating between compatible reports; remove or ignore parameters that do not apply to the destination.
+- [x] Handle invalid or unknown Site, date, dimension, and definition parameters with the existing explicit validation/error behavior.
+- [x] Ensure form submission, route navigation, refresh, and browser history restore the visible filter values.
 
 ### M7b.3 — Report content and states
 
@@ -91,4 +91,7 @@ The inventory is limited to reports already supported in the Dashboard and Analy
 - 2026-10-03 — `pnpm format:check:docs`: passed.
 - 2026-10-03 — `git diff --check`: passed.
 - 2026-10-03 — `E2E_POSTGRES_PORT=15445 E2E_CACHE_SCOPE=m7b-fix node ./scripts/e2e-dashboard.mjs`: passed. Covers responsive navigation, query context, browser back/forward, filter submission, unknown slugs, all report routes including Dimensions and Language filtering, Phase 6 error/disabled/empty states, configuration workflows, and API errors.
-- M7b.1 routes and navigation are implemented. M7b.2–M7b.5 remain in progress; shared report-specific filter visibility and parameter compatibility are deferred.
+- M7b.1 routes and navigation are implemented.
+- 2026-10-03 — M7b.2 implemented typed destination-aware Analytics URL construction, consistent Site/date/environment context, compatible Dimension and definition revision propagation, destination-specific filter controls, and report-specific historical revision links from Definitions.
+- 2026-10-03 — M7b.2 verification: `pnpm --filter @web-analytics/dashboard test` passed (41 files, 200 tests); `pnpm check` passed (including format checks; ESLint reports 5 existing generated-file warnings); `pnpm build` passed; `pnpm format:check:docs` passed; `git diff --check` passed.
+- 2026-10-03 — `pnpm e2e:dashboard` could not complete because default PostgreSQL port 15432 was already allocated. Two isolated retries using port 15445 completed database migration and seed setup, then stalled during `importDefinitionsIfEmpty`; both were interrupted and their generated containers and volumes were cleaned up. Dashboard E2E remains unverified for this delivery.

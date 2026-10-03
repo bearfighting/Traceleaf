@@ -18,17 +18,17 @@ describe("DashboardLoadingHeader", () => {
     navigationState.query = "";
   });
 
-  it("preserves the Site and Settings context in both navigation links while loading", () => {
+  it("preserves only overview-applicable context in loading navigation links", () => {
     navigationState.query =
       "site_id=site_alpha&environment=staging&from=2026-09-01&to=2026-09-30&dimension=browser&definition_version=r2";
 
     const markup = renderToStaticMarkup(<DashboardLoadingHeader settingsMode />);
 
     expect(markup).toContain(
-      'href="/dashboard?site_id=site_alpha&amp;environment=staging&amp;from=2026-09-01&amp;to=2026-09-30&amp;dimension=browser&amp;definition_version=r2"',
+      'href="/dashboard?site_id=site_alpha&amp;from=2026-09-01&amp;to=2026-09-30&amp;environment=staging"',
     );
     expect(markup).toContain(
-      'href="/dashboard/settings/overview?site_id=site_alpha&amp;environment=staging&amp;from=2026-09-01&amp;to=2026-09-30&amp;dimension=browser&amp;definition_version=r2"',
+      'href="/dashboard/settings/overview?site_id=site_alpha&amp;environment=staging&amp;from=2026-09-01&amp;to=2026-09-30"',
     );
   });
 
@@ -63,7 +63,7 @@ describe("DashboardLoadingHeader", () => {
     expect(dashboardMarkup).not.toContain("bg-brand-soft");
     expect(dashboardMarkup).toContain('aria-current="page" href="/dashboard?site_id=site_alpha');
     expect(dashboardMarkup).toContain(
-      'href="/dashboard/settings/overview?site_id=site_alpha&amp;environment=staging&amp;from=2026-09-01&amp;to=2026-09-30&amp;dimension=browser&amp;definition_version=r2"',
+      'href="/dashboard/settings/overview?site_id=site_alpha&amp;environment=staging&amp;from=2026-09-01&amp;to=2026-09-30"',
     );
     expect(dashboardMarkup).not.toContain('aria-label="Analytics navigation"');
 
@@ -71,7 +71,7 @@ describe("DashboardLoadingHeader", () => {
     expect(settingsMarkup).toContain("Loading configuration for the selected site.");
     expect(settingsMarkup).toContain('aria-current="page" href="/dashboard/settings/overview');
     expect(settingsMarkup).toContain(
-      'href="/dashboard?site_id=site_alpha&amp;environment=staging&amp;from=2026-09-01&amp;to=2026-09-30&amp;dimension=browser&amp;definition_version=r2"',
+      'href="/dashboard?site_id=site_alpha&amp;from=2026-09-01&amp;to=2026-09-30&amp;environment=staging"',
     );
   });
 });

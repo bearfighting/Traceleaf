@@ -68,7 +68,7 @@ describe("DefinitionsPage", () => {
     expect(markup).toContain("Current revision: r2");
     expect(markup).toContain("Effective");
     expect(markup).toContain(
-      "/dashboard?site_id=site_alpha&amp;from=2026-09-01&amp;dimension=browser&amp;definition_version=r1",
+      "/dashboard/conversions?site_id=site_alpha&amp;from=2026-09-01&amp;definition_version=r1",
     );
     expect(markup).toContain("Definition editor");
     expect(markup).not.toContain("DASHBOARD_DEFAULT_ENVIRONMENT");
