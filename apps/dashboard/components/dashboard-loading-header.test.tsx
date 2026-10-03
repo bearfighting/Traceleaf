@@ -55,7 +55,12 @@ describe("DashboardLoadingHeader", () => {
       "site_id=site_alpha&environment=staging&from=2026-09-01&to=2026-09-30&dimension=browser&definition_version=r2";
 
     const dashboardMarkup = renderToStaticMarkup(<DashboardLoading />);
-    expect(dashboardMarkup).toContain("Loading reports for the selected site.");
+    expect(dashboardMarkup).toContain("Loading the selected report.");
+    expect(dashboardMarkup).toContain("Loading report data for the selected site.");
+    expect(dashboardMarkup).not.toContain(">Overview</h1>");
+    expect(dashboardMarkup).not.toContain("Visitors and Sessions");
+    expect(dashboardMarkup).not.toContain("Dimension Report");
+    expect(dashboardMarkup).not.toContain("bg-brand-soft");
     expect(dashboardMarkup).toContain('aria-current="page" href="/dashboard?site_id=site_alpha');
     expect(dashboardMarkup).toContain(
       'href="/dashboard/settings/overview?site_id=site_alpha&amp;environment=staging&amp;from=2026-09-01&amp;to=2026-09-30&amp;dimension=browser&amp;definition_version=r2"',

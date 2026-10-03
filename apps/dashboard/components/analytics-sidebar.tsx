@@ -1,10 +1,9 @@
-"use client";
-
-import { useEffect, useState } from "react";
+import Link from "next/link";
 
 interface SidebarItem {
   id: string;
   label: string;
+  href: string;
 }
 
 interface SidebarGroup {
@@ -13,42 +12,48 @@ interface SidebarGroup {
 }
 
 const groups: SidebarGroup[] = [
-  { label: "Overview", items: [{ id: "overview", label: "Overview" }] },
+  { label: "Overview", items: [{ id: "overview", label: "Overview", href: "/dashboard" }] },
   {
     label: "Traffic",
     items: [
-      { id: "timeline", label: "Page views" },
-      { id: "top-pages", label: "Top pages" },
-      { id: "dimensions", label: "Dimensions" },
+      { id: "pages", label: "Pages", href: "/dashboard/pages" },
+      { id: "dimensions", label: "Dimensions", href: "/dashboard/dimensions" },
     ],
   },
   {
     label: "Audience",
     items: [
-      { id: "visitors", label: "Visitors" },
-      { id: "sessions", label: "Sessions" },
+      { id: "visitors", label: "Visitors", href: "/dashboard/visitors" },
+      { id: "sessions", label: "Sessions", href: "/dashboard/sessions" },
     ],
   },
-  { label: "Engagement", items: [{ id: "custom-events", label: "Custom events" }] },
-  { label: "Experience", items: [{ id: "web-vitals", label: "Web Vitals" }] },
-  { label: "Geography", items: [{ id: "countries", label: "Countries" }] },
+  {
+    label: "Engagement",
+    items: [{ id: "custom-events", label: "Custom events", href: "/dashboard/custom-events" }],
+  },
+  {
+    label: "Experience",
+    items: [{ id: "web-vitals", label: "Web Vitals", href: "/dashboard/web-vitals" }],
+  },
+  {
+    label: "Geography",
+    items: [{ id: "countries", label: "Countries", href: "/dashboard/countries" }],
+  },
   {
     label: "Outcomes",
     items: [
-      { id: "conversions", label: "Conversions" },
-      { id: "funnels", label: "Funnels" },
+      { id: "conversions", label: "Conversions", href: "/dashboard/conversions" },
+      { id: "funnels", label: "Funnels", href: "/dashboard/funnels" },
     ],
   },
 ];
 
 function SidebarLinks({
-  activeId,
-  onSelect,
-  closeOnSelect = false,
+  activePath,
+  hrefFor,
 }: {
-  activeId: string;
-  onSelect: (id: string) => void;
-  closeOnSelect?: boolean;
+  activePath: string;
+  hrefFor: (href: string) => string;
 }) {
   return (
     <nav aria-label="Analytics reports" className="analytics-sidebar-nav">
@@ -56,24 +61,14 @@ function SidebarLinks({
         <div className="analytics-sidebar-group" key={group.label}>
           {group.items.length > 1 && <p className="analytics-sidebar-heading">{group.label}</p>}
           {group.items.map((item) => (
-            <a
-              aria-current={activeId === item.id ? "location" : undefined}
+            <Link
+              aria-current={activePath === item.href ? "page" : undefined}
               className="analytics-sidebar-link"
-              href={`#${item.id}`}
+              href={hrefFor(item.href)}
               key={item.id}
-              onClick={(event) => {
-                onSelect(item.id);
-                if (closeOnSelect) {
-                  const details = event.currentTarget.closest("details");
-                  if (details) {
-                    details.open = false;
-                    details.querySelector("summary")?.focus();
-                  }
-                }
-              }}
             >
               {item.label}
-            </a>
+            </Link>
           ))}
         </div>
       ))}
@@ -81,37 +76,23 @@ function SidebarLinks({
   );
 }
 
-export function AnalyticsSidebar() {
-  const [activeId, setActiveId] = useState("overview");
-
-  useEffect(() => {
-    const readHash = () => {
-      const hashId = window.location.hash.slice(1);
-      setActiveId(
-        groups.flatMap((group) => group.items).some((item) => item.id === hashId)
-          ? hashId
-          : "overview",
-      );
-    };
-
-    readHash();
-    window.addEventListener("hashchange", readHash);
-    window.addEventListener("popstate", readHash);
-
-    return () => {
-      window.removeEventListener("hashchange", readHash);
-      window.removeEventListener("popstate", readHash);
-    };
-  }, []);
+export function AnalyticsSidebar({
+  pathname = "/dashboard",
+  search,
+}: {
+  pathname?: string;
+  search?: string;
+}) {
+  const hrefFor = (href: string) => `${href}${search ? `?${search}` : ""}`;
 
   return (
     <aside aria-label="Analytics navigation" className="analytics-sidebar">
       <div className="analytics-sidebar-desktop">
-        <SidebarLinks activeId={activeId} onSelect={setActiveId} />
+        <SidebarLinks activePath={pathname} hrefFor={hrefFor} />
       </div>
       <details className="mobile-analytics-menu">
         <summary>Browse reports</summary>
-        <SidebarLinks activeId={activeId} onSelect={setActiveId} closeOnSelect />
+        <SidebarLinks activePath={pathname} hrefFor={hrefFor} />
       </details>
     </aside>
   );

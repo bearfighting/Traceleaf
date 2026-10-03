@@ -22,7 +22,39 @@ interface DashboardShellProps {
   definitionVersions?: Array<{ version: string; revision: number }>;
   environment?: string;
   settingsSection?: SettingsSection;
+  report?: string;
 }
+
+const reportTitles: Record<string, { title: string; description: string }> = {
+  overview: {
+    title: "Overview",
+    description: "Key activity for the selected site and reporting period.",
+  },
+  pages: { title: "Pages", description: "Page view trends and the most visited paths." },
+  dimensions: {
+    title: "Dimensions",
+    description: "Break down activity by browser, device, and other dimensions.",
+  },
+  visitors: { title: "Visitors", description: "Daily unique visitor activity for this site." },
+  sessions: { title: "Sessions", description: "Daily session activity for this site." },
+  "custom-events": {
+    title: "Custom events",
+    description: "Events recorded for the selected site and period.",
+  },
+  "web-vitals": {
+    title: "Web Vitals",
+    description: "Browser performance metrics for the selected period.",
+  },
+  countries: { title: "Countries", description: "Geographic distribution of activity by country." },
+  conversions: {
+    title: "Conversions",
+    description: "Conversion outcomes for the selected definition revision.",
+  },
+  funnels: {
+    title: "Funnels",
+    description: "Funnel completion by step for the selected definition revision.",
+  },
+};
 
 function analyticsUrl({
   siteId,
@@ -128,7 +160,9 @@ export function DashboardShell({
   definitionVersions = [],
   environment,
   settingsSection = "overview",
+  report = "overview",
 }: DashboardShellProps) {
+  const reportInfo = reportTitles[report] ?? reportTitles.overview;
   const analyticsHref = analyticsUrl({
     siteId,
     dateRange,
@@ -156,18 +190,23 @@ export function DashboardShell({
       <div
         className={`dashboard-container grid gap-8 py-8 lg:gap-10 ${settingsMode ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)]"}`}
       >
-        {!settingsMode && <AnalyticsSidebar />}
+        {!settingsMode && (
+          <AnalyticsSidebar
+            pathname={report === "overview" ? "/dashboard" : `/dashboard/${report}`}
+            search={analyticsHref.split("?")[1]}
+          />
+        )}
         <div className="min-w-0">
           <div className="mb-6 flex flex-wrap items-end justify-between gap-5">
             <div>
               <p className="eyebrow">{settingsMode ? "Workspace" : "Analytics"}</p>
               <h1 className="m-0 text-3xl font-bold tracking-tight text-ink">
-                {settingsMode ? "Site settings" : "Overview"}
+                {settingsMode ? "Site settings" : reportInfo.title}
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
                 {settingsMode
                   ? "Manage capabilities, ingestion, and analytics definitions for a site."
-                  : "Explore activity for the selected site and reporting period."}
+                  : reportInfo.description}
               </p>
             </div>
           </div>
@@ -199,7 +238,7 @@ export function DashboardShell({
             </form>
           ) : (
             <form
-              action="/dashboard"
+              action={report === "overview" ? "/dashboard" : `/dashboard/${report}`}
               className="filters mb-6 rounded-xl border border-line bg-surface p-4 shadow-sm"
               method="get"
             >

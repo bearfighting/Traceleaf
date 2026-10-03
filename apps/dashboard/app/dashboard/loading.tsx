@@ -1,6 +1,4 @@
 import { DashboardLoadingHeader } from "../../components/dashboard-loading-header";
-import { Phase6LoadingState } from "../../components/phase6-loading-state";
-import { LoadingState } from "../../components/states/loading-state";
 
 export default function DashboardLoading() {
   return (
@@ -21,18 +19,15 @@ export default function DashboardLoading() {
             "Experience",
             "Geography",
             "Outcomes",
-          ].map((item, index) => (
-            <div
-              className={`h-8 animate-pulse rounded-lg ${index === 0 ? "bg-brand-soft" : "bg-slate-200/70"}`}
-              key={item}
-            />
+          ].map((item) => (
+            <div className="h-8 animate-pulse rounded-lg bg-slate-200/70" key={item} />
           ))}
         </aside>
         <div className="min-w-0">
           <header className="mb-6">
             <p className="eyebrow">Analytics</p>
-            <h1 className="m-0 text-3xl font-bold tracking-tight">Overview</h1>
-            <p className="mt-2 text-sm text-muted">Loading reports for the selected site.</p>
+            <h1 className="m-0 text-3xl font-bold tracking-tight">Analytics report</h1>
+            <p className="mt-2 text-sm text-muted">Loading the selected report.</p>
           </header>
           <div
             aria-hidden="true"
@@ -45,11 +40,14 @@ export default function DashboardLoading() {
               />
             ))}
           </div>
-          <section className="card" id="overview">
-            <LoadingState context={{ siteId: "pending", dateRange: { from: "", to: "" } }} />
+          <section aria-label="Report loading" className="card">
+            <p role="status">Loading report data for the selected site.</p>
+            <div aria-hidden="true" className="mt-4 grid gap-3">
+              <div className="h-4 w-3/4 animate-pulse rounded bg-slate-200/70" />
+              <div className="h-4 w-1/2 animate-pulse rounded bg-slate-200/70" />
+              <div className="h-24 animate-pulse rounded bg-slate-200/70" />
+            </div>
           </section>
-          <Phase6LoadingState heading="Visitors and Sessions" />
-          <Phase6LoadingState heading="Dimension Report" />
         </div>
       </div>
     </main>

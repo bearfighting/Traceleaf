@@ -84,4 +84,11 @@ The inventory is limited to reports already supported in the Dashboard and Analy
 
 ## Validation record
 
-Not started. Record date, commands, results, and any known limitations here during implementation.
+- 2026-10-03 — `pnpm --filter @web-analytics/dashboard test`: passed (41 files, 195 tests).
+- 2026-10-03 — `pnpm check`: passed. ESLint reports 5 existing unused-directive warnings in generated protocol files.
+- 2026-10-03 — `pnpm build`: passed.
+- 2026-10-03 — `pnpm format:check`: passed.
+- 2026-10-03 — `pnpm format:check:docs`: passed.
+- 2026-10-03 — `git diff --check`: passed.
+- 2026-10-03 — `E2E_POSTGRES_PORT=15445 E2E_CACHE_SCOPE=m7b-fix node ./scripts/e2e-dashboard.mjs`: passed. Covers responsive navigation, query context, browser back/forward, filter submission, unknown slugs, all report routes including Dimensions and Language filtering, Phase 6 error/disabled/empty states, configuration workflows, and API errors.
+- M7b.1 routes and navigation are implemented. M7b.2–M7b.5 remain in progress; shared report-specific filter visibility and parameter compatibility are deferred.

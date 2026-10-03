@@ -3,7 +3,11 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
 import { AnalyticsApiClientError } from "./analytics-api/errors";
-import { loadDashboardReports } from "./dashboard-reports";
+import {
+  loadDashboardLegacyReport,
+  loadDashboardPhase6Report,
+  loadDashboardReports,
+} from "./dashboard-reports";
 
 import type { AnalyticsApiClient } from "./analytics-api/client";
 
@@ -76,7 +80,18 @@ function createClient(overrides: Partial<AnalyticsApiClient> = {}): AnalyticsApi
       freshness_status: "current",
       aggregation_version: 1,
     }),
-    sessions: vi.fn(),
+    sessions: vi.fn().mockResolvedValue({
+      site_id: context.siteId,
+      from: context.dateRange.from,
+      to: context.dateRange.to,
+      page_views: 0,
+      unique_visitors: 0,
+      sessions: 0,
+      items: [],
+      data_as_of: null,
+      freshness_status: "current",
+      aggregation_version: 1,
+    }),
     dimension: vi.fn().mockResolvedValue({
       site_id: context.siteId,
       from: context.dateRange.from,
@@ -113,6 +128,41 @@ function readFixture(filename = "multi-page-navigation.json") {
 }
 
 describe("loadDashboardReports", () => {
+  it("loads only the endpoints required by the selected Legacy report", async () => {
+    const client = createClient();
+
+    const result = await loadDashboardLegacyReport(context, "countries", client);
+
+    expect(client.geoCountries).toHaveBeenCalledOnce();
+    expect(client.timeline).not.toHaveBeenCalled();
+    expect(client.pages).not.toHaveBeenCalled();
+    expect(client.events).not.toHaveBeenCalled();
+    expect(client.visitors).not.toHaveBeenCalled();
+    expect(result.geoCountries?.status).toBe("success");
+  });
+
+  it("queries only the selected Phase 6 report endpoint", async () => {
+    const dimensionsClient = createClient();
+    const dimensions = await loadDashboardPhase6Report(context, "dimensions", {
+      client: dimensionsClient,
+    });
+
+    expect(dimensions).toMatchObject({ kind: "dimension", state: { status: "success" } });
+    expect(dimensionsClient.dimension).toHaveBeenCalledOnce();
+    expect(dimensionsClient.visitors).not.toHaveBeenCalled();
+    expect(dimensionsClient.sessions).not.toHaveBeenCalled();
+
+    const sessionsClient = createClient();
+    const sessions = await loadDashboardPhase6Report(context, "sessions", {
+      client: sessionsClient,
+    });
+
+    expect(sessions).toMatchObject({ kind: "audience", state: { status: "success" } });
+    expect(sessionsClient.sessions).toHaveBeenCalledOnce();
+    expect(sessionsClient.visitors).not.toHaveBeenCalled();
+    expect(sessionsClient.dimension).not.toHaveBeenCalled();
+  });
+
   it("queries timeline and pages in parallel with the current context", async () => {
     const client = createClient();
     const resultPromise = loadDashboardReports(context, { client });

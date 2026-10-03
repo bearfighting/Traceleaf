@@ -50,6 +50,12 @@ export interface DashboardPhase6ReportsState {
   dimension: DashboardReportState<DimensionResponse>;
 }
 
+export type DashboardPhase6ReportName = "overview" | "visitors" | "sessions" | "dimensions";
+
+export type DashboardPhase6ReportResult =
+  | { kind: "audience"; state: DashboardReportState<VisitorSessionResponse> }
+  | { kind: "dimension"; state: DashboardReportState<DimensionResponse> };
+
 export async function loadDashboardLegacyReports(
   context: DashboardOverviewContext,
   dependencies: DashboardApiDependencies = {},
@@ -118,6 +124,77 @@ export async function loadDashboardPhase6Reports(
   ]);
 
   return { visitors, dimension: dimensionReport };
+}
+
+export async function loadDashboardPhase6Report(
+  context: DashboardOverviewContext,
+  report: DashboardPhase6ReportName,
+  dependencies: DashboardApiDependencies = {},
+  dimension: AnalyticsDimension = context.dimension ?? "browser",
+): Promise<DashboardPhase6ReportResult> {
+  let client: AnalyticsApiClient;
+  try {
+    client = resolveClient(dependencies);
+  } catch (cause) {
+    const error = toAnalyticsApiClientError(cause);
+
+    return report === "dimensions"
+      ? { kind: "dimension", state: { status: "error", error } }
+      : { kind: "audience", state: { status: "error", error } };
+  }
+
+  if (report === "dimensions") {
+    return {
+      kind: "dimension",
+      state: await settlePhase6(() =>
+        client.dimension(context.siteId, context.dateRange.from, context.dateRange.to, dimension),
+      ),
+    };
+  }
+
+  const query = report === "sessions" ? client.sessions : client.visitors;
+
+  return {
+    kind: "audience",
+    state: await settlePhase6(() =>
+      query(context.siteId, context.dateRange.from, context.dateRange.to),
+    ),
+  };
+}
+
+export async function loadDashboardLegacyReport(
+  context: DashboardOverviewContext,
+  report: "pages" | "custom-events" | "countries" | "web-vitals" | "conversions" | "funnels",
+  client: AnalyticsApiClient,
+): Promise<Partial<DashboardLegacyReportsState>> {
+  switch (report) {
+    case "pages": {
+      const [timeline, pages] = await Promise.all([
+        settle(() => client.timeline(context.siteId, context.dateRange.from, context.dateRange.to)),
+        settle(() => client.pages(context.siteId, context.dateRange.from, context.dateRange.to)),
+      ]);
+
+      return { timeline, pages };
+    }
+    case "custom-events":
+      return {
+        events: await settle(() =>
+          client.events(context.siteId, context.dateRange.from, context.dateRange.to, 100),
+        ),
+      };
+    case "countries":
+      return {
+        geoCountries: await settle(() =>
+          client.geoCountries(context.siteId, context.dateRange.from, context.dateRange.to),
+        ),
+      };
+    case "web-vitals":
+      return { webVitals: await settle(() => loadWebVitals(client, context)) };
+    case "conversions":
+      return { conversions: await settle(() => loadConversions(client, context)) };
+    case "funnels":
+      return { funnels: await settle(() => loadFunnels(client, context)) };
+  }
 }
 
 export async function loadDashboardReports(

@@ -25,6 +25,13 @@ function firstValue(value: string | string[] | undefined): string | undefined {
 }
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  return DashboardRouteContent({ searchParams, report: "overview" });
+}
+
+export async function DashboardRouteContent({
+  searchParams,
+  report,
+}: DashboardPageProps & { report: string }) {
   const resolvedSearchParams = await searchParams;
   const environment = firstValue(resolvedSearchParams.environment);
   const directory = await loadSiteDirectory();
@@ -53,6 +60,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
     return (
       <DashboardShell
+        report={report}
         dateRange={dateRange}
         siteId={displayedSite.site_id}
         sites={options}
@@ -109,6 +117,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
     return (
       <DashboardShell
+        report={report}
         dateRange={displayedDateRange}
         siteId={displayedSite}
         sites={options}
@@ -129,6 +138,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   return (
     <DashboardShell
+      report={report}
       definitionVersions={definitionVersions}
       definitionVersion={query.params.definitionVersion}
       dateRange={query.params.dateRange}
@@ -138,6 +148,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       environment={environment}
     >
       <DashboardSections
+        report={report}
+        environment={environment}
         from={query.params.dateRange.from}
         siteId={query.params.siteId}
         to={query.params.dateRange.to}
