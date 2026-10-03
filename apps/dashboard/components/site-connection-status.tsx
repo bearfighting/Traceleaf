@@ -199,7 +199,9 @@ export function SiteConnectionStatus({
           {configuration.kind === "ready" &&
             configuration.policy &&
             configuration.policy.policy.keys.length === 0 && (
-              <a href="#ingest-keys">Create an Ingest Key</a>
+              <a href={settingsRoute("ingest-keys", { siteId: site.site_id, environment })}>
+                Create an Ingest Key
+              </a>
             )}
           {configuration.kind === "ready" && (
             <>
@@ -209,7 +211,9 @@ export function SiteConnectionStatus({
               <a href={settingsRoute("environments", { siteId: site.site_id, environment })}>
                 Environment policy
               </a>
-              <a href="#ingest-keys">Ingest Keys</a>
+              <a href={settingsRoute("ingest-keys", { siteId: site.site_id, environment })}>
+                Ingest Keys
+              </a>
               <a href="#definitions">Definitions</a>
             </>
           )}

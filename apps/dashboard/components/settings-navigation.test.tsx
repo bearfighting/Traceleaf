@@ -44,4 +44,17 @@ describe("SettingsNavigation", () => {
       "/dashboard/settings/capabilities?site_id=site_alpha&amp;environment=preview",
     );
   });
+
+  it("exposes an addressable Ingest Keys task with the current Site and Environment", () => {
+    const markup = renderToStaticMarkup(
+      <SettingsNavigation
+        context={{ siteId: "site_alpha", environment: "preview" }}
+        section="ingest-keys"
+      />,
+    );
+    expect(markup).toContain('aria-current="page">Ingest Keys');
+    expect(markup).toContain(
+      "/dashboard/settings/ingest-keys?site_id=site_alpha&amp;environment=preview",
+    );
+  });
 });

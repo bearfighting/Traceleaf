@@ -1,4 +1,4 @@
-export type SettingsSection = "overview" | "capabilities" | "environments";
+export type SettingsSection = "overview" | "capabilities" | "environments" | "ingest-keys";
 
 export interface SettingsRouteContext {
   siteId?: string;

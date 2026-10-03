@@ -252,7 +252,7 @@ describe("site connection status", () => {
       .IS_REACT_ACT_ENVIRONMENT;
   });
 
-  it("links incomplete setup requirements to stable editor anchors", () => {
+  it("links incomplete setup requirements to their Settings pages", () => {
     const container = document.createElement("div");
     const root: Root = createRoot(container);
     (
@@ -279,7 +279,7 @@ describe("site connection status", () => {
       "/dashboard/settings/environments?site_id=site_demo&environment=staging",
     );
     expect([...container.querySelectorAll("a")].map((link) => link.getAttribute("href"))).toContain(
-      "#ingest-keys",
+      "/dashboard/settings/ingest-keys?site_id=site_demo&environment=staging",
     );
     act(() => root.unmount());
     container.remove();

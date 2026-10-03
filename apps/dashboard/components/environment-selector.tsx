@@ -4,17 +4,37 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export function EnvironmentSelector({
-  value,
-  siteId,
-  from,
-  to,
-  dimension,
+  ...props
 }: {
   value: string;
   siteId: string;
   from?: string;
   to?: string;
   dimension?: string;
+  route?: "environments" | "ingest-keys";
+}) {
+  return (
+    <EnvironmentSelectorForm
+      key={`${props.siteId}:${props.route ?? "environments"}:${props.value}`}
+      {...props}
+    />
+  );
+}
+
+function EnvironmentSelectorForm({
+  value,
+  siteId,
+  from,
+  to,
+  dimension,
+  route = "environments",
+}: {
+  value: string;
+  siteId: string;
+  from?: string;
+  to?: string;
+  dimension?: string;
+  route?: "environments" | "ingest-keys";
 }) {
   const router = useRouter();
   const [environment, setEnvironment] = useState(value);
@@ -25,7 +45,7 @@ export function EnvironmentSelector({
     if (from) params.set("from", from);
     if (to) params.set("to", to);
     if (dimension) params.set("dimension", dimension);
-    router.push(`/dashboard/settings/environments?${params.toString()}`);
+    router.push(`/dashboard/settings/${route}?${params.toString()}`);
   }
 
   return (

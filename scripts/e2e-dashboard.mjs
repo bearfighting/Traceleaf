@@ -1257,7 +1257,7 @@ async function assertDashboardConfiguration(page) {
     .waitFor();
 
   await page.goto(
-    `${dashboardUrl}/dashboard/settings/overview?site_id=site_playground&environment=config-e2e`,
+    `${dashboardUrl}/dashboard/settings/ingest-keys?site_id=site_playground&environment=config-e2e`,
   );
   await page.getByRole("heading", { name: "Ingest Keys" }).waitFor();
   await page.getByRole("button", { name: "Create Ingest Key" }).click();
@@ -1284,9 +1284,30 @@ async function assertDashboardConfiguration(page) {
     (await page.locator(".one-time-secret").count()) === 0,
     "Hide key should remove the plaintext from the page",
   );
-  await page.getByRole("button", { name: "Create Ingest Key" }).click();
+  assert(
+    !(await page.evaluate(() => JSON.stringify(localStorage))).includes(plaintext),
+    "Ingest Key plaintext was persisted in browser storage",
+  );
+  await page.getByRole("button", { name: "Create replacement key" }).click();
   await page.locator(".one-time-secret code").waitFor();
   await expect(page.locator(".key-list li")).toHaveCount(2);
+  await page.route(
+    `**/api/admin/sites/site_playground/environments/config-e2e/ingest-keys`,
+    async (route) => {
+      await route.fetch();
+      await route.abort();
+    },
+    { times: 1 },
+  );
+  await page.getByRole("button", { name: "Create replacement key" }).click();
+  await page.getByText(/may have completed without a confirmed response/).waitFor();
+  await expect(page.locator(".key-list li")).toHaveCount(2);
+  await expect(page.getByRole("button", { name: "Create replacement key" })).toBeDisabled();
+  await page.reload();
+  await page.getByRole("button", { name: "Refresh active key list" }).click();
+  await expect(page.locator(".key-list li")).toHaveCount(3);
+  await page.getByRole("button", { name: "I checked the key list" }).click();
+  await expect(page.locator(".key-list li")).toHaveCount(3);
   await page.reload();
   assert(
     !(await page.locator("body").innerText()).includes(plaintext),
@@ -1297,8 +1318,13 @@ async function assertDashboardConfiguration(page) {
     .filter({ has: page.locator("code", { hasText: firstKeyId }) })
     .getByRole("button", { name: "Revoke" })
     .click();
+  await page.getByRole("button", { name: /Confirm revoke/ }).click();
+  await expect(page.locator(".key-list li")).toHaveCount(2);
+  await page.locator(".key-list li").first().getByRole("button", { name: "Revoke" }).click();
+  await page.getByRole("button", { name: /Confirm revoke/ }).click();
   await expect(page.locator(".key-list li")).toHaveCount(1);
-  await page.locator(".key-list li").getByRole("button", { name: "Revoke" }).click();
+  await page.locator(".key-list li").first().getByRole("button", { name: "Revoke" }).click();
+  await page.getByRole("button", { name: /Confirm revoke/ }).click();
   await page.getByText("No active ingest keys.").waitFor();
 }
 

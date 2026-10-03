@@ -13,6 +13,7 @@ import { loadSiteDirectory } from "../lib/site-management/client";
 import { ConfigurationEditor } from "./configuration-editor";
 import { DashboardHeader, DashboardShell } from "./dashboard-shell";
 import { EnvironmentSelector } from "./environment-selector";
+import { IngestKeysManager } from "./ingest-keys-manager";
 import { SettingsNavigation } from "./settings-navigation";
 import { SiteDirectoryState, SiteSelectionState } from "./site-directory-state";
 
@@ -20,7 +21,7 @@ export async function SettingsTaskPage({
   section,
   searchParams,
 }: {
-  section: "capabilities" | "environments";
+  section: "capabilities" | "environments" | "ingest-keys";
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
@@ -44,7 +45,11 @@ export async function SettingsTaskPage({
         />
         <div className="dashboard-container py-8">
           <h1 className="mb-6 text-3xl font-bold tracking-tight">
-            {section === "capabilities" ? "Capabilities" : "Environments & Origins"}
+            {section === "capabilities"
+              ? "Capabilities"
+              : section === "environments"
+                ? "Environments & Origins"
+                : "Ingest Keys"}
           </h1>
           <SiteDirectoryState result={directory} />
         </div>
@@ -93,23 +98,43 @@ export async function SettingsTaskPage({
     >
       <SettingsNavigation
         site={selection.site}
-        environment={section === "environments" ? environment : undefined}
+        environment={
+          section === "environments" || section === "ingest-keys" ? environment : undefined
+        }
         context={routeContext}
         section={section}
       />
       <h1 className="mb-6 text-3xl font-bold tracking-tight">
-        {section === "capabilities" ? "Capabilities" : "Environments & Origins"}
+        {section === "capabilities"
+          ? "Capabilities"
+          : section === "environments"
+            ? "Environments & Origins"
+            : "Ingest Keys"}
       </h1>
-      {section === "environments" && (
+      {section !== "capabilities" && (
         <EnvironmentSelector
           value={environment ?? ""}
           siteId={siteId}
           from={first(params.from)}
           to={first(params.to)}
           dimension={first(params.dimension)}
+          route={section === "ingest-keys" ? "ingest-keys" : "environments"}
         />
       )}
-      {section === "environments" && result.kind === "environment_unconfigured" ? (
+      {section === "ingest-keys" ? (
+        !environment ? (
+          <section className="card">
+            <p>Enter an Environment name to load its policy.</p>
+          </section>
+        ) : (
+          <IngestKeysManager
+            key={`${siteId}:${environment}:${result.kind === "ready" ? (result.policy?.policy.version ?? "new") : result.kind}`}
+            siteId={siteId}
+            environment={environment}
+            result={result}
+          />
+        )
+      ) : section === "environments" && result.kind === "environment_unconfigured" ? (
         <section className="card">
           <p>{result.message}</p>
           <a href={settingsRoute("capabilities", routeContext)}>Go to Capabilities</a>

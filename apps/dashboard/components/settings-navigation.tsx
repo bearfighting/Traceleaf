@@ -13,15 +13,18 @@ export function SettingsNavigation({
   site?: ManagedSite;
   environment?: string;
   context: SettingsRouteContext;
-  section?: "overview" | "capabilities" | "environments";
+  section?: "overview" | "capabilities" | "environments" | "ingest-keys";
 }) {
   const siteLabel = site?.display_name || site?.site_id || "Site";
+  const currentEnvironment = environment ?? context.environment;
   const current =
     section === "capabilities"
       ? "Capabilities"
       : section === "environments"
         ? "Environments & Origins"
-        : "Overview";
+        : section === "ingest-keys"
+          ? "Ingest Keys"
+          : "Overview";
 
   return (
     <div className="mb-6 grid gap-4">
@@ -30,16 +33,18 @@ export function SettingsNavigation({
         <span aria-hidden="true"> / </span>
         <span aria-current="page">{current}</span>
         {site && <span> · {siteLabel}</span>}
-        {environment && <span> · {environment}</span>}
+        {currentEnvironment && <span> · {currentEnvironment}</span>}
       </nav>
       <nav aria-label="Settings navigation" className="dashboard-nav">
-        {(["overview", "capabilities", "environments"] as const).map((item) => {
+        {(["overview", "capabilities", "environments", "ingest-keys"] as const).map((item) => {
           const label =
             item === "environments"
               ? "Environments & Origins"
               : item === "capabilities"
                 ? "Capabilities"
-                : "Overview";
+                : item === "ingest-keys"
+                  ? "Ingest Keys"
+                  : "Overview";
 
           return (
             <Link

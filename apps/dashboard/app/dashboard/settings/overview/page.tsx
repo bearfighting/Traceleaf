@@ -1,6 +1,5 @@
 import React from "react";
 
-import { ConfigurationEditor } from "../../../../components/configuration-editor";
 import { DashboardHeader, DashboardShell } from "../../../../components/dashboard-shell";
 import { DefinitionEditor } from "../../../../components/definition-editor";
 import { SettingsNavigation } from "../../../../components/settings-navigation";
@@ -152,7 +151,6 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         </section>
       ) : (
         <>
-          <ConfigurationEditor environment={environment} siteId={siteId} result={configuration} />
           <DefinitionEditor siteId={siteId} result={await loadSiteDefinitions(siteId)} />
         </>
       )}

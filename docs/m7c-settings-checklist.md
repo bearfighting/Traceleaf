@@ -59,15 +59,19 @@ Implementation note (2026-10-02): Overview now presents Site identity/readiness 
 - [x] Make the selected Environment explicit and show its effective Collector application state separately from stored values.
 - [x] Keep Origin validation, authorization, and activation rules enforced by the existing service contracts.
 
-Implementation note (2026-10-02): Added directly addressable Capabilities and Environments & Origins pages with URL-preserved Site/Environment context and active task navigation. Capabilities can load without a configured default Environment; environment names are editable and submitted to the URL before the policy is loaded. Capability dependency guidance and availability are sourced from `protocol/capabilities/capabilities.json`. Overview retains Ingest Keys and Definitions. No public API or persistence contracts changed.
+Implementation note (2026-10-02): Added directly addressable Capabilities and Environments & Origins pages with URL-preserved Site/Environment context and active task navigation. Capabilities can load without a configured default Environment; environment names are editable and submitted to the URL before the policy is loaded. Capability dependency guidance and availability are sourced from `protocol/capabilities/capabilities.json`. At this step Overview retained key controls and Definitions; M7c.4 moved key controls to their own page. No public API or persistence contracts changed.
 
 ### M7c.4 — Ingest Key lifecycle
 
-- [ ] Move key metadata and lifecycle controls to Ingest Keys, scoped to the selected Site and Environment.
-- [ ] Show newly created/replacement plaintext only in the immediate success response and never in URLs, persistent browser storage, logs, or page reload output.
-- [ ] Provide a safe replacement flow: create replacement, show it once, allow verification/cutover, then require explicit confirmation before revoking the prior key.
-- [ ] Handle an ambiguous create response without replaying it as if the secret could be recovered; explain replacement-key recovery.
-- [ ] Preserve key identifiers, lifecycle status, and audit behavior without exposing secret digests.
+- [x] Move key metadata and lifecycle controls to `/dashboard/settings/ingest-keys`, scoped to the selected Site and Environment.
+- [x] Show newly created/replacement plaintext only in the immediate success response and never in URLs, persistent browser storage, logs, or page reload output.
+- [x] Provide a safe replacement flow: create replacement, show it once, allow verification/cutover, then require explicit confirmation before revoking the prior key.
+- [x] Handle an ambiguous create response without replaying it as if the secret could be recovered; persist only the Site/Environment review marker and require a refreshed key list before an administrator clears it.
+- [x] Preserve active key identifiers and creation times without exposing secret digests; the API does not provide revoked-key history.
+
+Implementation note (2026-10-02): Ingest key management now has a directly addressable Settings page, carries Site and Environment context through navigation and environment entry, and uses the existing policy version for key creation and revocation. Overview keeps setup status and Definitions, with key links opening the new page. No public API, configuration schema, persistence, or onboarding flow changed.
+
+Verification (2026-10-02): The M7c.4 implementation passed `pnpm --filter @web-analytics/dashboard test` (35 files, 170 tests), `pnpm check`, `pnpm build`, `pnpm e2e:dashboard`, `pnpm e2e:site-onboarding`, `pnpm format:check`, and `pnpm format:check:docs`. Dashboard E2E covered the new route, replacement, explicit revocation, and a server-created key whose response was dropped; the page required a refreshed key list and explicit administrator review before allowing another create. Follow-up fixes passed Dashboard tests (37 files, 173 tests), `pnpm check`, `pnpm build`, and `pnpm format:check:docs`; the new tests cover URL-driven Environment input reset and a confirmed creation with a failed policy refresh, including prevention of duplicate creation until refresh succeeds.
 
 ### M7c.5 — Definitions
 

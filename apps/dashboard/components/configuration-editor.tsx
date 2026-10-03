@@ -12,7 +12,6 @@ import { Button } from "./ui";
 import type { ConfigurationLoadResult } from "../lib/configuration-api/server";
 import type {
   CapabilityResponse,
-  CreatedIngestKey,
   EffectiveState,
   IngestPolicyResponse,
 } from "../lib/configuration-api/types";
@@ -129,7 +128,6 @@ function Editor({
   const [policyEnabled, setPolicyEnabled] = useState(initialPolicy?.policy.enabled ?? true);
   const [origins, setOrigins] = useState(initialPolicy?.policy.allowed_origins.join("\n") ?? "");
   const [rateLimit, setRateLimit] = useState(initialPolicy?.policy.rate_limit_per_minute ?? 600);
-  const [createdKey, setCreatedKey] = useState<CreatedIngestKey | null>(null);
   const [busy, setBusy] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
@@ -243,42 +241,6 @@ function Editor({
     });
   }
 
-  async function createKey() {
-    await perform(async () => {
-      if (!policy) throw new Error("Create the environment policy before issuing a key.");
-      const path = `/api/admin/sites/${encodeURIComponent(siteId)}/environments/${encodeURIComponent(environment)}/ingest-keys`;
-      const created = (await request(
-        path,
-        "POST",
-        undefined,
-        policy.policy.version,
-      )) as CreatedIngestKey;
-      setCreatedKey(created);
-      const refreshed = (await request(
-        `/api/admin/sites/${encodeURIComponent(siteId)}/environments/${encodeURIComponent(environment)}/ingest-policy`,
-        "GET",
-      )) as IngestPolicyResponse;
-      setPolicy(refreshed);
-      setMessage("Key created. Copy it now; it will not be shown again.");
-    });
-  }
-
-  async function revokeKey(keyId: string) {
-    await perform(async () => {
-      if (!policy) return;
-      const path = `/api/admin/sites/${encodeURIComponent(siteId)}/environments/${encodeURIComponent(environment)}/ingest-keys/${encodeURIComponent(keyId)}`;
-      const value = (await request(
-        path,
-        "DELETE",
-        undefined,
-        policy.policy.version,
-      )) as IngestPolicyResponse;
-      setPolicy(value);
-      setCreatedKey(null);
-      setMessage("Ingest key revoked.");
-    });
-  }
-
   return (
     <div className="configuration-page" data-hydrated={hydrated}>
       {section === "capabilities" ? (
@@ -387,47 +349,6 @@ function Editor({
           </button>
         </section>
       ) : null}
-      {section === "overview" && (
-        <section className="card" id="ingest-keys">
-          <h2>Ingest Keys</h2>
-          <p>Create a replacement before revoking a key currently used by your website.</p>
-          <button type="button" disabled={busy || !hydrated || !policy} onClick={createKey}>
-            Create Ingest Key
-          </button>
-          {createdKey && (
-            <div className="one-time-secret" role="status">
-              <strong>Copy this key now. It will not be shown again.</strong>
-              <code>{createdKey.key}</code>
-              <button
-                type="button"
-                onClick={() => void navigator.clipboard?.writeText(createdKey.key)}
-              >
-                Copy key
-              </button>
-              <button type="button" onClick={() => setCreatedKey(null)}>
-                Hide key
-              </button>
-            </div>
-          )}
-          <ul className="key-list">
-            {(policy?.policy.keys ?? []).map((key) => (
-              <li key={key.key_id}>
-                <span>
-                  <code>{key.key_id}</code> · created {new Date(key.created_at).toISOString()}
-                </span>
-                <button
-                  type="button"
-                  disabled={busy || !hydrated}
-                  onClick={() => void revokeKey(key.key_id)}
-                >
-                  Revoke
-                </button>
-              </li>
-            ))}
-          </ul>
-          {policy && policy.policy.keys.length === 0 && <p>No active ingest keys.</p>}
-        </section>
-      )}
       {error && (
         <ConfigurationErrorFeedback error={error} onReload={() => window.location.reload()} />
       )}

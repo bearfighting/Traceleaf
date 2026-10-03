@@ -152,7 +152,7 @@ describe("SettingsPage status navigation", () => {
     expect(markup).toContain("Setup readiness: ready");
     expect(markup).toContain("Environment: staging");
     expect(markup).toContain("Connection summary");
-    expect(markup).toContain("Configuration controls");
+    expect(markup).not.toContain("Configuration controls");
     expect(markup).toContain("Definition controls");
     expect(loadSiteConfiguration).toHaveBeenCalledWith("site_alpha", "staging");
   });
