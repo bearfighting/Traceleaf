@@ -367,8 +367,8 @@ export function IngestKeysManager({
             : "Create Ingest Key"}
       </button>
       {secret && (
-        <div className="one-time-secret" role="status">
-          <strong>Copy this key now. It will not be shown again.</strong>
+        <div className="one-time-secret">
+          <p role="status">Ingest Key created. Copy this key now; it will not be shown again.</p>
           <code>{secret.key}</code>
           <button onClick={() => void navigator.clipboard?.writeText(secret.key)}>Copy key</button>
           <button onClick={() => setSecret(null)}>Hide key</button>

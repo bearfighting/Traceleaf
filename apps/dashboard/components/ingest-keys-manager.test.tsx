@@ -232,6 +232,10 @@ describe("IngestKeysManager create recovery", () => {
     expect(container?.textContent).toContain("one-time-secret-value");
     expect(container?.textContent).toContain("Key created successfully");
     expect(container?.textContent).toContain("ik_created");
+    const secretAnnouncement = container?.querySelector('[role="status"]');
+    expect(secretAnnouncement?.textContent).toContain("Ingest Key created.");
+    expect(secretAnnouncement?.textContent).toContain("Copy this key now");
+    expect(secretAnnouncement?.textContent).not.toContain("one-time-secret-value");
     expect(button("Create replacement key").disabled).toBe(true);
     expect(
       fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/ingest-keys")),

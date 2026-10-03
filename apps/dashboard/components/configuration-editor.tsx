@@ -125,6 +125,29 @@ function Editor({
 }) {
   const [capabilities, setCapabilities] = useState(initialCapabilities);
   const [policy, setPolicy] = useState(initialPolicy);
+  const [previousCapabilitiesEffectiveState, setPreviousCapabilitiesEffectiveState] = useState(
+    initialCapabilities.effective_state,
+  );
+  const incomingPolicyEffectiveState = initialPolicy?.effective_state;
+  const [previousPolicyEffectiveState, setPreviousPolicyEffectiveState] = useState(
+    incomingPolicyEffectiveState,
+  );
+  if (previousCapabilitiesEffectiveState !== initialCapabilities.effective_state) {
+    setPreviousCapabilitiesEffectiveState(initialCapabilities.effective_state);
+    setCapabilities((current) => ({
+      ...current,
+      effective_state: initialCapabilities.effective_state,
+    }));
+  }
+  if (
+    incomingPolicyEffectiveState &&
+    previousPolicyEffectiveState !== incomingPolicyEffectiveState
+  ) {
+    setPreviousPolicyEffectiveState(incomingPolicyEffectiveState);
+    setPolicy((current) =>
+      current ? { ...current, effective_state: incomingPolicyEffectiveState } : current,
+    );
+  }
   const [policyEnabled, setPolicyEnabled] = useState(initialPolicy?.policy.enabled ?? true);
   const [origins, setOrigins] = useState(initialPolicy?.policy.allowed_origins.join("\n") ?? "");
   const [rateLimit, setRateLimit] = useState(initialPolicy?.policy.rate_limit_per_minute ?? 600);
@@ -382,7 +405,7 @@ export function ConfigurationErrorFeedback({
 
 function EffectiveStateView({ state }: { state: EffectiveState }) {
   return (
-    <div className={`effective-state effective-${state.status}`}>
+    <div className={`effective-state effective-${state.status}`} role="status" aria-atomic="true">
       <strong>Runtime status: {state.status}</strong>
       <span>Stored version {state.stored_version}</span>
       {Object.entries(state.applied_versions).map(([service, version]) => (

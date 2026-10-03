@@ -1,8 +1,22 @@
-import React from "react";
+// @vitest-environment jsdom
+import React, { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { ConfigurationEditor, ConfigurationErrorFeedback } from "./configuration-editor";
+
+let root: Root | undefined;
+let container: HTMLDivElement | undefined;
+
+afterEach(() => {
+  act(() => root?.unmount());
+  root = undefined;
+  container?.remove();
+  container = undefined;
+  delete (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
+    .IS_REACT_ACT_ENVIRONMENT;
+});
 
 const result = {
   kind: "ready" as const,
@@ -53,9 +67,40 @@ describe("ConfigurationEditor", () => {
     expect(markup).toContain("Consent required.");
     expect(markup).toContain("Requires Anonymous Visitors.");
     expect(markup).toContain("Runtime status: pending");
+    expect(markup).toMatch(
+      /<div class="effective-state effective-pending" role="status" aria-atomic="true">/,
+    );
     expect(markup).toContain("processor: not reported");
     expect(markup).not.toContain("Create environment policy");
     expect(markup).not.toContain("Create Ingest Key");
+  });
+
+  it("updates the live runtime status after refreshed props without remounting the editor", () => {
+    (
+      globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    const props = {
+      siteId: "site-one",
+      environment: "production",
+      section: "capabilities" as const,
+    };
+
+    act(() => root?.render(<ConfigurationEditor {...props} result={result} />));
+    expect(container.textContent).toContain("Runtime status: pending");
+
+    const refreshed = {
+      ...result,
+      capabilities: {
+        ...result.capabilities,
+        effective_state: { ...result.capabilities.effective_state, status: "current" as const },
+      },
+    };
+    act(() => root?.render(<ConfigurationEditor {...props} result={refreshed} />));
+
+    expect(container.textContent).toContain("Runtime status: current");
   });
 
   it("renders environment ingestion state from the stored policy", () => {
