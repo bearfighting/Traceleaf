@@ -3,6 +3,20 @@ import { describe, expect, it } from "vitest";
 import { dashboardRoute, legacySettingsRedirect, settingsRoute } from "./settings-routes";
 
 describe("Settings routes", () => {
+  it("builds a direct Definitions URL and preserves context", () => {
+    expect(
+      settingsRoute("definitions", {
+        siteId: "site_alpha",
+        environment: "staging",
+        from: "2026-09-01",
+        to: "2026-09-30",
+        dimension: "browser",
+        definitionVersion: "r2",
+      }),
+    ).toBe(
+      "/dashboard/settings/definitions?site_id=site_alpha&environment=staging&from=2026-09-01&to=2026-09-30&dimension=browser&definition_version=r2",
+    );
+  });
   it("keeps Site and reporting context when building the Overview route", () => {
     expect(
       settingsRoute("overview", {

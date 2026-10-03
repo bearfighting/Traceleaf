@@ -57,4 +57,22 @@ describe("SettingsNavigation", () => {
       "/dashboard/settings/ingest-keys?site_id=site_alpha&amp;environment=preview",
     );
   });
+
+  it("exposes Definitions and carries the selected Site and reporting context", () => {
+    const markup = renderToStaticMarkup(
+      <SettingsNavigation
+        context={{
+          siteId: "site_alpha",
+          environment: "preview",
+          from: "2026-09-01",
+          definitionVersion: "r2",
+        }}
+        section="definitions"
+      />,
+    );
+    expect(markup).toContain('aria-current="page">Definitions');
+    expect(markup).toContain(
+      "/dashboard/settings/definitions?site_id=site_alpha&amp;environment=preview&amp;from=2026-09-01&amp;definition_version=r2",
+    );
+  });
 });

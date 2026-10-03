@@ -9,7 +9,6 @@ vi.mock("../../../../lib/site-management/client", () => ({
 vi.mock("../../../../lib/configuration-api/server", () => ({
   getConfigurationEnvironment: vi.fn(() => "production"),
   loadSiteConfiguration: vi.fn(),
-  loadSiteDefinitions: vi.fn(),
 }));
 vi.mock("../../../../lib/analytics-api/client", () => ({
   createAnalyticsApiClient: vi.fn(() => ({
@@ -40,14 +39,7 @@ vi.mock("../../../../components/site-connection-status", () => ({
 vi.mock("../../../../components/configuration-editor", () => ({
   ConfigurationEditor: () => <div>Configuration controls</div>,
 }));
-vi.mock("../../../../components/definition-editor", () => ({
-  DefinitionEditor: () => <div>Definition controls</div>,
-}));
-
-import {
-  loadSiteConfiguration,
-  loadSiteDefinitions,
-} from "../../../../lib/configuration-api/server";
+import { loadSiteConfiguration } from "../../../../lib/configuration-api/server";
 import {
   loadSiteDirectory,
   type SiteDirectoryResult,
@@ -114,7 +106,7 @@ describe("SettingsPage status navigation", () => {
     );
   });
 
-  it("renders the Site summary, selected Environment, and keeps both editors on Overview", async () => {
+  it("renders the Site summary and connection summary without definition controls", async () => {
     vi.mocked(loadSiteDirectory).mockResolvedValue({
       kind: "ready",
       sites: [
@@ -135,11 +127,6 @@ describe("SettingsPage status navigation", () => {
       kind: "error",
       message: "Configuration API unavailable",
     });
-    vi.mocked(loadSiteDefinitions).mockResolvedValue({
-      kind: "error",
-      message: "Configuration API unavailable",
-    });
-
     const element = await SettingsPage({
       searchParams: Promise.resolve({ site_id: "site_alpha", environment: "staging" }),
     });
@@ -153,7 +140,6 @@ describe("SettingsPage status navigation", () => {
     expect(markup).toContain("Environment: staging");
     expect(markup).toContain("Connection summary");
     expect(markup).not.toContain("Configuration controls");
-    expect(markup).toContain("Definition controls");
     expect(loadSiteConfiguration).toHaveBeenCalledWith("site_alpha", "staging");
   });
 });

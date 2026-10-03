@@ -148,6 +148,7 @@ export function IngestKeysManager({
         setError(
           "This browser cannot coordinate key creation across tabs. Use a browser with Web Locks support.",
         );
+
         return;
       }
       await navigator.locks.request(
@@ -159,6 +160,7 @@ export function IngestKeysManager({
             setError(
               "Another tab is creating or checking a key. Refresh the active key list before continuing.",
             );
+
             return;
           }
 
@@ -170,6 +172,7 @@ export function IngestKeysManager({
               setError(
                 "A key request in another tab needs review. Refresh the active key list before creating another key.",
               );
+
               return;
             }
             requestMarker = crypto.randomUUID();
@@ -177,6 +180,7 @@ export function IngestKeysManager({
             setReview(true);
           } catch {
             setError("Browser storage is unavailable. Enable site storage before issuing a key.");
+
             return;
           }
 

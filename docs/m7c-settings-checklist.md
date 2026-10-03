@@ -1,6 +1,6 @@
 # M7c Site Settings Checklist
 
-- Status: M7c.1–M7c.3 complete; M7c.4–M7c.6 planned (2026-10-02)
+- Status: M7c.1–M7c.5 complete; M7c.6 planned (2026-10-03)
 - Prerequisites: M6 Site onboarding complete; M7a Dashboard UI foundation complete; Site Management and configuration APIs available
 - Scope: Organize existing Site configuration and onboarding status into task-focused Settings pages
 - Design references: [Platform Improvement Roadmap](platform-improvement-roadmap.md), [Dashboard UI Improvements](dashboard-ui-improvements.md), [Site Onboarding and Settings Design](site-onboarding-settings-design.md), [M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md)
@@ -48,7 +48,7 @@ The Site Registry remains the only source for Site selectors. The first Environm
 - [x] Provide the existing refresh/retry actions and useful links to the page that can resolve an incomplete setup.
 - [x] Keep missing credentials, rejected credentials, unavailable Site Management API, unavailable Analytics API, empty Registry, and archived Site states distinct.
 
-Implementation note (2026-10-02): Overview now presents Site identity/readiness and selected Environment, separates Site Management API, Analytics API, and Site-level Page View evidence, and links setup gaps to stable capability, policy, key, and definitions anchors. Management API health is explicitly marked unchecked when no default Environment is configured. Archived Sites suppress setup-resolution links because they cannot receive new events. Existing configuration editors and mutation behavior remain on Overview for M7c.3–M7c.5. Tests assert the Site summary fields, Environment selection, editor presence, Analytics failure visibility alongside missing management credentials, human-readable current/pending/stale runtime states for capabilities and policy, hidden setup-resolution links for archived Sites, and the unchecked management API status without an Environment.
+Implementation note (2026-10-02, updated 2026-10-03): Overview presents Site identity/readiness and selected Environment, separates Site Management API, Analytics API, and Site-level Page View evidence, and links setup gaps to the relevant task pages. Management API health is explicitly marked unchecked when no default Environment is configured. Archived Sites suppress setup-resolution links because they cannot receive new events. Configuration editors moved to their task pages in M7c.3–M7c.5. Tests assert the Site summary fields, Environment selection, Analytics failure visibility alongside missing management credentials, human-readable current/pending/stale runtime states for capabilities and policy, hidden setup-resolution links for archived Sites, and the unchecked management API status without an Environment.
 
 ### M7c.3 — Capabilities and environment policy
 
@@ -69,16 +69,20 @@ Implementation note (2026-10-02): Added directly addressable Capabilities and En
 - [x] Handle an ambiguous create response without replaying it as if the secret could be recovered; persist only the Site/Environment review marker and require a refreshed key list before an administrator clears it.
 - [x] Preserve active key identifiers and creation times without exposing secret digests; the API does not provide revoked-key history.
 
-Implementation note (2026-10-02): Ingest key management now has a directly addressable Settings page, carries Site and Environment context through navigation and environment entry, and uses the existing policy version for key creation and revocation. Overview keeps setup status and Definitions, with key links opening the new page. No public API, configuration schema, persistence, or onboarding flow changed.
+Implementation note (2026-10-02, updated 2026-10-03): Ingest key management now has a directly addressable Settings page, carries Site and Environment context through navigation and environment entry, and uses the existing policy version for key creation and revocation. Overview keeps setup status and links to the task pages. No public API, configuration schema, persistence, or onboarding flow changed.
 
 Verification (2026-10-02): The M7c.4 implementation passed `pnpm --filter @web-analytics/dashboard test` (35 files, 170 tests), `pnpm check`, `pnpm build`, `pnpm e2e:dashboard`, `pnpm e2e:site-onboarding`, `pnpm format:check`, and `pnpm format:check:docs`. Dashboard E2E covered the new route, replacement, explicit revocation, and a server-created key whose response was dropped; the page required a refreshed key list and explicit administrator review before allowing another create. Follow-up fixes passed Dashboard tests (37 files, 173 tests), `pnpm check`, `pnpm build`, and `pnpm format:check:docs`; the new tests cover URL-driven Environment input reset and a confirmed creation with a failed policy refresh, including prevention of duplicate creation until refresh succeeds.
 
 ### M7c.5 — Definitions
 
-- [ ] Move conversion and funnel editing to Definitions and show the current revision and available history.
-- [ ] Preserve server-side validation, optimistic concurrency, and clear conflict/error feedback.
-- [ ] State whether a change affects future processing or historical queries; do not imply automatic backfill where none occurs.
-- [ ] Keep definitions errors separate from missing capability or empty Analytics data.
+- [x] Move conversion and funnel editing to Definitions and show the current revision and available history.
+- [x] Preserve server-side validation, optimistic concurrency, and clear conflict/error feedback.
+- [x] State whether a change affects future processing or historical queries; do not imply automatic backfill where none occurs.
+- [x] Keep definitions errors separate from missing capability or empty Analytics data.
+
+Implementation note (2026-10-03): Added the directly addressable `/dashboard/settings/definitions` page and moved the existing editor out of Overview. Site and reporting context are preserved in navigation; stored revisions show their effective times and link to historical Analytics reports. Revision history request/response failures remain distinct from an empty history, and definition management stays available without a configured default Environment. Successful saves refresh the page history while preserving the success message. No public API or storage contract changed.
+
+Verification (2026-10-03): Dashboard unit/component tests (39 files, 184 tests), TypeScript, ESLint, Prettier, `git diff --check`, and `pnpm e2e:dashboard` passed. Dashboard E2E covers the directly addressable Definitions route, saved revision history refresh, server validation, conflict recovery, and unchanged historical facts after definition edits. M7c.6 remains responsible for the full responsive, accessibility, route, build, and regression closeout.
 
 ### M7c.6 — Responsive UI, tests, and closeout
 

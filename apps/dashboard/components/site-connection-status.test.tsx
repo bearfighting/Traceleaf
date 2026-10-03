@@ -52,6 +52,35 @@ const ready: ConfigurationLoadResult = {
 };
 
 describe("site connection status", () => {
+  it("links Definitions to its task page with the current Site and Environment", () => {
+    const container = document.createElement("div");
+    const root: Root = createRoot(container);
+    (
+      globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
+
+    act(() =>
+      root.render(
+        <SiteConnectionStatus
+          site={site()}
+          environment="staging"
+          configuration={ready}
+          analytics={{ kind: "ready", pageViews: 4 }}
+        />,
+      ),
+    );
+
+    expect(
+      container.querySelector(
+        'a[href="/dashboard/settings/definitions?site_id=site_demo&environment=staging"]',
+      ),
+    ).not.toBeNull();
+    act(() => root.unmount());
+    container.remove();
+    delete (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
+      .IS_REACT_ACT_ENVIRONMENT;
+  });
+
   it("requires Page View evidence before saying connected and distinguishes Analytics failure from zero", () => {
     expect(connectionStatus(site(), ready, { kind: "ready", pageViews: 0 }).title).toBe(
       "Waiting for first event",

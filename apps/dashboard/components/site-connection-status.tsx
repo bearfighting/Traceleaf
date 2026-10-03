@@ -214,7 +214,9 @@ export function SiteConnectionStatus({
               <a href={settingsRoute("ingest-keys", { siteId: site.site_id, environment })}>
                 Ingest Keys
               </a>
-              <a href="#definitions">Definitions</a>
+              <a href={settingsRoute("definitions", { siteId: site.site_id, environment })}>
+                Definitions
+              </a>
             </>
           )}
         </nav>

@@ -1368,7 +1368,7 @@ async function assertDefinitionManagement(page) {
   assert(originalFacts > 0, "Expected historical conversion facts before definition editing");
   assert(originalFunnelFacts > 0, "Expected historical funnel facts before definition editing");
 
-  await page.goto(`${dashboardUrl}/dashboard/settings?site_id=site_playground`);
+  await page.goto(`${dashboardUrl}/dashboard/settings/definitions?site_id=site_playground`);
   const editor = page.locator('section[aria-label="Conversion and funnel definitions"]');
   const conversion = editor.locator("fieldset.card").nth(0);
   const funnel = editor.locator("fieldset.card").nth(1);
@@ -1423,6 +1423,14 @@ async function assertDefinitionManagement(page) {
     .getByRole("status")
     .filter({ hasText: `Saved revision ${saved.definition_version}` })
     .waitFor();
+  const savedHistory = page.locator('section[aria-label="Definition revision history"]');
+  await savedHistory
+    .getByRole("link", { name: `Revision ${saved.revision} · ${saved.definition_version}` })
+    .waitFor();
+  assert(
+    (await savedHistory.innerText()).includes(`Current revision: ${saved.definition_version}`),
+    "Definition revision history did not refresh after a successful save",
+  );
   await page.reload();
   assert(
     (await editor.innerText()).includes("Purchase completed managed"),

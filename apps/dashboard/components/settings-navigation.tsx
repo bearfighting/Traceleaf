@@ -13,7 +13,7 @@ export function SettingsNavigation({
   site?: ManagedSite;
   environment?: string;
   context: SettingsRouteContext;
-  section?: "overview" | "capabilities" | "environments" | "ingest-keys";
+  section?: "overview" | "definitions" | "capabilities" | "environments" | "ingest-keys";
 }) {
   const siteLabel = site?.display_name || site?.site_id || "Site";
   const currentEnvironment = environment ?? context.environment;
@@ -24,7 +24,9 @@ export function SettingsNavigation({
         ? "Environments & Origins"
         : section === "ingest-keys"
           ? "Ingest Keys"
-          : "Overview";
+          : section === "definitions"
+            ? "Definitions"
+            : "Overview";
 
   return (
     <div className="mb-6 grid gap-4">
@@ -36,26 +38,30 @@ export function SettingsNavigation({
         {currentEnvironment && <span> · {currentEnvironment}</span>}
       </nav>
       <nav aria-label="Settings navigation" className="dashboard-nav">
-        {(["overview", "capabilities", "environments", "ingest-keys"] as const).map((item) => {
-          const label =
-            item === "environments"
-              ? "Environments & Origins"
-              : item === "capabilities"
-                ? "Capabilities"
-                : item === "ingest-keys"
-                  ? "Ingest Keys"
-                  : "Overview";
+        {(["overview", "definitions", "capabilities", "environments", "ingest-keys"] as const).map(
+          (item) => {
+            const label =
+              item === "environments"
+                ? "Environments & Origins"
+                : item === "capabilities"
+                  ? "Capabilities"
+                  : item === "ingest-keys"
+                    ? "Ingest Keys"
+                    : item === "definitions"
+                      ? "Definitions"
+                      : "Overview";
 
-          return (
-            <Link
-              key={item}
-              aria-current={section === item ? "page" : undefined}
-              href={settingsRoute(item, context)}
-            >
-              {label}
-            </Link>
-          );
-        })}
+            return (
+              <Link
+                key={item}
+                aria-current={section === item ? "page" : undefined}
+                href={settingsRoute(item, context)}
+              >
+                {label}
+              </Link>
+            );
+          },
+        )}
       </nav>
     </div>
   );

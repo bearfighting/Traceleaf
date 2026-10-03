@@ -7,6 +7,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DefinitionEditor } from "./definition-editor";
 
+const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
+
 const definitions = {
   schema_version: 1 as const,
   site_id: "site_playground",
@@ -85,6 +88,7 @@ afterEach(() => {
   if (root) act(() => root.unmount());
   host?.remove();
   vi.restoreAllMocks();
+  refresh.mockReset();
 });
 
 describe("DefinitionEditor", () => {
@@ -151,6 +155,34 @@ describe("DefinitionEditor", () => {
     });
     expect(labeledInput("Name").matches(":disabled")).toBe(false);
     expect(host.textContent).toContain("Saved revision definitions-v3");
+    expect(refresh).toHaveBeenCalledOnce();
+
+    act(() => {
+      root.render(
+        <DefinitionEditor
+          siteId="site_playground"
+          result={{
+            kind: "ready",
+            definitions: {
+              ...definitions,
+              revision: 3,
+              definition_version: "definitions-v3",
+              conversions: [{ ...definitions.conversions[0], name: "Renamed purchase" }],
+            },
+          }}
+        />,
+      );
+    });
+    expect(host.textContent).toContain("Stored revision: 3 · definitions-v3");
+    expect(host.textContent).toContain("Saved revision definitions-v3");
+
+    act(() => {
+      root.render(
+        <DefinitionEditor siteId="site_other" result={{ kind: "ready", definitions: null }} />,
+      );
+    });
+    expect(host.textContent).toContain("Add conversion");
+    expect(host.textContent).not.toContain("Saved revision definitions-v3");
   });
 
   it("displays server validation errors", async () => {

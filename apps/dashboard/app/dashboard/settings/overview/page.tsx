@@ -1,7 +1,6 @@
 import React from "react";
 
 import { DashboardHeader, DashboardShell } from "../../../../components/dashboard-shell";
-import { DefinitionEditor } from "../../../../components/definition-editor";
 import { SettingsNavigation } from "../../../../components/settings-navigation";
 import {
   SiteConnectionStatus,
@@ -11,7 +10,6 @@ import {
   SiteDirectoryState,
   SiteSelectionState,
 } from "../../../../components/site-directory-state";
-import { ErrorState } from "../../../../components/states/error-state";
 import { selectDashboardSite, siteOptions } from "../../../../config/sites";
 import { createAnalyticsApiClient } from "../../../../lib/analytics-api/client";
 import { getAnalyticsApiUrl } from "../../../../lib/analytics-api/config";
@@ -20,7 +18,6 @@ import { ANALYTICS_DIMENSIONS } from "../../../../lib/analytics-api/types";
 import {
   getConfigurationEnvironment,
   loadSiteConfiguration,
-  loadSiteDefinitions,
 } from "../../../../lib/configuration-api/server";
 import {
   dashboardRoute,
@@ -145,15 +142,6 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
           </div>
         </div>
       </section>
-      {!environment ? (
-        <section className="card">
-          <ErrorState message="DASHBOARD_DEFAULT_ENVIRONMENT is not configured on the Dashboard server." />
-        </section>
-      ) : (
-        <>
-          <DefinitionEditor siteId={siteId} result={await loadSiteDefinitions(siteId)} />
-        </>
-      )}
     </DashboardShell>
   );
 }
