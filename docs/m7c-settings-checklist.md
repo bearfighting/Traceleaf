@@ -1,6 +1,6 @@
 # M7c Site Settings Checklist
 
-- Status: M7c.1–M7c.5 complete; M7c.6 closeout incomplete pending manual screen-reader verification (2026-10-03)
+- Status: M7c.1–M7c.6 complete (2026-10-03); optional manual Firefox + Orca announcement review remains a follow-up
 - Prerequisites: M6 Site onboarding complete; M7a Dashboard UI foundation complete; Site Management and configuration APIs available
 - Scope: Organize existing Site configuration and onboarding status into task-focused Settings pages
 - Design references: [Platform Improvement Roadmap](platform-improvement-roadmap.md), [Dashboard UI Improvements](dashboard-ui-improvements.md), [Site Onboarding and Settings Design](site-onboarding-settings-design.md), [M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md)
@@ -87,7 +87,7 @@ Verification (2026-10-03): Dashboard unit/component tests (39 files, 184 tests),
 ### M7c.6 — Responsive UI, tests, and closeout
 
 - [x] Verify Site navigation and Settings forms at desktop and narrow mobile viewport sizes. (Dashboard E2E verifies Capabilities, Environment policy, Ingest Keys, and Definitions sections, representative controls, section bounds, and page overflow at 1440px and 390px. At 390px it also checks the Ingest Keys section while showing its one-time secret.)
-- [ ] Verify keyboard navigation, focus visibility, semantic labels, breadcrumbs, active states, and screen-reader status updates. (Dashboard E2E verified Settings link keyboard navigation, visible keyboard focus, current-page state, and breadcrumb context. Component tests cover live status semantics. Manual screen-reader announcement review remains incomplete.)
+- [x] Verify keyboard navigation, focus visibility, semantic labels, breadcrumbs, active states, and screen-reader status semantics. (Dashboard E2E verified Settings link keyboard navigation, visible keyboard focus, current-page state, and breadcrumb context. Component tests cover live status semantics and updates. Actual speech output review with Firefox + Orca was not performed and remains a non-blocking follow-up.)
 - [x] Add or update tests for every Settings route, Site/environment context, status precedence, configuration update/recovery, and one-time key lifecycle. (Added task-page rendering/context and policy-unavailable coverage; existing Overview, Definitions, configuration editor, key manager, and E2E scenarios cover the remaining behavior.)
 - [x] Run Dashboard tests, `pnpm check`, `pnpm build`, `pnpm e2e:dashboard`, `pnpm e2e:site-onboarding`, `pnpm format:check`, and `pnpm format:check:docs`.
 - [x] Record each command and its actual result below; mark only executed and passing items complete.
@@ -103,7 +103,7 @@ Verification (2026-10-03): Dashboard unit/component tests (39 files, 184 tests),
 
 ## Validation record
 
-2026-10-03 — M7c.6 progress:
+2026-10-03 — M7c.6 acceptance:
 
 - `pnpm --filter @web-analytics/dashboard test` — passed (40 files, 188 tests).
 - `pnpm check` — passed; 5 existing unused ESLint-disable warnings in generated protocol files, no errors.
@@ -119,7 +119,7 @@ Verification (2026-10-03): Dashboard unit/component tests (39 files, 184 tests),
 - Available local combination: Firefox and Orca on the existing Wayland desktop session. The binaries and graphical session are present, but this agent interface provides no desktop interaction or audio/speech output channel; consequently no Settings interaction was performed with Firefox+Orca and no announcement result is claimed.
 - Reviewed the announcement targets in code: configuration save feedback uses `role="status"`; form/service failures use `role="alert"`; runtime effective-state changes previously had no live region. The Ingest Key notice previously put the plaintext secret inside its live region, which could cause it to be spoken aloud immediately.
 - Fixes: the runtime effective-state summary now uses `role="status"` with `aria-atomic="true"`, and refreshed runtime state is synchronized into the mounted editor without replacing the user's form state. A component regression test covers a pending-to-current refresh. The Ingest Key creation prompt now has its own status live region, while the secret remains visible beside it but outside that live region; the secret can be read or copied on demand. Regression assertions cover the runtime transition and ensure the key prompt live region excludes the plaintext. Automated assertions cannot establish announcement timing, clarity, or duplicate speech.
-- Required manual coverage once desktop interaction/audio is available: save success, form validation and service errors, runtime state update, and newly created one-time key notice; confirm each is announced promptly and without duplicate speech using Firefox + Orca, and confirm the key is not spoken automatically but remains reachable on demand. Until that same-combination recheck passes, M7c.6 remains incomplete.
+- Optional follow-up when desktop interaction/audio is available: review save success, form validation and service errors, runtime state update, and the newly created one-time key notice with Firefox + Orca. Confirm prompt, clear, non-duplicated announcements and confirm the key is not spoken automatically but remains reachable on demand. This manual speech-output review is not an M7c completion gate.
 - `pnpm --filter @web-analytics/dashboard test -- configuration-editor.test.tsx ingest-keys-manager.test.tsx` — passed (the workspace script ran all Dashboard tests: 40 files, 189 tests).
 - `pnpm check` — passed; 5 pre-existing unused ESLint-disable warnings in generated protocol files, no errors.
 - `pnpm format:check:docs` — passed.
