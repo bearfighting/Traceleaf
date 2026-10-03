@@ -2,7 +2,7 @@ import Link from "next/link";
 import React from "react";
 
 import { ANALYTICS_DIMENSIONS } from "../lib/analytics-api/types";
-import { settingsRoute } from "../lib/settings-routes";
+import { settingsRoute, type SettingsSection } from "../lib/settings-routes";
 
 import { AnalyticsSidebar } from "./analytics-sidebar";
 import { Button, Select } from "./ui";
@@ -21,6 +21,7 @@ interface DashboardShellProps {
   definitionVersion?: string;
   definitionVersions?: Array<{ version: string; revision: number }>;
   environment?: string;
+  settingsSection?: SettingsSection;
 }
 
 function analyticsUrl({
@@ -49,11 +50,12 @@ function settingsUrl({
   dimension,
   definitionVersion,
   environment,
+  settingsSection = "overview",
 }: Pick<
   DashboardShellProps,
-  "siteId" | "dateRange" | "dimension" | "definitionVersion" | "environment"
+  "siteId" | "dateRange" | "dimension" | "definitionVersion" | "environment" | "settingsSection"
 >) {
-  return settingsRoute("overview", {
+  return settingsRoute(settingsSection, {
     siteId,
     from: dateRange.from,
     to: dateRange.to,
@@ -125,6 +127,7 @@ export function DashboardShell({
   definitionVersion,
   definitionVersions = [],
   environment,
+  settingsSection = "overview",
 }: DashboardShellProps) {
   const analyticsHref = analyticsUrl({
     siteId,
@@ -139,6 +142,7 @@ export function DashboardShell({
     dimension,
     definitionVersion,
     environment,
+    settingsSection,
   });
 
   return (
@@ -169,7 +173,11 @@ export function DashboardShell({
           </div>
 
           {settingsMode ? (
-            <form action="/dashboard/settings/overview" className="filters mb-6" method="get">
+            <form
+              action={`/dashboard/settings/${settingsSection}`}
+              className="filters mb-6"
+              method="get"
+            >
               <label>
                 Site
                 <Select defaultValue={siteId} name="site_id">

@@ -1,6 +1,6 @@
 # M7c Site Settings Checklist
 
-- Status: M7c.1–M7c.2 complete; M7c.3–M7c.6 planned (2026-10-02)
+- Status: M7c.1–M7c.3 complete; M7c.4–M7c.6 planned (2026-10-02)
 - Prerequisites: M6 Site onboarding complete; M7a Dashboard UI foundation complete; Site Management and configuration APIs available
 - Scope: Organize existing Site configuration and onboarding status into task-focused Settings pages
 - Design references: [Platform Improvement Roadmap](platform-improvement-roadmap.md), [Dashboard UI Improvements](dashboard-ui-improvements.md), [Site Onboarding and Settings Design](site-onboarding-settings-design.md), [M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md)
@@ -52,12 +52,14 @@ Implementation note (2026-10-02): Overview now presents Site identity/readiness 
 
 ### M7c.3 — Capabilities and environment policy
 
-- [ ] Move capability controls to the Capabilities page and keep capability dependencies sourced from the canonical manifest/server validation.
-- [ ] Preserve optimistic concurrency and display API validation/conflict failures without discarding safe form values.
-- [ ] Keep legacy missing-capability recovery create-only and do not imply that an existing configuration can be overwritten through initialization.
-- [ ] Move environment selection, ingest enablement, Allowed Origins, and policy controls to Environments & Origins.
-- [ ] Make the selected Environment explicit and show its effective Collector application state separately from stored values.
-- [ ] Keep Origin validation, authorization, and activation rules enforced by the existing service contracts.
+- [x] Move capability controls to the Capabilities page and keep capability dependencies sourced from the canonical manifest/server validation.
+- [x] Preserve optimistic concurrency and display API validation/conflict failures without discarding safe form values.
+- [x] Keep legacy missing-capability recovery create-only and do not imply that an existing configuration can be overwritten through initialization.
+- [x] Move environment selection, ingest enablement, Allowed Origins, and policy controls to Environments & Origins.
+- [x] Make the selected Environment explicit and show its effective Collector application state separately from stored values.
+- [x] Keep Origin validation, authorization, and activation rules enforced by the existing service contracts.
+
+Implementation note (2026-10-02): Added directly addressable Capabilities and Environments & Origins pages with URL-preserved Site/Environment context and active task navigation. Capabilities can load without a configured default Environment; environment names are editable and submitted to the URL before the policy is loaded. Capability dependency guidance and availability are sourced from `protocol/capabilities/capabilities.json`. Overview retains Ingest Keys and Definitions. No public API or persistence contracts changed.
 
 ### M7c.4 — Ingest Key lifecycle
 
@@ -116,3 +118,13 @@ Review follow-ups (2026-10-02): preserved the selected Environment across Settin
 - `pnpm format:check:docs` — passed.
 - `E2E_POSTGRES_PORT=15445 node ./scripts/e2e-dashboard.mjs` — passed; used an unused local PostgreSQL port because the default 15432 was already occupied. Verified Dashboard workflows, Settings configuration editing, one-time key lifecycle, and API error handling.
 - `pnpm e2e:site-onboarding` — passed; verified Site-level Page Views and distinct missing/invalid management credential and unavailable Site Management API states across the onboarding workflow.
+
+2026-10-02 — M7c.3 validation:
+
+- `pnpm --filter @web-analytics/dashboard test` — passed (35 files, 167 tests).
+- `pnpm check` — passed (5 existing generated-code ESLint warnings, no errors).
+- `pnpm build` — passed; Next.js lists both new Settings routes.
+- `pnpm e2e:dashboard` — passed; verified switching the Environment through the editable URL-backed selector, split capability/policy workflows, policy validation and conflict recovery, and continued Overview key lifecycle controls.
+- `pnpm e2e:site-onboarding` — passed.
+- `pnpm format:check` — passed.
+- `pnpm format:check:docs` — passed.

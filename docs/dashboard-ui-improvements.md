@@ -1,6 +1,6 @@
 # Dashboard UI 改进方案
 
-- Status: M7a and M7b complete (2026-10-02); M7c.1 complete; M7c.2–M7c.6 planned
+- Status: M7a and M7b complete (2026-10-02); M7c.1–M7c.3 complete; M7c.4–M7c.6 planned
 - Scope: Dashboard information architecture and UI foundation
 - Overall sequence and gates: [Platform Improvement Roadmap](platform-improvement-roadmap.md)
 - M7b Analytics reports execution checklist: [M7b Analytics Reports Checklist](m7b-analytics-reports-checklist.md)
@@ -106,7 +106,7 @@ Capability 的启用状态来源仍是现有配置服务与 contract，不由 Si
 1. **M7a 基础样式与组件**：配置 Tailwind 和 shadcn/ui，建立主题 token、通用控件与页面容器。
 2. **M7a 应用 Shell**：实现 Global Header、Analytics / Settings 一级导航、响应式 Analytics Sidebar 和 active state；站点选择通过可替换的数据入口读取，过渡期可接现有列表，但不把环境变量写进 Shell 组件。
 3. **M7b Analytics 页面**：将共享筛选项与页面标题分离，保留站点、日期等 URL 参数；把已有 Overview、Pages、Dimensions、Visitors、Sessions、Custom events、Web Vitals、Countries、Conversions、Funnels 报表移到对应页面。只依赖现有 Analytics 查询 API。
-4. **M7c Settings 页面**：在动态 Site Registry 和 onboarding API 完成后，按站点管理任务组织 Overview、Capabilities、Environments & Origins、Ingest Keys、Definitions；复用组件和状态样式。
+4. **M7c Settings 页面**：在动态 Site Registry 和 onboarding API 完成后，按站点管理任务组织 Overview、Capabilities、Environments & Origins、Ingest Keys、Definitions；M7c.1–M7c.3 已交付 Overview、Capabilities 和 Environments & Origins，Overview 暂留 Ingest Keys 与 Definitions，后续切片迁移。
 5. **视觉验收**：统一 loading、empty、error、disabled/unavailable 状态，验证窄屏、键盘导航、表格溢出和现有业务测试。
 
 每阶段都应保持 Dashboard 可构建、可访问；不需要一次性重写数据层。

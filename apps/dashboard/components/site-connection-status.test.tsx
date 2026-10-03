@@ -276,7 +276,7 @@ describe("site connection status", () => {
       ),
     );
     expect([...container.querySelectorAll("a")].map((link) => link.getAttribute("href"))).toContain(
-      "#environment-policy",
+      "/dashboard/settings/environments?site_id=site_demo&environment=staging",
     );
     expect([...container.querySelectorAll("a")].map((link) => link.getAttribute("href"))).toContain(
       "#ingest-keys",

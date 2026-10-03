@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 
+import { settingsRoute } from "../lib/settings-routes";
+
 import { Button } from "./ui";
 
 import type { ConfigurationLoadResult } from "../lib/configuration-api/server";
@@ -172,19 +174,27 @@ export function SiteConnectionStatus({
           className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm"
         >
           {configuration.kind === "missing_capabilities" && (
-            <a href="#capabilities">Initialize capabilities</a>
+            <a href={settingsRoute("capabilities", { siteId: site.site_id, environment })}>
+              Initialize capabilities
+            </a>
           )}
           {configuration.kind === "ready" && !configuration.policy && (
-            <a href="#environment-policy">Configure environment policy</a>
+            <a href={settingsRoute("environments", { siteId: site.site_id, environment })}>
+              Configure environment policy
+            </a>
           )}
           {configuration.kind === "ready" &&
             configuration.policy &&
             !configuration.policy.policy.enabled && (
-              <a href="#environment-policy">Enable environment ingestion</a>
+              <a href={settingsRoute("environments", { siteId: site.site_id, environment })}>
+                Enable environment ingestion
+              </a>
             )}
           {configuration.kind === "ready" &&
             configuration.policy?.policy.allowed_origins.length === 0 && (
-              <a href="#environment-policy">Add an Allowed Origin</a>
+              <a href={settingsRoute("environments", { siteId: site.site_id, environment })}>
+                Add an Allowed Origin
+              </a>
             )}
           {configuration.kind === "ready" &&
             configuration.policy &&
@@ -193,8 +203,12 @@ export function SiteConnectionStatus({
             )}
           {configuration.kind === "ready" && (
             <>
-              <a href="#capabilities">Capabilities</a>
-              <a href="#environment-policy">Environment policy</a>
+              <a href={settingsRoute("capabilities", { siteId: site.site_id, environment })}>
+                Capabilities
+              </a>
+              <a href={settingsRoute("environments", { siteId: site.site_id, environment })}>
+                Environment policy
+              </a>
               <a href="#ingest-keys">Ingest Keys</a>
               <a href="#definitions">Definitions</a>
             </>

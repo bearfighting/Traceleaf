@@ -18,6 +18,15 @@ describe("Settings routes", () => {
     );
   });
 
+  it("builds directly addressable task routes with site and environment context", () => {
+    expect(settingsRoute("environments", { siteId: "site_alpha", environment: "preview" })).toBe(
+      "/dashboard/settings/environments?site_id=site_alpha&environment=preview",
+    );
+    expect(settingsRoute("capabilities", { siteId: "site_alpha" })).toBe(
+      "/dashboard/settings/capabilities?site_id=site_alpha",
+    );
+  });
+
   it("builds Analytics links with the same allowed context parameters", () => {
     expect(
       dashboardRoute({

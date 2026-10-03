@@ -43,14 +43,19 @@ const result = {
 describe("ConfigurationEditor", () => {
   it("renders privacy requirements, dependencies, runtime versions, and empty policy state", () => {
     const markup = renderToStaticMarkup(
-      <ConfigurationEditor siteId="site-one" environment="production" result={result} />,
+      <ConfigurationEditor
+        siteId="site-one"
+        environment="production"
+        result={result}
+        section="capabilities"
+      />,
     );
     expect(markup).toContain("Consent required.");
     expect(markup).toContain("Requires Anonymous Visitors.");
     expect(markup).toContain("Runtime status: pending");
     expect(markup).toContain("processor: not reported");
-    expect(markup).toContain("Create environment policy");
-    expect(markup).toContain("Create Ingest Key");
+    expect(markup).not.toContain("Create environment policy");
+    expect(markup).not.toContain("Create Ingest Key");
   });
 
   it("renders environment ingestion state from the stored policy", () => {
@@ -77,6 +82,7 @@ describe("ConfigurationEditor", () => {
             },
           },
         }}
+        section="environments"
       />,
     );
 

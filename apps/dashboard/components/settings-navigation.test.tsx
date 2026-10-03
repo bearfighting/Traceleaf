@@ -30,4 +30,18 @@ describe("SettingsNavigation", () => {
     expect(markup).toContain("Alpha");
     expect(markup).toContain("production");
   });
+
+  it("marks the active task and preserves context in the other task links", () => {
+    const markup = renderToStaticMarkup(
+      <SettingsNavigation
+        context={{ siteId: "site_alpha", environment: "preview" }}
+        environment="preview"
+        section="environments"
+      />,
+    );
+    expect(markup).toContain('aria-current="page">Environments &amp; Origins');
+    expect(markup).toContain(
+      "/dashboard/settings/capabilities?site_id=site_alpha&amp;environment=preview",
+    );
+  });
 });

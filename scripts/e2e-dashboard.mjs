@@ -1114,7 +1114,7 @@ async function assertPhase6Empty(page) {
 }
 
 async function assertDashboardConfiguration(page) {
-  await page.goto(`${dashboardUrl}/dashboard/settings?site_id=site_playground`);
+  await page.goto(`${dashboardUrl}/dashboard/settings/capabilities?site_id=site_playground`);
   await page.getByRole("heading", { name: "Site capabilities" }).waitFor();
   const anonymousVisitorsToggle = page.getByRole("checkbox", {
     name: "Enable Anonymous Visitors",
@@ -1148,6 +1148,15 @@ async function assertDashboardConfiguration(page) {
     !(await page.getByRole("checkbox", { name: "Enable Geo country" }).isChecked()),
     "Capability change did not persist after reload",
   );
+
+  await page.goto(
+    `${dashboardUrl}/dashboard/settings/environments?site_id=site_playground&environment=staging`,
+  );
+  await page.getByRole("heading", { name: "Environments & Origins" }).waitFor();
+  await page.getByRole("textbox", { name: "Environment name" }).fill("config-e2e");
+  await page.getByRole("button", { name: "Load environment" }).click();
+  await page.waitForURL(/environment=config-e2e/);
+  await page.getByRole("heading", { name: "Website access" }).waitFor();
 
   const origins = page.locator("textarea");
   await origins.fill("not-an-origin");
@@ -1247,6 +1256,10 @@ async function assertDashboardConfiguration(page) {
     .filter({ hasText: "Website access settings saved. Ingestion is enabled." })
     .waitFor();
 
+  await page.goto(
+    `${dashboardUrl}/dashboard/settings/overview?site_id=site_playground&environment=config-e2e`,
+  );
+  await page.getByRole("heading", { name: "Ingest Keys" }).waitFor();
   await page.getByRole("button", { name: "Create Ingest Key" }).click();
   const displayedKey = page.locator(".one-time-secret code");
   await displayedKey.waitFor();

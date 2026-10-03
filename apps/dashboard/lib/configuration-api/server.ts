@@ -73,6 +73,40 @@ export async function loadSiteConfiguration(
   }
 }
 
+export async function loadSiteCapabilities(siteId: string): Promise<ConfigurationLoadResult> {
+  const token = process.env.DASHBOARD_CONFIG_ADMIN_TOKEN;
+  if (!token)
+    return {
+      kind: "unconfigured",
+      message: "DASHBOARD_CONFIG_ADMIN_TOKEN is not configured for the Dashboard server.",
+    };
+  try {
+    const response = await fetch(
+      `${getSiteManagementApiUrl()}/v1/admin/sites/${encodeURIComponent(siteId)}/capabilities`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      },
+    );
+    if (response.status === 404)
+      return {
+        kind: "missing_capabilities",
+        message: "No capability configuration exists for this Site.",
+      };
+    if (response.status === 401 || response.status === 403)
+      return { kind: "unauthorized", message: await readApiError(response) };
+    if (!response.ok) return { kind: "error", message: await readApiError(response) };
+
+    return {
+      kind: "ready",
+      capabilities: (await response.json()) as CapabilityResponse,
+      policy: null,
+    };
+  } catch {
+    return { kind: "error", message: "Configuration service is unavailable. Try again later." };
+  }
+}
+
 async function readApiError(response: Response): Promise<string> {
   try {
     const body = (await response.json()) as { error?: { message?: string } };

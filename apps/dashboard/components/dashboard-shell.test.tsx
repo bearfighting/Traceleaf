@@ -66,4 +66,32 @@ describe("DashboardShell", () => {
     expect(markup).toContain('name="definition_version" value="definitions-v2"');
     expect(markup).toContain('name="environment" value="staging"');
   });
+
+  it.each(["capabilities", "environments"] as const)(
+    "keeps the %s Settings task and Environment when selecting a Site",
+    (settingsSection) => {
+      const markup = renderToStaticMarkup(
+        <DashboardShell
+          dateRange={{ from: "", to: "" }}
+          dimension="browser"
+          environment="staging"
+          settingsMode
+          settingsSection={settingsSection}
+          siteId="site_playground"
+          sites={[
+            { id: "site_playground", label: "Playground" },
+            { id: "site_alpha", label: "Alpha" },
+          ]}
+        >
+          <div>Settings task</div>
+        </DashboardShell>,
+      );
+
+      expect(markup).toContain(`action="/dashboard/settings/${settingsSection}"`);
+      expect(markup).toContain('name="environment" value="staging"');
+      expect(markup).toContain(
+        `href="/dashboard/settings/${settingsSection}?site_id=site_playground&amp;environment=staging&amp;dimension=browser"`,
+      );
+    },
+  );
 });
