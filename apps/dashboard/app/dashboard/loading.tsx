@@ -1,11 +1,11 @@
-import { DashboardHeader } from "../../components/dashboard-shell";
+import { DashboardLoadingHeader } from "../../components/dashboard-loading-header";
 import { Phase6LoadingState } from "../../components/phase6-loading-state";
 import { LoadingState } from "../../components/states/loading-state";
 
 export default function DashboardLoading() {
   return (
     <main className="dashboard-shell bg-canvas text-ink">
-      <DashboardHeader />
+      <DashboardLoadingHeader />
       <div className="dashboard-container grid gap-8 py-8 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-10">
         <aside aria-hidden="true" className="hidden content-start gap-2 lg:grid">
           {[

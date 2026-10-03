@@ -47,6 +47,19 @@ describe("DashboardPage server contract", () => {
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 
+  it("keeps Environment in the Settings link when returning from Analytics", async () => {
+    configureRegistry(Response.json({ items: [site], next_cursor: null }));
+
+    const element = await DashboardPage({
+      searchParams: Promise.resolve({ site_id: "site_playground", environment: "staging" }),
+    });
+    const markup = renderToStaticMarkup(element);
+
+    expect(markup).toContain(
+      'href="/dashboard/settings/overview?site_id=site_playground&amp;environment=staging&amp;from=',
+    );
+  });
+
   it("renders an empty registry distinctly from management errors", async () => {
     configureRegistry(Response.json({ items: [], next_cursor: null }));
     const element = await DashboardPage({ searchParams: Promise.resolve({}) });

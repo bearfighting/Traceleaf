@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 
 import { configurationRequestError } from "../lib/configuration-api/errors";
@@ -33,9 +34,14 @@ export function DefinitionEditor({
   siteId: string;
   result: DefinitionLoadResult;
 }) {
+  const [savedState, setSavedState] = useState<{ siteId: string; message: string } | null>(null);
+  const savedMessage = savedState?.siteId === siteId ? savedState.message : "";
+  const onSavedMessageChange = (message: string) =>
+    setSavedState(message ? { siteId, message } : null);
+
   if (result.kind !== "ready")
     return (
-      <section className="card" role="alert">
+      <section className="card" role="alert" id="definitions">
         <h2>Definition management unavailable</h2>
         <p>{result.message}</p>
       </section>
@@ -46,11 +52,24 @@ export function DefinitionEditor({
       key={`${siteId}:${result.definitions?.revision ?? "new"}`}
       siteId={siteId}
       initial={result.definitions}
+      savedMessage={savedMessage}
+      onSavedMessageChange={onSavedMessageChange}
     />
   );
 }
 
-function Editor({ siteId, initial }: { siteId: string; initial: DefinitionSetResponse | null }) {
+function Editor({
+  siteId,
+  initial,
+  savedMessage,
+  onSavedMessageChange,
+}: {
+  siteId: string;
+  initial: DefinitionSetResponse | null;
+  savedMessage: string;
+  onSavedMessageChange: (message: string) => void;
+}) {
+  const router = useRouter();
   const [conversions, setConversions] = useState(initial?.conversions ?? []);
   const [funnels, setFunnels] = useState(initial?.funnels ?? []);
   const [baseline, setBaseline] = useState(initial);
@@ -58,7 +77,7 @@ function Editor({ siteId, initial }: { siteId: string; initial: DefinitionSetRes
   const [definitionVersion, setDefinitionVersion] = useState(initial?.definition_version);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(savedMessage);
   const [versionConflict, setVersionConflict] = useState(false);
   const hasUnsavedChanges =
     JSON.stringify({ conversions, funnels }) !==
@@ -68,6 +87,7 @@ function Editor({ siteId, initial }: { siteId: string; initial: DefinitionSetRes
     setBusy(true);
     setError("");
     setMessage("");
+    onSavedMessageChange("");
     setVersionConflict(false);
     try {
       const response = await fetch(
@@ -96,9 +116,10 @@ function Editor({ siteId, initial }: { siteId: string; initial: DefinitionSetRes
       setRevision(saved.revision);
       setDefinitionVersion(saved.definition_version);
       setBaseline(saved);
-      setMessage(
-        `Saved revision ${saved.definition_version}. New events will use it from ${saved.effective_at ?? "the imported baseline"}.`,
-      );
+      const savedMessage = `Saved revision ${saved.definition_version}. Events processed from ${saved.effective_at ?? "the imported baseline"} onward will use it.`;
+      setMessage(savedMessage);
+      onSavedMessageChange(savedMessage);
+      router.refresh();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not save definitions.");
     } finally {
@@ -116,6 +137,7 @@ function Editor({ siteId, initial }: { siteId: string; initial: DefinitionSetRes
     setBusy(true);
     setError("");
     setMessage("");
+    onSavedMessageChange("");
     try {
       const response = await fetch(
         `/api/admin/sites/${encodeURIComponent(siteId)}/conversion-funnel-definitions`,
@@ -139,7 +161,7 @@ function Editor({ siteId, initial }: { siteId: string; initial: DefinitionSetRes
   }
 
   return (
-    <section className="card" aria-label="Conversion and funnel definitions">
+    <section className="card" aria-label="Conversion and funnel definitions" id="definitions">
       <h2>Conversions and funnels</h2>
       <p>
         Each save creates an immutable site revision. Deactivate definitions to preserve their IDs

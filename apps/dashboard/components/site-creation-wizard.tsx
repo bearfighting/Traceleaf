@@ -351,7 +351,7 @@ export function SiteCreationWizard({ manifest }: { manifest: Capability[] }) {
         </p>
         <Link
           className="mt-3 inline-flex min-h-10 items-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold"
-          href={`/dashboard/settings?site_id=${encodeURIComponent(siteId)}&environment=${encodeURIComponent(env)}`}
+          href={`/dashboard/settings/overview?site_id=${encodeURIComponent(siteId)}&environment=${encodeURIComponent(env)}`}
           target="_blank"
           rel="noopener noreferrer"
         >

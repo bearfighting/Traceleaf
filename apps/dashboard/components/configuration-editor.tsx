@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
+import capabilityManifest from "../../../protocol/capabilities/capabilities.json";
 import { configurationRequestError } from "../lib/configuration-api/errors";
 import { CAPABILITY_LABELS } from "../lib/configuration-api/types";
 
@@ -11,32 +12,39 @@ import { Button } from "./ui";
 import type { ConfigurationLoadResult } from "../lib/configuration-api/server";
 import type {
   CapabilityResponse,
-  CreatedIngestKey,
   EffectiveState,
   IngestPolicyResponse,
 } from "../lib/configuration-api/types";
-
-const DEPENDENCIES: Record<string, string[]> = {
-  sessions: ["anonymous_visitors"],
-  dimensions: ["browser_context"],
-  conversions: ["custom_events"],
-  funnels: ["conversions", "custom_events"],
-};
 
 export function ConfigurationEditor({
   siteId,
   environment,
   result,
+  section = "overview",
 }: {
   siteId: string;
   environment: string;
   result: ConfigurationLoadResult;
+  section?: "overview" | "capabilities" | "environments";
 }) {
-  if (result.kind === "missing_capabilities") return <InitializeCapabilities siteId={siteId} />;
+  if (result.kind === "missing_capabilities")
+    return section === "environments" ? (
+      <section className="card">
+        <h2>Capabilities need initialization</h2>
+        <p>Initialize Site capabilities before configuring an environment.</p>
+        <a
+          href={`/dashboard/settings/capabilities?site_id=${encodeURIComponent(siteId)}&environment=${encodeURIComponent(environment)}`}
+        >
+          Go to Capabilities
+        </a>
+      </section>
+    ) : (
+      <InitializeCapabilities siteId={siteId} />
+    );
 
   if (result.kind !== "ready")
     return (
-      <section className="card" role="alert">
+      <section className="card" role="alert" id="capabilities">
         <h2>Configuration unavailable</h2>
         <p>{result.message}</p>
       </section>
@@ -49,6 +57,7 @@ export function ConfigurationEditor({
       environment={environment}
       initialCapabilities={result.capabilities}
       initialPolicy={result.policy}
+      section={section}
     />
   );
 }
@@ -83,7 +92,7 @@ function InitializeCapabilities({ siteId }: { siteId: string }) {
   }
 
   return (
-    <section className="card" aria-label="Capability configuration setup">
+    <section className="card" aria-label="Capability configuration setup" id="capabilities">
       <h2 className="m-0 text-lg font-semibold">Capability configuration is missing</h2>
       <p className="mb-0 mt-2 text-sm text-muted">
         Initialize this Site with Page Views enabled and optional capabilities disabled. You can
@@ -106,18 +115,42 @@ function Editor({
   environment,
   initialCapabilities,
   initialPolicy,
+  section,
 }: {
   siteId: string;
   environment: string;
   initialCapabilities: CapabilityResponse;
   initialPolicy: IngestPolicyResponse | null;
+  section: "overview" | "capabilities" | "environments";
 }) {
   const [capabilities, setCapabilities] = useState(initialCapabilities);
   const [policy, setPolicy] = useState(initialPolicy);
+  const [previousCapabilitiesEffectiveState, setPreviousCapabilitiesEffectiveState] = useState(
+    initialCapabilities.effective_state,
+  );
+  const incomingPolicyEffectiveState = initialPolicy?.effective_state;
+  const [previousPolicyEffectiveState, setPreviousPolicyEffectiveState] = useState(
+    incomingPolicyEffectiveState,
+  );
+  if (previousCapabilitiesEffectiveState !== initialCapabilities.effective_state) {
+    setPreviousCapabilitiesEffectiveState(initialCapabilities.effective_state);
+    setCapabilities((current) => ({
+      ...current,
+      effective_state: initialCapabilities.effective_state,
+    }));
+  }
+  if (
+    incomingPolicyEffectiveState &&
+    previousPolicyEffectiveState !== incomingPolicyEffectiveState
+  ) {
+    setPreviousPolicyEffectiveState(incomingPolicyEffectiveState);
+    setPolicy((current) =>
+      current ? { ...current, effective_state: incomingPolicyEffectiveState } : current,
+    );
+  }
   const [policyEnabled, setPolicyEnabled] = useState(initialPolicy?.policy.enabled ?? true);
   const [origins, setOrigins] = useState(initialPolicy?.policy.allowed_origins.join("\n") ?? "");
   const [rateLimit, setRateLimit] = useState(initialPolicy?.policy.rate_limit_per_minute ?? 600);
-  const [createdKey, setCreatedKey] = useState<CreatedIngestKey | null>(null);
   const [busy, setBusy] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
@@ -163,18 +196,18 @@ function Editor({
     const current = capabilities.configuration.capabilities;
     if (id === "page_views") return;
     if (enabled) {
-      const missing = (DEPENDENCIES[id] ?? []).filter(
-        (dependency) => !current[dependency]?.enabled,
-      );
+      const dependencies =
+        capabilityManifest.capabilities.find((item) => item.id === id)?.depends_on ?? [];
+      const missing = dependencies.filter((dependency) => !current[dependency]?.enabled);
       if (missing.length) {
         setError(`Enable ${missing.map((key) => CAPABILITY_LABELS[key]).join(", ")} first.`);
 
         return;
       }
     } else {
-      const dependents = Object.entries(DEPENDENCIES)
-        .filter(([other, deps]) => current[other]?.enabled && deps.includes(id))
-        .map(([other]) => CAPABILITY_LABELS[other]);
+      const dependents = capabilityManifest.capabilities
+        .filter((item) => current[item.id]?.enabled && item.depends_on.includes(id))
+        .map((item) => CAPABILITY_LABELS[item.id]);
       if (dependents.length) {
         setError(`Disable dependent capabilities first: ${dependents.join(", ")}.`);
 
@@ -231,178 +264,114 @@ function Editor({
     });
   }
 
-  async function createKey() {
-    await perform(async () => {
-      if (!policy) throw new Error("Create the environment policy before issuing a key.");
-      const path = `/api/admin/sites/${encodeURIComponent(siteId)}/environments/${encodeURIComponent(environment)}/ingest-keys`;
-      const created = (await request(
-        path,
-        "POST",
-        undefined,
-        policy.policy.version,
-      )) as CreatedIngestKey;
-      setCreatedKey(created);
-      const refreshed = (await request(
-        `/api/admin/sites/${encodeURIComponent(siteId)}/environments/${encodeURIComponent(environment)}/ingest-policy`,
-        "GET",
-      )) as IngestPolicyResponse;
-      setPolicy(refreshed);
-      setMessage("Key created. Copy it now; it will not be shown again.");
-    });
-  }
-
-  async function revokeKey(keyId: string) {
-    await perform(async () => {
-      if (!policy) return;
-      const path = `/api/admin/sites/${encodeURIComponent(siteId)}/environments/${encodeURIComponent(environment)}/ingest-keys/${encodeURIComponent(keyId)}`;
-      const value = (await request(
-        path,
-        "DELETE",
-        undefined,
-        policy.policy.version,
-      )) as IngestPolicyResponse;
-      setPolicy(value);
-      setCreatedKey(null);
-      setMessage("Ingest key revoked.");
-    });
-  }
-
   return (
     <div className="configuration-page" data-hydrated={hydrated}>
-      <section className="card">
-        <h2>Site capabilities</h2>
-        <EffectiveStateView state={capabilities.effective_state} />
-        <div className="configuration-list">
-          {Object.entries(capabilities.configuration.capabilities).map(([id, value]) => (
-            <label className="configuration-toggle" key={id}>
-              <span>
-                <strong>{CAPABILITY_LABELS[id] ?? id}</strong>
-                <small>
-                  {DEPENDENCIES[id]?.length
-                    ? `Requires ${DEPENDENCIES[id].map((key) => CAPABILITY_LABELS[key]).join(" and ")}.`
-                    : id === "page_views"
-                      ? "Required baseline; always enabled."
-                      : ""}
-                </small>
-              </span>
-              <input
-                type="checkbox"
-                checked={value.enabled}
-                disabled={busy || !hydrated || id === "page_views"}
-                onChange={(event) => toggle(id, event.target.checked)}
-                aria-label={`Enable ${CAPABILITY_LABELS[id] ?? id}`}
-              />
-            </label>
-          ))}
-        </div>
-        <p className="privacy-note">
-          <strong>Consent required.</strong> No IP persistence or fingerprinting. These privacy
-          constraints cannot be disabled.
-        </p>
-        <button type="button" disabled={busy || !hydrated} onClick={saveCapabilities}>
-          Save capabilities
-        </button>
-      </section>
-      <section className="card">
-        <h2>Website access</h2>
-        <p>
-          Environment: <strong>{environment}</strong>
-        </p>
-        {policy ? (
-          <EffectiveStateView state={policy.effective_state} />
-        ) : (
-          <p>
-            No environment policy exists yet, so ingestion is currently closed. The initial policy
-            and an active Ingest Key are required before events can be accepted.
-          </p>
-        )}
-        <label className="configuration-toggle">
-          <span>
-            <strong>
-              {policy
-                ? "Environment ingestion"
-                : "Enable environment ingestion when policy is created"}
-            </strong>
-            <small>
-              {policy
-                ? "When disabled, the Collector rejects events. When enabled, events still require an allowed Origin and active Ingest Key."
-                : "This sets the new policy's enabled flag; it does not open ingestion until an allowed Origin and active Ingest Key are configured."}
-            </small>
-          </span>
-          <input
-            type="checkbox"
-            checked={policyEnabled}
-            disabled={busy || !hydrated}
-            onChange={(event) => setPolicyEnabled(event.target.checked)}
-            aria-label={
-              policy
-                ? "Enable environment ingestion"
-                : "Enable environment ingestion when policy is created"
-            }
-          />
-        </label>
-        <label className="configuration-field">
-          Allowed Origins <small>One origin per line, such as https://www.example.com</small>
-          <textarea
-            rows={4}
-            value={origins}
-            disabled={busy || !hydrated}
-            onChange={(event) => setOrigins(event.target.value)}
-          />
-        </label>
-        <label className="configuration-field">
-          Rate limit (events per minute)
-          <input
-            type="number"
-            min={1}
-            value={rateLimit}
-            disabled={busy || !hydrated}
-            onChange={(event) => setRateLimit(Number(event.target.value))}
-          />
-        </label>
-        <button type="button" disabled={busy || !hydrated} onClick={savePolicy}>
-          {policy ? "Save access settings" : "Create environment policy"}
-        </button>
-      </section>
-      <section className="card">
-        <h2>Ingest Keys</h2>
-        <p>Create a replacement before revoking a key currently used by your website.</p>
-        <button type="button" disabled={busy || !hydrated || !policy} onClick={createKey}>
-          Create Ingest Key
-        </button>
-        {createdKey && (
-          <div className="one-time-secret" role="status">
-            <strong>Copy this key now. It will not be shown again.</strong>
-            <code>{createdKey.key}</code>
-            <button
-              type="button"
-              onClick={() => void navigator.clipboard?.writeText(createdKey.key)}
-            >
-              Copy key
-            </button>
-            <button type="button" onClick={() => setCreatedKey(null)}>
-              Hide key
-            </button>
+      {section === "capabilities" ? (
+        <section className="card" id="capabilities">
+          <h2>Site capabilities</h2>
+          <EffectiveStateView state={capabilities.effective_state} />
+          <div className="configuration-list">
+            {Object.entries(capabilities.configuration.capabilities).map(([id, value]) => {
+              const definition = capabilityManifest.capabilities.find((item) => item.id === id);
+              const unavailable = definition?.status !== "implemented";
+
+              return (
+                <label className="configuration-toggle" key={id}>
+                  <span>
+                    <strong>{CAPABILITY_LABELS[id] ?? id}</strong>
+                    <small>
+                      {definition?.depends_on?.length
+                        ? `Requires ${definition.depends_on.map((key) => CAPABILITY_LABELS[key] ?? key).join(" and ")}.`
+                        : id === "page_views"
+                          ? "Required baseline; always enabled."
+                          : unavailable
+                            ? "Not available yet."
+                            : ""}
+                    </small>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={value.enabled}
+                    disabled={busy || !hydrated || id === "page_views" || unavailable}
+                    onChange={(event) => toggle(id, event.target.checked)}
+                    aria-label={`Enable ${CAPABILITY_LABELS[id] ?? id}`}
+                  />
+                </label>
+              );
+            })}
           </div>
-        )}
-        <ul className="key-list">
-          {(policy?.policy.keys ?? []).map((key) => (
-            <li key={key.key_id}>
-              <span>
-                <code>{key.key_id}</code> · created {new Date(key.created_at).toISOString()}
-              </span>
-              <button
-                type="button"
-                disabled={busy || !hydrated}
-                onClick={() => void revokeKey(key.key_id)}
-              >
-                Revoke
-              </button>
-            </li>
-          ))}
-        </ul>
-        {policy && policy.policy.keys.length === 0 && <p>No active ingest keys.</p>}
-      </section>
+          <p className="privacy-note">
+            <strong>Consent required.</strong> No IP persistence or fingerprinting. These privacy
+            constraints cannot be disabled.
+          </p>
+          <button type="button" disabled={busy || !hydrated} onClick={saveCapabilities}>
+            Save capabilities
+          </button>
+        </section>
+      ) : null}
+      {section === "environments" ? (
+        <section className="card" id="environment-policy">
+          <h2>Website access</h2>
+          <p>
+            Environment: <strong>{environment}</strong>
+          </p>
+          {policy ? (
+            <EffectiveStateView state={policy.effective_state} />
+          ) : (
+            <p>
+              No environment policy exists yet, so ingestion is currently closed. The initial policy
+              and an active Ingest Key are required before events can be accepted.
+            </p>
+          )}
+          <label className="configuration-toggle">
+            <span>
+              <strong>
+                {policy
+                  ? "Environment ingestion"
+                  : "Enable environment ingestion when policy is created"}
+              </strong>
+              <small>
+                {policy
+                  ? "When disabled, the Collector rejects events. When enabled, events still require an allowed Origin and active Ingest Key."
+                  : "This sets the new policy's enabled flag; it does not open ingestion until an allowed Origin and active Ingest Key are configured."}
+              </small>
+            </span>
+            <input
+              type="checkbox"
+              checked={policyEnabled}
+              disabled={busy || !hydrated}
+              onChange={(event) => setPolicyEnabled(event.target.checked)}
+              aria-label={
+                policy
+                  ? "Enable environment ingestion"
+                  : "Enable environment ingestion when policy is created"
+              }
+            />
+          </label>
+          <label className="configuration-field">
+            Allowed Origins <small>One origin per line, such as https://www.example.com</small>
+            <textarea
+              rows={4}
+              value={origins}
+              disabled={busy || !hydrated}
+              onChange={(event) => setOrigins(event.target.value)}
+            />
+          </label>
+          <label className="configuration-field">
+            Rate limit (events per minute)
+            <input
+              type="number"
+              min={1}
+              value={rateLimit}
+              disabled={busy || !hydrated}
+              onChange={(event) => setRateLimit(Number(event.target.value))}
+            />
+          </label>
+          <button type="button" disabled={busy || !hydrated} onClick={savePolicy}>
+            {policy ? "Save access settings" : "Create environment policy"}
+          </button>
+        </section>
+      ) : null}
       {error && (
         <ConfigurationErrorFeedback error={error} onReload={() => window.location.reload()} />
       )}
@@ -436,7 +405,7 @@ export function ConfigurationErrorFeedback({
 
 function EffectiveStateView({ state }: { state: EffectiveState }) {
   return (
-    <div className={`effective-state effective-${state.status}`}>
+    <div className={`effective-state effective-${state.status}`} role="status" aria-atomic="true">
       <strong>Runtime status: {state.status}</strong>
       <span>Stored version {state.stored_version}</span>
       {Object.entries(state.applied_versions).map(([service, version]) => (

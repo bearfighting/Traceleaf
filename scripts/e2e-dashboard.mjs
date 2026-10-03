@@ -91,6 +91,19 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+async function assertSettingsSectionFitsViewport(page, section, label) {
+  const viewportWidth = page.viewportSize().width;
+  const bounds = await section.boundingBox();
+  assert(
+    bounds && bounds.x >= 0 && bounds.x + bounds.width <= viewportWidth,
+    `${label} exceeds the ${viewportWidth}px viewport`,
+  );
+  const horizontalOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+  );
+  assert(!horizontalOverflow, `${label} causes horizontal page overflow at ${viewportWidth}px`);
+}
+
 function assertDashboardIsolation() {
   const config = runCompose(["config"], { capture: true });
   const dashboardMatch = config.match(
@@ -172,7 +185,7 @@ async function waitFor(label, url) {
 async function assertDashboardShell(page) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(
-    `${dashboardUrl}/dashboard?site_id=site_playground&from=2026-09-20&to=2026-09-21&dimension=browser`,
+    `${dashboardUrl}/dashboard?site_id=site_playground&environment=config-e2e&from=2026-09-20&to=2026-09-21&dimension=browser`,
   );
   await expect(page.getByRole("navigation", { name: "Primary navigation" })).toBeVisible();
   await expect(page.locator(".analytics-sidebar-desktop")).toBeVisible();
@@ -183,7 +196,7 @@ async function assertDashboardShell(page) {
 
   await page.locator(".analytics-sidebar-desktop a[href='#timeline']").click();
   await expect(page).toHaveURL(
-    /site_id=site_playground&from=2026-09-20&to=2026-09-21&dimension=browser#timeline$/,
+    /site_id=site_playground&environment=config-e2e&from=2026-09-20&to=2026-09-21&dimension=browser#timeline$/,
   );
   await expect(page.locator("#timeline")).toBeInViewport();
   await expect(page.locator(".analytics-sidebar-desktop a[href='#timeline']")).toHaveAttribute(
@@ -193,12 +206,83 @@ async function assertDashboardShell(page) {
 
   await page.getByRole("link", { name: "Settings", exact: true }).click();
   await expect(page).toHaveURL(
-    /\/dashboard\/settings\?site_id=site_playground&from=2026-09-20&to=2026-09-21&dimension=browser/,
+    /\/dashboard\/settings\/overview\?site_id=site_playground&environment=config-e2e&from=2026-09-20&to=2026-09-21&dimension=browser/,
   );
-  await page.getByRole("link", { name: "Analytics", exact: true }).click();
+  const desktopSettingsNavigation = page.getByRole("navigation", {
+    name: "Settings navigation",
+  });
+  await desktopSettingsNavigation.getByRole("link", { name: "Capabilities" }).click();
+  await expect(page).toHaveURL(/\/dashboard\/settings\/capabilities\?site_id=site_playground/);
+  const desktopCapabilityForm = page.locator("#capabilities");
+  await expect(
+    desktopCapabilityForm.getByRole("heading", { name: "Site capabilities" }),
+  ).toBeVisible();
+  await expect(
+    desktopCapabilityForm.getByRole("checkbox", { name: "Enable Page Views" }),
+  ).toBeVisible();
+  await expect(
+    desktopCapabilityForm.getByRole("button", { name: "Save capabilities" }),
+  ).toBeVisible();
+  const desktopFormBounds = await desktopCapabilityForm.boundingBox();
+  assert(
+    desktopFormBounds &&
+      desktopFormBounds.x >= 0 &&
+      desktopFormBounds.x + desktopFormBounds.width <= 1440,
+    "Capabilities form exceeds the 1440px viewport",
+  );
+  const desktopFormOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+  );
+  assert(!desktopFormOverflow, "Capabilities form causes horizontal page overflow at 1440px");
+
+  await page.goto(
+    `${dashboardUrl}/dashboard/settings/environments?site_id=site_playground&environment=e2e`,
+  );
+  await expect(page.getByRole("heading", { name: "Website access" })).toBeVisible();
+  const environmentForm = page.locator("#environment-policy");
+  await expect(environmentForm.locator("textarea")).toBeVisible();
+  await expect(environmentForm.getByRole("button", { name: "Save access settings" })).toBeVisible();
+  await assertSettingsSectionFitsViewport(page, environmentForm, "Environment policy form");
+
+  await page.goto(
+    `${dashboardUrl}/dashboard/settings/ingest-keys?site_id=site_playground&environment=e2e`,
+  );
+  const ingestKeySection = page.locator('[aria-label="Ingest Keys"]');
+  await expect(
+    ingestKeySection.getByRole("button", { name: "Create replacement key" }),
+  ).toBeVisible();
+  await expect(ingestKeySection.locator(".key-list li")).toHaveCount(1);
+  await assertSettingsSectionFitsViewport(page, ingestKeySection, "Ingest Keys section");
+
+  await page.goto(
+    `${dashboardUrl}/dashboard/settings/definitions?site_id=site_playground&environment=config-e2e&from=2026-09-20&to=2026-09-21&dimension=browser`,
+  );
+  const definitionsForm = page.locator('[aria-label="Conversion and funnel definitions"]');
+  await expect(definitionsForm.getByRole("button", { name: "Save new revision" })).toBeVisible();
+  await expect(definitionsForm.getByLabel("Name", { exact: true }).first()).toBeVisible();
+  await assertSettingsSectionFitsViewport(page, definitionsForm, "Definitions form");
+
+  const analyticsLink = page.getByRole("link", { name: "Analytics", exact: true });
+  await expect(analyticsLink).toHaveAttribute(
+    "href",
+    /\/dashboard\?site_id=site_playground(?=.*environment=config-e2e)(?=.*from=2026-09-20)(?=.*to=2026-09-21)(?=.*dimension=browser)/,
+  );
+  await analyticsLink.click();
   await expect(page).toHaveURL(
-    /\/dashboard\?site_id=site_playground&from=2026-09-20&to=2026-09-21&dimension=browser/,
+    /\/dashboard\?site_id=site_playground(?=.*environment=config-e2e)(?=.*from=2026-09-20)(?=.*to=2026-09-21)(?=.*dimension=browser)/,
   );
+  const settingsLink = page.getByRole("link", { name: "Settings", exact: true });
+  await expect(settingsLink).toHaveAttribute(
+    "href",
+    /\/dashboard\/settings\/overview\?site_id=site_playground&environment=config-e2e/,
+  );
+  await settingsLink.click();
+  await expect(page).toHaveURL(
+    /\/dashboard\/settings\/overview\?site_id=site_playground&environment=config-e2e&from=2026-09-20&to=2026-09-21&dimension=browser/,
+  );
+
+  await page.getByRole("link", { name: "Analytics", exact: true }).click();
+  await expect(page.locator(".analytics-sidebar-desktop")).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });
   const mobileMenu = page.locator(".mobile-analytics-menu");
@@ -215,6 +299,44 @@ async function assertDashboardShell(page) {
     "aria-current",
     "location",
   );
+
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard\/settings\/overview\?/);
+  const settingsNavigation = page.getByRole("navigation", { name: "Settings navigation" });
+  await expect(settingsNavigation).toBeVisible();
+  await expect(settingsNavigation.getByRole("link", { name: "Overview" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  const settingsOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+  );
+  assert(!settingsOverflow, "Settings navigation overflows the 390px viewport");
+  const capabilitiesLink = settingsNavigation.getByRole("link", { name: "Capabilities" });
+  await capabilitiesLink.focus();
+  await page.keyboard.press("Tab");
+  const environmentsLink = settingsNavigation.getByRole("link", { name: "Environments & Origins" });
+  const focusOutline = await environmentsLink.evaluate(
+    (element) => getComputedStyle(element).outlineStyle,
+  );
+  assert(focusOutline !== "none", "Settings navigation focus indicator is not visible");
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/dashboard\/settings\/capabilities\?site_id=site_playground/);
+  await expect(page.getByRole("navigation", { name: "Breadcrumb" })).toContainText("Capabilities");
+  const capabilityForm = page.locator("#capabilities");
+  await expect(capabilityForm.getByRole("heading", { name: "Site capabilities" })).toBeVisible();
+  await expect(capabilityForm.getByRole("checkbox", { name: "Enable Page Views" })).toBeVisible();
+  await expect(capabilityForm.getByRole("button", { name: "Save capabilities" })).toBeVisible();
+  const formBounds = await capabilityForm.boundingBox();
+  assert(
+    formBounds && formBounds.x >= 0 && formBounds.x + formBounds.width <= 390,
+    "Capabilities form exceeds the 390px viewport width",
+  );
+  const formOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+  );
+  assert(!formOverflow, "Capabilities form causes horizontal page overflow at 390px");
 }
 
 async function resetDatabase() {
@@ -1097,7 +1219,7 @@ async function assertPhase6Empty(page) {
 }
 
 async function assertDashboardConfiguration(page) {
-  await page.goto(`${dashboardUrl}/dashboard/settings?site_id=site_playground`);
+  await page.goto(`${dashboardUrl}/dashboard/settings/capabilities?site_id=site_playground`);
   await page.getByRole("heading", { name: "Site capabilities" }).waitFor();
   const anonymousVisitorsToggle = page.getByRole("checkbox", {
     name: "Enable Anonymous Visitors",
@@ -1130,6 +1252,21 @@ async function assertDashboardConfiguration(page) {
   assert(
     !(await page.getByRole("checkbox", { name: "Enable Geo country" }).isChecked()),
     "Capability change did not persist after reload",
+  );
+
+  await page.goto(
+    `${dashboardUrl}/dashboard/settings/environments?site_id=site_playground&environment=staging`,
+  );
+  await page.getByRole("heading", { name: "Environments & Origins" }).waitFor();
+  await page.getByRole("textbox", { name: "Environment name" }).fill("config-e2e");
+  await page.getByRole("button", { name: "Load environment" }).click();
+  await page.waitForURL(/environment=config-e2e/);
+  await page.getByRole("heading", { name: "Website access" }).waitFor();
+  const environmentPolicySection = page.locator("#environment-policy");
+  await assertSettingsSectionFitsViewport(
+    page,
+    environmentPolicySection,
+    "Mobile Environment policy form",
   );
 
   const origins = page.locator("textarea");
@@ -1230,9 +1367,21 @@ async function assertDashboardConfiguration(page) {
     .filter({ hasText: "Website access settings saved. Ingestion is enabled." })
     .waitFor();
 
+  await page.goto(
+    `${dashboardUrl}/dashboard/settings/ingest-keys?site_id=site_playground&environment=config-e2e`,
+  );
+  await page.getByRole("heading", { name: "Ingest Keys" }).waitFor();
+  const ingestKeySection = page.locator('[aria-label="Ingest Keys"]');
+  await page.getByRole("button", { name: "Create Ingest Key" }).waitFor();
+  await assertSettingsSectionFitsViewport(page, ingestKeySection, "Mobile Ingest Keys section");
   await page.getByRole("button", { name: "Create Ingest Key" }).click();
   const displayedKey = page.locator(".one-time-secret code");
   await displayedKey.waitFor();
+  await assertSettingsSectionFitsViewport(
+    page,
+    ingestKeySection,
+    "Mobile Ingest Keys section with one-time secret",
+  );
   const plaintext = await displayedKey.textContent();
   assert(
     plaintext && /^[A-Za-z0-9_-]{43}$/.test(plaintext),
@@ -1254,9 +1403,30 @@ async function assertDashboardConfiguration(page) {
     (await page.locator(".one-time-secret").count()) === 0,
     "Hide key should remove the plaintext from the page",
   );
-  await page.getByRole("button", { name: "Create Ingest Key" }).click();
+  assert(
+    !(await page.evaluate(() => JSON.stringify(localStorage))).includes(plaintext),
+    "Ingest Key plaintext was persisted in browser storage",
+  );
+  await page.getByRole("button", { name: "Create replacement key" }).click();
   await page.locator(".one-time-secret code").waitFor();
   await expect(page.locator(".key-list li")).toHaveCount(2);
+  await page.route(
+    `**/api/admin/sites/site_playground/environments/config-e2e/ingest-keys`,
+    async (route) => {
+      await route.fetch();
+      await route.abort();
+    },
+    { times: 1 },
+  );
+  await page.getByRole("button", { name: "Create replacement key" }).click();
+  await page.getByText(/may have completed without a confirmed response/).waitFor();
+  await expect(page.locator(".key-list li")).toHaveCount(2);
+  await expect(page.getByRole("button", { name: "Create replacement key" })).toBeDisabled();
+  await page.reload();
+  await page.getByRole("button", { name: "Refresh active key list" }).click();
+  await expect(page.locator(".key-list li")).toHaveCount(3);
+  await page.getByRole("button", { name: "I checked the key list" }).click();
+  await expect(page.locator(".key-list li")).toHaveCount(3);
   await page.reload();
   assert(
     !(await page.locator("body").innerText()).includes(plaintext),
@@ -1267,8 +1437,13 @@ async function assertDashboardConfiguration(page) {
     .filter({ has: page.locator("code", { hasText: firstKeyId }) })
     .getByRole("button", { name: "Revoke" })
     .click();
+  await page.getByRole("button", { name: /Confirm revoke/ }).click();
+  await expect(page.locator(".key-list li")).toHaveCount(2);
+  await page.locator(".key-list li").first().getByRole("button", { name: "Revoke" }).click();
+  await page.getByRole("button", { name: /Confirm revoke/ }).click();
   await expect(page.locator(".key-list li")).toHaveCount(1);
-  await page.locator(".key-list li").getByRole("button", { name: "Revoke" }).click();
+  await page.locator(".key-list li").first().getByRole("button", { name: "Revoke" }).click();
+  await page.getByRole("button", { name: /Confirm revoke/ }).click();
   await page.getByText("No active ingest keys.").waitFor();
 }
 
@@ -1312,8 +1487,10 @@ async function assertDefinitionManagement(page) {
   assert(originalFacts > 0, "Expected historical conversion facts before definition editing");
   assert(originalFunnelFacts > 0, "Expected historical funnel facts before definition editing");
 
-  await page.goto(`${dashboardUrl}/dashboard/settings?site_id=site_playground`);
+  await page.goto(`${dashboardUrl}/dashboard/settings/definitions?site_id=site_playground`);
   const editor = page.locator('section[aria-label="Conversion and funnel definitions"]');
+  await expect(editor.getByRole("button", { name: "Save new revision" })).toBeVisible();
+  await assertSettingsSectionFitsViewport(page, editor, "Mobile Definitions form");
   const conversion = editor.locator("fieldset.card").nth(0);
   const funnel = editor.locator("fieldset.card").nth(1);
   await conversion.getByLabel("Name", { exact: true }).fill("Purchase completed managed");
@@ -1367,6 +1544,14 @@ async function assertDefinitionManagement(page) {
     .getByRole("status")
     .filter({ hasText: `Saved revision ${saved.definition_version}` })
     .waitFor();
+  const savedHistory = page.locator('section[aria-label="Definition revision history"]');
+  await savedHistory
+    .getByRole("link", { name: `Revision ${saved.revision} · ${saved.definition_version}` })
+    .waitFor();
+  assert(
+    (await savedHistory.innerText()).includes(`Current revision: ${saved.definition_version}`),
+    "Definition revision history did not refresh after a successful save",
+  );
   await page.reload();
   assert(
     (await editor.innerText()).includes("Purchase completed managed"),

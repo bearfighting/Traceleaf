@@ -159,9 +159,9 @@ flowchart LR
 
 **M7a 可在 M0a 后与 M1–M5 并行**：接入 Tailwind/shadcn，建立主题 token、基础控件、Global Header、页面骨架、Analytics Sidebar 和筛选状态规则。使用可替换的站点数据入口承接当前静态列表，不把环境变量固定进新 Shell。
 
-**M7b 在 M7a 后独立完成**：把现有 Analytics 报表分配到对应页面，统一 contextual filters、空数据/禁用/错误状态和窄屏交互。只依赖现有 Analytics 查询 API，可与 M3–M6 并行。
+**M7b 在 M7a 后独立完成**：[M7b Analytics Reports Checklist](m7b-analytics-reports-checklist.md)。把现有 Analytics 报表分配到对应页面，统一 contextual filters、空数据/禁用/错误状态和窄屏交互。只依赖现有 Analytics 查询 API，可与 M3–M6 并行。
 
-**M7c 在 M6 后完成**：Settings 依站点拆为 Overview、Capabilities、Environments & Origins、Ingest Keys、Definitions；统一 breadcrumb 和表单状态。Settings 功能语义以站点接入设计为准。
+**M7c 在 M6 后完成**：[M7c Site Settings Checklist](m7c-settings-checklist.md)。M7c.1–M7c.5 已交付 Overview、Capabilities、Environments & Origins、Ingest Keys、Definitions 页面和站点级次级导航；M7c.6 将完成响应式、无障碍与回归验收。Settings 功能语义以站点接入设计为准。
 
 **完成条件**：已实现的报表可从 Sidebar 到达；站点、日期、维度和 definition revision 在适用页面间正确保持；Settings 配置项有清晰位置并使用同一组件系统。
 
