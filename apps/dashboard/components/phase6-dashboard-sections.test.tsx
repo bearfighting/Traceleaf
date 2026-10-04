@@ -48,7 +48,8 @@ describe("Phase6DashboardSections", () => {
     });
     const markup = renderToStaticMarkup(element);
 
-    expect(markup).toContain("Audience analytics are not enabled for this site.");
+    expect(markup).toContain("Audience analytics are not enabled for Site site_playground");
+    expect(markup).toContain("/dashboard/settings/capabilities?site_id=site_playground");
   });
 
   it("shows the Audience data freshness state in the Overview summary", async () => {

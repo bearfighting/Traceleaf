@@ -1,7 +1,9 @@
 import React from "react";
 
+import { DisabledState } from "./states/disabled-state";
 import { EmptyState } from "./states/empty-state";
 import { ErrorState } from "./states/error-state";
+import { UnavailableState } from "./states/unavailable-state";
 
 import type { DimensionResponse } from "../lib/analytics-api/types";
 import type { DashboardOverviewContext } from "../lib/dashboard-overview";
@@ -19,7 +21,9 @@ export function DimensionReportTable({ context, state }: DimensionReportTablePro
       {state.status === "error" ? (
         <ErrorState context={context} message={state.error.message} />
       ) : state.status === "disabled" ? (
-        <p role="status">Phase 6 analytics is not enabled for this site.</p>
+        <DisabledState context={context} label="Dimension" />
+      ) : state.status === "unavailable" ? (
+        <UnavailableState context={context} label="Dimension" />
       ) : state.data.items.length === 0 ? (
         <EmptyState
           context={context}

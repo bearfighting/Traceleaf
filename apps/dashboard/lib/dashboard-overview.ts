@@ -12,6 +12,7 @@ export interface DashboardOverviewContext {
   dateRange: DashboardDateRange;
   dimension?: import("./analytics-api/types").AnalyticsDimension;
   definitionVersion?: string;
+  environment?: string;
 }
 
 export interface DashboardOverviewData {

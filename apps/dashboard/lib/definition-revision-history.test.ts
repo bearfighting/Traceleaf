@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./analytics-api/config", () => ({ getAnalyticsApiUrl: () => "http://analytics.test" }));
 
-import { loadDefinitionRevisionHistory } from "./dashboard-page-data";
+import { loadDefinitionRevisionHistory } from "./definition-revision-history";
 
 afterEach(() => vi.unstubAllGlobals());
 

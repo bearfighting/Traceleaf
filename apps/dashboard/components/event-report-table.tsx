@@ -1,7 +1,9 @@
 import React from "react";
 
+import { DisabledState } from "./states/disabled-state";
 import { EmptyState } from "./states/empty-state";
 import { ErrorState } from "./states/error-state";
+import { UnavailableState } from "./states/unavailable-state";
 
 import type { EventsResponse } from "../lib/analytics-api/types";
 import type { DashboardOverviewContext } from "../lib/dashboard-overview";
@@ -20,7 +22,9 @@ export function EventReportTable({
       {state.status === "error" ? (
         <ErrorState context={context} message={state.error.message} />
       ) : state.status === "disabled" ? (
-        <p role="status">Custom Events are unavailable.</p>
+        <DisabledState context={context} label="Custom Events" />
+      ) : state.status === "unavailable" ? (
+        <UnavailableState context={context} label="Custom Events" />
       ) : state.data.items.length === 0 ? (
         <EmptyState context={context} />
       ) : (

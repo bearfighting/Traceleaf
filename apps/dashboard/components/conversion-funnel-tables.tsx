@@ -1,10 +1,13 @@
 import React from "react";
 
+import { settingsRoute } from "../lib/settings-routes";
+
 import { ErrorState } from "./states/error-state";
+import { UnavailableState } from "./states/unavailable-state";
 
 import type { ConversionReportResponse, FunnelReportResponse } from "../lib/analytics-api/types";
 import type { DashboardOverviewContext } from "../lib/dashboard-overview";
-import type { DashboardReportState } from "../lib/dashboard-reports";
+import type { DashboardDefinitionReportState } from "../lib/dashboard-reports";
 
 export function ConversionFunnelTables({
   context,
@@ -14,8 +17,8 @@ export function ConversionFunnelTables({
   showFunnels = true,
 }: {
   context: DashboardOverviewContext;
-  conversions?: DashboardReportState<ConversionReportResponse>;
-  funnels?: DashboardReportState<FunnelReportResponse>;
+  conversions?: DashboardDefinitionReportState<ConversionReportResponse>;
+  funnels?: DashboardDefinitionReportState<FunnelReportResponse>;
   showConversions?: boolean;
   showFunnels?: boolean;
 }) {
@@ -35,7 +38,11 @@ export function ConversionFunnelTables({
             {conversions.status === "error" ? (
               <ErrorState context={context} message={conversions.error.message} />
             ) : conversions.status === "disabled" ? (
-              <p role="status">Conversions are unavailable.</p>
+              <UnavailableLink context={context} section="capabilities" label="Conversions" />
+            ) : conversions.status === "unavailable" ? (
+              <UnavailableState context={context} label="Conversions" />
+            ) : conversions.status === "missing_definitions" ? (
+              <MissingDefinitions context={context} />
             ) : (
               <>
                 {conversions.data.items.length === 0 ? (
@@ -86,7 +93,11 @@ export function ConversionFunnelTables({
             {funnels.status === "error" ? (
               <ErrorState context={context} message={funnels.error.message} />
             ) : funnels.status === "disabled" ? (
-              <p role="status">Funnels are unavailable.</p>
+              <UnavailableLink context={context} section="capabilities" label="Funnels" />
+            ) : funnels.status === "unavailable" ? (
+              <UnavailableState context={context} label="Funnels" />
+            ) : funnels.status === "missing_definitions" ? (
+              <MissingDefinitions context={context} />
             ) : (
               <>
                 {funnels.data.items.length === 0 ? (
@@ -130,5 +141,53 @@ export function ConversionFunnelTables({
         </>
       )}
     </>
+  );
+}
+
+function MissingDefinitions({ context }: { context: DashboardOverviewContext }) {
+  return (
+    <p role="status">
+      No definition revisions are configured for Site {context.siteId} ({context.dateRange.from} to{" "}
+      {context.dateRange.to} UTC).{" "}
+      <a
+        href={settingsRoute("definitions", {
+          siteId: context.siteId,
+          environment: context.environment,
+          from: context.dateRange.from,
+          to: context.dateRange.to,
+          definitionVersion: context.definitionVersion,
+        })}
+      >
+        Configure definitions
+      </a>
+    </p>
+  );
+}
+
+function UnavailableLink({
+  context,
+  section,
+  label,
+}: {
+  context: DashboardOverviewContext;
+  section: "capabilities";
+  label: string;
+}) {
+  return (
+    <p role="status">
+      {label} analytics are not enabled for Site {context.siteId} ({context.dateRange.from} to{" "}
+      {context.dateRange.to} UTC).{" "}
+      <a
+        href={settingsRoute(section, {
+          siteId: context.siteId,
+          environment: context.environment,
+          from: context.dateRange.from,
+          to: context.dateRange.to,
+          definitionVersion: context.definitionVersion,
+        })}
+      >
+        Review capabilities
+      </a>
+    </p>
   );
 }

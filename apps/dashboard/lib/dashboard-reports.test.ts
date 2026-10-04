@@ -1,10 +1,11 @@
 import { readFileSync } from "node:fs";
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AnalyticsApiClientError } from "./analytics-api/errors";
 import {
   loadDashboardLegacyReport,
+  loadDashboardLegacyReports,
   loadDashboardPhase6Report,
   loadDashboardReports,
 } from "./dashboard-reports";
@@ -18,6 +19,11 @@ const context = {
 
 const fixture = readFixture();
 const emptyFixture = readFixture("empty-date-range.json");
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
 
 function createClient(overrides: Partial<AnalyticsApiClient> = {}): AnalyticsApiClient {
   return {
@@ -106,6 +112,24 @@ function createClient(overrides: Partial<AnalyticsApiClient> = {}): AnalyticsApi
   };
 }
 
+function stubDefinitionHistoryWithRevision() {
+  vi.stubEnv("ANALYTICS_API_URL", "http://analytics.test");
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            current_definition_version: "r1",
+            revisions: [{ definition_version: "r1", revision: 1, effective_at: null }],
+          }),
+          { status: 200 },
+        ),
+      ),
+    ),
+  );
+}
+
 function readFixture(filename = "multi-page-navigation.json") {
   const value = JSON.parse(
     readFileSync(
@@ -141,6 +165,116 @@ describe("loadDashboardReports", () => {
     expect(result.geoCountries?.status).toBe("success");
   });
 
+  it("keeps disabled, missing optional endpoints, and API failures distinct", async () => {
+    const disabledError = new AnalyticsApiClientError("Analytics is disabled", {
+      kind: "disabled",
+      code: "analytics_not_enabled",
+      status: 404,
+    });
+    const disabled = await loadDashboardLegacyReport(
+      context,
+      "countries",
+      createClient({ geoCountries: vi.fn().mockRejectedValue(disabledError) }),
+    );
+    expect(disabled.geoCountries).toEqual({ status: "disabled", error: disabledError });
+
+    const noOptionalEndpoint = await loadDashboardLegacyReport(
+      context,
+      "web-vitals",
+      createClient({ webVitals: undefined }),
+    );
+    expect(noOptionalEndpoint.webVitals?.status).toBe("unavailable");
+
+    const networkError = new AnalyticsApiClientError("Request failed", { kind: "network" });
+    const failed = await loadDashboardLegacyReport(
+      context,
+      "countries",
+      createClient({ geoCountries: vi.fn().mockRejectedValue(networkError) }),
+    );
+    expect(failed.geoCountries).toEqual({ status: "error", error: networkError });
+  });
+
+  it("distinguishes missing definitions from revision history errors", async () => {
+    vi.stubEnv("ANALYTICS_API_URL", "http://analytics.test");
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ revisions: [], current_definition_version: null }), {
+            status: 200,
+          }),
+        )
+        .mockResolvedValueOnce(new Response("{}", { status: 503 })),
+    );
+    const missing = await loadDashboardLegacyReport(context, "conversions", createClient());
+    expect(missing.conversions).toEqual({ status: "missing_definitions" });
+    const failed = await loadDashboardLegacyReport(context, "funnels", createClient());
+    expect(failed.funnels).toMatchObject({ status: "error", error: { kind: "response" } });
+  });
+
+  it("uses empty revision history to recognize an invalid default version as missing definitions", async () => {
+    vi.stubEnv("ANALYTICS_API_URL", "http://analytics.test");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ revisions: [], current_definition_version: null }), {
+          status: 200,
+        }),
+      ),
+    );
+    const missingVersion = new AnalyticsApiClientError("No stored definition version", {
+      kind: "http",
+      code: "invalid_definition_version",
+      status: 400,
+    });
+
+    const result = await loadDashboardLegacyReport(
+      context,
+      "conversions",
+      createClient({ conversions: vi.fn().mockRejectedValue(missingVersion) }),
+    );
+
+    expect(result.conversions).toEqual({ status: "missing_definitions" });
+  });
+
+  it("applies missing-definition state to both batch report loaders", async () => {
+    vi.stubEnv("ANALYTICS_API_URL", "http://analytics.test");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ revisions: [], current_definition_version: null }), {
+            status: 200,
+          }),
+        ),
+      ),
+    );
+    const invalidVersion = new AnalyticsApiClientError("No stored definition version", {
+      kind: "http",
+      code: "invalid_definition_version",
+      status: 400,
+    });
+
+    const legacy = await loadDashboardLegacyReports(context, {
+      client: createClient({
+        conversions: vi.fn().mockRejectedValue(invalidVersion),
+        funnels: vi.fn().mockRejectedValue(invalidVersion),
+      }),
+    });
+    const allReports = await loadDashboardReports(context, {
+      client: createClient({
+        conversions: vi.fn().mockRejectedValue(invalidVersion),
+        funnels: vi.fn().mockRejectedValue(invalidVersion),
+      }),
+    });
+
+    expect(legacy.conversions).toEqual({ status: "missing_definitions" });
+    expect(legacy.funnels).toEqual({ status: "missing_definitions" });
+    expect(allReports.conversions).toEqual({ status: "missing_definitions" });
+    expect(allReports.funnels).toEqual({ status: "missing_definitions" });
+  });
+
   it("queries only the selected Phase 6 report endpoint", async () => {
     const dimensionsClient = createClient();
     const dimensions = await loadDashboardPhase6Report(context, "dimensions", {
@@ -164,6 +298,7 @@ describe("loadDashboardReports", () => {
   });
 
   it("queries timeline and pages in parallel with the current context", async () => {
+    stubDefinitionHistoryWithRevision();
     const client = createClient();
     const resultPromise = loadDashboardReports(context, { client });
 
@@ -194,7 +329,7 @@ describe("loadDashboardReports", () => {
       pages: { status: "success", data: fixture.pages },
       events: { status: "success", data: expect.any(Object) },
       geoCountries: { status: "success", data: expect.any(Object) },
-      webVitals: { status: "success", data: expect.any(Object) },
+      webVitals: { status: "unavailable", error: expect.any(AnalyticsApiClientError) },
       conversions: { status: "success", data: expect.any(Object) },
       funnels: { status: "success", data: expect.any(Object) },
       visitors: { status: "success", data: expect.any(Object) },
@@ -225,6 +360,7 @@ describe("loadDashboardReports", () => {
   });
 
   it("preserves empty canonical report responses", async () => {
+    stubDefinitionHistoryWithRevision();
     const client = createClient({
       timeline: vi.fn().mockResolvedValue(emptyFixture.timeline),
       pages: vi.fn().mockResolvedValue(emptyFixture.pages),
@@ -237,7 +373,7 @@ describe("loadDashboardReports", () => {
       pages: { status: "success", data: emptyFixture.pages },
       events: { status: "success", data: expect.any(Object) },
       geoCountries: { status: "success", data: expect.any(Object) },
-      webVitals: { status: "success", data: expect.any(Object) },
+      webVitals: { status: "unavailable", error: expect.any(AnalyticsApiClientError) },
       conversions: { status: "success", data: expect.any(Object) },
       funnels: { status: "success", data: expect.any(Object) },
       visitors: { status: "success", data: expect.any(Object) },

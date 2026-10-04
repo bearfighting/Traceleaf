@@ -5,7 +5,9 @@ import { loadDashboardPhase6Report } from "../lib/dashboard-reports";
 import { DimensionReportTable } from "./dimension-report-table";
 import { FreshnessBanner } from "./freshness-banner";
 import { OverviewCard } from "./overview-card";
+import { DisabledState } from "./states/disabled-state";
 import { ErrorState } from "./states/error-state";
+import { UnavailableState } from "./states/unavailable-state";
 import { VisitorSessionTrendTable } from "./visitor-session-trend-table";
 
 import type { AnalyticsApiClient } from "../lib/analytics-api/client";
@@ -55,9 +57,13 @@ export async function Phase6DashboardSections({
             <section className="card" aria-label="Audience summary error">
               <ErrorState context={context} message={result.state.error.message} />
             </section>
+          ) : result.state.status === "unavailable" ? (
+            <section className="card" aria-label="Audience summary unavailable">
+              <UnavailableState context={context} label="Audience" />
+            </section>
           ) : (
             <section className="card" aria-label="Audience summary unavailable">
-              <p role="status">Audience analytics are not enabled for this site.</p>
+              <DisabledState context={context} label="Audience" />
             </section>
           )}
         </section>

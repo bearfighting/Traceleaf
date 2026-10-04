@@ -42,7 +42,8 @@ describe("VisitorSessionTrendTable", () => {
       />,
     );
 
-    expect(markup).toContain("Phase 6 analytics is not enabled");
+    expect(markup).toContain("Audience analytics are not enabled");
+    expect(markup).toContain("/dashboard/settings/capabilities?site_id=site_playground");
   });
 
   it("renders a Phase 6 empty state", () => {

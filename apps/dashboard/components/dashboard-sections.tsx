@@ -32,7 +32,7 @@ export function DashboardSections({
   report,
   environment,
 }: DashboardSectionsProps) {
-  const context = { siteId, dateRange: { from, to }, dimension, definitionVersion };
+  const context = { siteId, dateRange: { from, to }, dimension, definitionVersion, environment };
   let client: AnalyticsApiClient;
 
   try {

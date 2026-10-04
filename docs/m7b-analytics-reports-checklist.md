@@ -55,11 +55,11 @@ The inventory is limited to reports already supported in the Dashboard and Analy
 
 ### M7b.3 — Report content and states
 
-- [ ] Move existing report components to their corresponding pages without changing query meaning or capability gating.
-- [ ] Keep loading, no-data, disabled/missing capability, missing definitions, and Analytics API error states distinct.
-- [ ] Include relevant Site and date context in report error states and provide a useful route to configuration when a capability or definition is missing.
-- [ ] Preserve report tables, sorting or other existing interactions, and avoid introducing metrics the API does not provide.
-- [ ] Ensure Overview remains useful without repeating every report table.
+- [x] Move existing report components to their corresponding pages without changing query meaning or capability gating.
+- [x] Keep loading, no-data, disabled/missing capability, missing definitions, and Analytics API error states distinct.
+- [x] Include relevant Site and date context in report error states and provide a useful route to configuration when a capability or definition is missing.
+- [x] Preserve report tables, sorting or other existing interactions, and avoid introducing metrics the API does not provide.
+- [x] Ensure Overview remains useful without repeating every report table.
 
 ### M7b.4 — Responsive and accessible interaction
 
@@ -90,7 +90,15 @@ The inventory is limited to reports already supported in the Dashboard and Analy
 - 2026-10-03 — `pnpm format:check`: passed.
 - 2026-10-03 — `pnpm format:check:docs`: passed.
 - 2026-10-03 — `git diff --check`: passed.
-- 2026-10-03 — `E2E_POSTGRES_PORT=15445 E2E_CACHE_SCOPE=m7b-fix node ./scripts/e2e-dashboard.mjs`: passed. Covers responsive navigation, query context, browser back/forward, filter submission, unknown slugs, all report routes including Dimensions and Language filtering, Phase 6 error/disabled/empty states, configuration workflows, and API errors.
+- 2026-10-03 — M7b.3 `pnpm --filter @web-analytics/dashboard test`: passed (41 files, 202 tests); `pnpm --filter @web-analytics/dashboard typecheck`: passed.
+- 2026-10-03 — M7b.3 `pnpm check`: passed; ESLint reports 5 existing unused-directive warnings in generated protocol files.
+- 2026-10-03 — M7b.3 `pnpm build`: passed.
+- 2026-10-03 — M7b.3 `pnpm format:check`: passed; `pnpm format:check:docs`: passed; `git diff --check`: passed.
+- 2026-10-03 — M7b.3 `pnpm e2e:dashboard` not run: Docker reports the existing Dashboard E2E PostgreSQL container as paused. Per the active instruction, containers were not resumed; browser E2E remains unverified.
+- 2026-10-03 — Follow-up review fixes: Dashboard tests passed (41 files, 204 tests), typecheck, `pnpm check`, build, formatting checks, and `git diff --check` passed.
+- 2026-10-03 — Batch-loader follow-up: both batch paths now use the same definition-history status mapping; Dashboard tests passed (41 files, 205 tests), typecheck, `pnpm check`, build, formatting checks, and `git diff --check` passed.
+- M7b.3 report states now distinguish API capability-disabled responses, unsupported optional client endpoints, API failures, and empty responses. Conversions and Funnels consult revision history when the API rejects an absent default definition version; an empty successful history links to Definitions, while history errors retain the Site/date-aware error state. Unavailable capabilities link to that Site's Capabilities settings.
+- 2026-10-03 — `E2E_POSTGRES_PORT=15445 E2E_CACHE_SCOPE=m7b-fix node ./scripts/e2e-dashboard.mjs`: passed during earlier M7b work. It covers responsive navigation, query context, browser back/forward, filter submission, unknown slugs, all report routes including Dimensions and Language filtering, Phase 6 error/disabled/empty states, configuration workflows, and API errors. It does not verify the M7b.3 changes.
 - M7b.1 routes and navigation are implemented.
 - 2026-10-03 — M7b.2 implemented typed destination-aware Analytics URL construction, consistent Site/date/environment context, compatible Dimension and definition revision propagation, destination-specific filter controls, and report-specific historical revision links from Definitions.
 - 2026-10-03 — M7b.2 verification: `pnpm --filter @web-analytics/dashboard test` passed (41 files, 200 tests); `pnpm check` passed (including format checks; ESLint reports 5 existing generated-file warnings); `pnpm build` passed; `pnpm format:check:docs` passed; `git diff --check` passed.

@@ -1,7 +1,9 @@
 import React from "react";
 
+import { DisabledState } from "./states/disabled-state";
 import { EmptyState } from "./states/empty-state";
 import { ErrorState } from "./states/error-state";
+import { UnavailableState } from "./states/unavailable-state";
 
 import type { WebVitalsResponse } from "../lib/analytics-api/types";
 import type { DashboardOverviewContext } from "../lib/dashboard-overview";
@@ -19,7 +21,9 @@ export function WebVitalsTable({
       {state.status === "error" ? (
         <ErrorState context={context} message={state.error.message} />
       ) : state.status === "disabled" ? (
-        <p role="status">Web Vitals are unavailable.</p>
+        <DisabledState context={context} label="Web Vitals" />
+      ) : state.status === "unavailable" ? (
+        <UnavailableState context={context} label="Web Vitals" />
       ) : state.data.items.length === 0 ? (
         <EmptyState context={context} />
       ) : (

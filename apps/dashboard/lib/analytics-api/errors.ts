@@ -1,4 +1,5 @@
-export type AnalyticsApiErrorKind = "config" | "network" | "http" | "response" | "disabled";
+export type AnalyticsApiErrorKind =
+  "config" | "network" | "http" | "response" | "disabled" | "unavailable";
 
 export interface AnalyticsApiClientErrorOptions {
   kind: AnalyticsApiErrorKind;
