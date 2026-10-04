@@ -177,7 +177,7 @@ flowchart LR
 
 ### M9：事件协议静态化与最终边界验收
 
-执行清单：[M9 Event Protocol Staticization Checklist](m9-event-protocol-staticization-checklist.md)。**已完成（M9.1–M9.5）**。M9.4 决定 Collector Event Batch V1 暂时保留生产 JSON Schema 校验：静态 Rust 校验器尚未接入生产解析路径，Schema 仍负责 wire 类型未覆盖的结构约束；validator 已在启动时构造并注入 HTTP state，符合 ADR-015。M9.1 已在隔离的 `0c23f3d` 快照中重建 M9.2 前完整 parity 基线。M9.5 已将共享事件 parity 加入 `scripts/test.sh`，完成所需检查、SQL 写入边界和历史数据兼容复核；Analytics E2E 十个 fixtures 与 Site 创建至 Dashboard 的 onboarding E2E 均通过。Schema/fixtures CI 验证持续保留。这一切片不阻塞 M3–M8。
+执行清单：[M9 Event Protocol Staticization Checklist](m9-event-protocol-staticization-checklist.md)。**已完成（M9.1–M9.5）**。Collector 保留生产 JSON Schema 校验：静态解析尚未接入生产路径，Schema 仍负责 wire 类型未覆盖的结构约束；validator 在启动时构造并由 HTTP state 复用，符合 ADR-015。M9.1 历史 parity 基线、M9.5 CI/兼容性复核，以及 Analytics 和 Site Onboarding E2E 均已完成。实施和验证细节见执行清单。M9 不阻塞 M3–M8。
 
 **最终验收**：联合检查 Rust 模块依赖、repository SQL 写入、Schema/类型 parity、历史数据兼容和 Site 创建至报表查询链路。是否拆 crate、进程或数据库由后续实际需求另行决定。
 
