@@ -1,6 +1,6 @@
 # M9 Event Protocol Staticization Checklist
 
-- Status: In progress (M9.2–M9.3 complete; M9.1, M9.4–M9.5 remain open)
+- Status: In progress (M9.2–M9.4 complete; M9.1 and M9.5 remain open)
 - Prerequisites: M0b event contract, canonical fixtures, and static type strategy accepted; ADR-016 and ADR-015
 - Roadmap: [Platform Improvement Roadmap](platform-improvement-roadmap.md)
 - Design: [Protocol Schema and Static Runtime Models](protocol-static-runtime-design.md)
@@ -57,10 +57,10 @@ This work does not change Event V1 wire semantics, Analytics API contracts, repo
 
 ### M9.4 — Decide production Schema validator lifecycle per contract
 
-- [ ] Review M9.3 evidence and record whether Event Batch V1 production validation remains Schema-based or moves to static decoding plus explicit checks.
+- [x] Review M9.3 evidence and record whether Event Batch V1 production validation remains Schema-based or moves to static decoding plus explicit checks.
 - [ ] If production Schema validation is removed, verify all equivalent constraints remain enforced at runtime and Schema/fixture validation remains in CI.
-- [ ] If it remains, record the reason and ensure validator construction/lifecycle follows ADR-015; do not use this slice to broaden validator abstractions.
-- [ ] Record any change to accepted input, rejection behavior, or runtime validation ownership in an ADR before changing the contract.
+- [x] If it remains, record the reason and ensure validator construction/lifecycle follows ADR-015; do not use this slice to broaden validator abstractions.
+- [x] Record any change to accepted input, rejection behavior, or runtime validation ownership in an ADR before changing the contract.
 
 **Exit:** The runtime choice is explicit, parity-backed, and preserves external error behavior and CI Schema validation.
 
@@ -103,3 +103,10 @@ Append dated command results, fixture/parity findings, runtime validation decisi
 - **Parity harness:** Added the missing `regress` entry to `experiments/m0b/parity/rust/Cargo.lock` through offline Cargo resolution. `node experiments/m0b/parity/run.mjs` completed with 56 fixtures: zero TypeScript-static, Rust-static, or current-Collector differences from fixture expectations, and zero Rust serialized-schema rejections. The harness refreshed `docs/m0b-step6-parity-matrix.tsv`.
 - **Explained differences:** Nine Schema-vs-expected differences are intentional semantic constraints the JSON Schemas do not express: six Custom Event property privacy/shape/size/depth cases, one mixed-Site batch, one inconsistent Web Vital rating, and one Web Vital report preceding its Page View. Static Rust, TypeScript, and current Collector reject all nine as expected. Three Typify/Serde differences are confined to environment-policy comparison and outside M9 event scope. All 12 valid event fixtures now serialize to Schema-valid JSON.
 - **Service behavior and verification:** `cargo test -p collector` passed (65 unit tests and 15 non-PostgreSQL integration tests; PostgreSQL-dependent tests remain ignored), including canonical fixture acceptance/rejection, HTTP rejection tests for `invalid_event_batch`, and in-memory Sink association tests. Added an ignored PostgreSQL integration test that exercises the production `PostgresSink` for same/prior-batch matches, site/ID/path/time mismatches, and transaction rollback. The integration test compiled but was not run because `DATABASE_URL` is unset in this environment. `pnpm protocol:validate` passed across protocol and configuration fixtures. The parity result is post-M9.2; a pre-change full parity matrix remains unavailable, so the M9.1 historical-baseline item stays open.
+
+### 2026-10-04 — M9.4 Production validation lifecycle decision
+
+- **Decision:** Keep JSON Schema validation in the production Event Batch V1 path. M9.3 demonstrates parity on the post-M9.2 wire model, but the static Rust validator still runs only in the parity experiment; `Validator::validate` is the production entry point and applies the embedded batch/event schemas before typed Serde decoding. The schemas also enforce structural constraints not guaranteed by wire types alone, including formats, field bounds, and conditional Browser Context requirements. Static decoding plus explicit checks is not yet wired into Collector production parsing, so removing Schema validation now would create an unverified runtime gap.
+- **Lifecycle:** `services/collector/src/main.rs` constructs `Validator::new()` once at startup and injects it into the HTTP state; `services/collector/src/http.rs` stores/reuses it through `Arc<Validator>`. HTTP maps validation failures to `invalid_event_batch` without returning validator diagnostics. This matches ADR-015; no runtime refactor or new ADR is needed. Schema and fixtures remain CI gates.
+- **Historical baseline attempt:** Built an isolated source snapshot at pre-M9.2 commit `0c23f3d0e93bae064c8948750329fb1a3459ebd4` under `/tmp/web-analytics-m9-pre-m92`. The historical harness's `cargo run --offline --locked` confirmed that its committed lockfile cannot run because a lockfile update is required. Running `cargo run --offline` updated only the isolated copy's lockfile and compiled/executed the Rust static parity program successfully. The full harness still could not produce the historical cross-language matrix: its `pnpm exec tsc` step triggered pnpm's workspace dependency-install check; the isolated offline install failed with `unable to open database file`, and the attempted exec remained in pnpm's install step. The main checkout and its parity matrix were not changed by the historical attempt. M9.1 remains open because the complete Schema/TS/Rust/Collector baseline was not reconstructed.
+- **M9.4 verification:** `cargo test -p collector` passed (65 unit tests and 15 non-PostgreSQL integration tests); 9 PostgreSQL integration tests and 1 optional MMDB smoke test were ignored. HTTP tests cover the generic validation rejection. `pnpm protocol:validate`, `pnpm format:check`, `pnpm format:check:docs`, and `git diff --check` passed. The initial format check identified formatting in the M9.3 PostgreSQL association test; it was corrected and the full format check then passed. Source inspection confirmed startup construction/injection and the generic HTTP error mapping. PostgreSQL integration tests were not run because they require a migrated database.

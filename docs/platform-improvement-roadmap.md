@@ -177,7 +177,7 @@ flowchart LR
 
 ### M9：事件协议静态化与最终边界验收
 
-执行清单：[M9 Event Protocol Staticization Checklist](m9-event-protocol-staticization-checklist.md)。**可在 M0b 的事件 contract/fixtures 与静态类型策略确定后独立推进**：将 Collector event batch/event 解析迁移到版本化静态类型和显式校验；Rust 类型按 ADR-016 手工维护并通过共享 fixture parity。保留 Schema/fixtures 的 CI 验证，再评估移除 production JSON Schema runtime。这一切片须验证 Page View 对 Schema 允许扩展字段的保留、可选字段缺省时不序列化为 Schema 禁止的 `null`，并通过 wire round-trip parity。事件 TypeScript 生成、固定版本、产物 `--check` 和 parity CI 门禁与 M2 共用生成基础设施，不重复建设。此切片不阻塞 M3–M8。
+执行清单：[M9 Event Protocol Staticization Checklist](m9-event-protocol-staticization-checklist.md)。**进行中（M9.2–M9.4 完成；M9.1、M9.5 未完成）**。M9.4 决定 Collector Event Batch V1 暂时保留生产 JSON Schema 校验：静态 Rust 校验器尚未接入生产解析路径，Schema 仍负责 wire 类型未覆盖的结构约束；validator 已在启动时构造并注入 HTTP state，符合 ADR-015。M9.1 的 M9.2 前完整 parity 基线尝试见 checklist，当前仍无法重建。其余交付目标是将 Collector event batch/event 解析迁移到版本化静态类型和显式校验；Rust 类型按 ADR-016 手工维护并通过共享 fixture parity。Schema/fixtures CI 验证持续保留。这一切片须验证 Page View 对 Schema 允许扩展字段的保留、可选字段缺省时不序列化为 Schema 禁止的 `null`，并通过 wire round-trip parity。事件 TypeScript 生成、固定版本、产物 `--check` 和 parity CI 门禁与 M2 共用生成基础设施，不重复建设。此切片不阻塞 M3–M8。
 
 **最终验收**：联合检查 Rust 模块依赖、repository SQL 写入、Schema/类型 parity、历史数据兼容和 Site 创建至报表查询链路。是否拆 crate、进程或数据库由后续实际需求另行决定。
 

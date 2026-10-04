@@ -295,21 +295,23 @@ async fn postgres_sink_validates_web_vital_page_view_association_transactionally
         .fetch_one(&pool)
         .await
         .expect("raw event table should be queryable");
-        assert_eq!(persisted, 0, "failed association must roll back both events");
+        assert_eq!(
+            persisted, 0,
+            "failed association must roll back both events"
+        );
     }
 
-    let accepted = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM raw_events WHERE event_id = ANY($1)",
-    )
-    .bind(vec![
-        same_batch_page_view_id,
-        "01J00000000000000000000101",
-        prior_batch_page_view_id,
-        "01J00000000000000000000103",
-    ])
-    .fetch_one(&pool)
-    .await
-    .expect("accepted raw events should be queryable");
+    let accepted =
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM raw_events WHERE event_id = ANY($1)")
+            .bind(vec![
+                same_batch_page_view_id,
+                "01J00000000000000000000101",
+                prior_batch_page_view_id,
+                "01J00000000000000000000103",
+            ])
+            .fetch_one(&pool)
+            .await
+            .expect("accepted raw events should be queryable");
     assert_eq!(accepted, 4);
 }
 
