@@ -162,11 +162,157 @@ fn stored_event(site_id: &str, event_id: &str, payload: serde_json::Value) -> St
             context: None,
             visitor_id: None,
             context_schema_version: None,
+            extensions: Default::default(),
         }),
         payload,
         received_at: Utc::now(),
         geo: None,
     }
+}
+
+fn stored_web_vital(
+    site_id: &str,
+    event_id: &str,
+    page_view_event_id: &str,
+    path: &str,
+    page_view_occurred_at: i64,
+) -> StoredEvent {
+    let payload = json!({
+        "schema_version": 1,
+        "event_id": event_id,
+        "type": "web_vital",
+        "site_id": site_id,
+        "occurred_at": page_view_occurred_at + 1_000,
+        "page_view_event_id": page_view_event_id,
+        "path": path,
+        "page_view_occurred_at": page_view_occurred_at,
+        "metric": "LCP",
+        "value": 1_000,
+        "rating": "good",
+        "navigation_type": "navigate",
+        "report_sequence": 1
+    });
+    StoredEvent {
+        event: serde_json::from_value(payload.clone()).expect("Web Vital should decode"),
+        payload,
+        received_at: Utc::now(),
+        geo: None,
+    }
+}
+
+#[tokio::test]
+#[ignore = "requires PostgreSQL; run pnpm test:integration"]
+async fn postgres_sink_validates_web_vital_page_view_association_transactionally() {
+    let (sink, pool) = setup().await;
+    let page_view_at = 1_760_000_000_000_i64;
+
+    let same_batch_page_view_id = "01J00000000000000000000100";
+    sink.accept(vec![
+        stored_event(
+            "site_example",
+            same_batch_page_view_id,
+            json!({"event_id": same_batch_page_view_id}),
+        ),
+        stored_web_vital(
+            "site_example",
+            "01J00000000000000000000101",
+            same_batch_page_view_id,
+            "/about",
+            page_view_at,
+        ),
+    ])
+    .await
+    .expect("same-batch association should commit");
+
+    let prior_batch_page_view_id = "01J00000000000000000000102";
+    sink.accept(vec![stored_event(
+        "site_example",
+        prior_batch_page_view_id,
+        json!({"event_id": prior_batch_page_view_id}),
+    )])
+    .await
+    .expect("Page View should commit before its Web Vital");
+    sink.accept(vec![stored_web_vital(
+        "site_example",
+        "01J00000000000000000000103",
+        prior_batch_page_view_id,
+        "/about",
+        page_view_at,
+    )])
+    .await
+    .expect("association with a prior Page View should commit");
+
+    for (page_view_id, vital_id, vital_site, vital_page_id, path, occurred_at) in [
+        (
+            "01J00000000000000000000104",
+            "01J00000000000000000000105",
+            "other_site",
+            "01J00000000000000000000104",
+            "/about",
+            page_view_at,
+        ),
+        (
+            "01J00000000000000000000106",
+            "01J00000000000000000000107",
+            "site_example",
+            "01J00000000000000000000108",
+            "/about",
+            page_view_at,
+        ),
+        (
+            "01J00000000000000000000109",
+            "01J00000000000000000000110",
+            "site_example",
+            "01J00000000000000000000109",
+            "/other",
+            page_view_at,
+        ),
+        (
+            "01J00000000000000000000111",
+            "01J00000000000000000000112",
+            "site_example",
+            "01J00000000000000000000111",
+            "/about",
+            page_view_at + 1,
+        ),
+    ] {
+        let result = sink
+            .accept(vec![
+                stored_event(
+                    "site_example",
+                    page_view_id,
+                    json!({"event_id": page_view_id}),
+                ),
+                stored_web_vital(vital_site, vital_id, vital_page_id, path, occurred_at),
+            ])
+            .await;
+        assert!(matches!(result, Err(SinkError::InvalidWebVitalAssociation)));
+
+        let persisted = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM raw_events WHERE event_id = ANY($1)",
+        )
+        .bind(vec![page_view_id, vital_id])
+        .fetch_one(&pool)
+        .await
+        .expect("raw event table should be queryable");
+        assert_eq!(
+            persisted, 0,
+            "failed association must roll back both events"
+        );
+    }
+
+    let accepted =
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM raw_events WHERE event_id = ANY($1)")
+            .bind(vec![
+                same_batch_page_view_id,
+                "01J00000000000000000000101",
+                prior_batch_page_view_id,
+                "01J00000000000000000000103",
+            ])
+            .fetch_one(&pool)
+            .await
+            .expect("accepted raw events should be queryable");
+    assert_eq!(accepted, 4);
 }
 
 #[tokio::test]
