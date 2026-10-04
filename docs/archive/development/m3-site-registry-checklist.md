@@ -2,7 +2,7 @@
 
 - Status: complete for the local development target (M3.1–M3.6 complete; M4 authority cutover pending)
 - Prerequisites: M0a semantic baseline and M2 persisted-configuration contract
-- Related: [Platform improvement roadmap](platform-improvement-roadmap.md), [M0a baseline](m0a-baseline-and-decisions.md), [ADR-013](decisions/ADR-013-site-identity-and-lifecycle.md), [ADR-014](decisions/ADR-014-runtime-configuration-authority.md), [M2 implementation checklist](m2-implementation-checklist.md)
+- Related: [Platform improvement roadmap](platform-improvement-roadmap.md), [M0a baseline](m0a-baseline-and-decisions.md), [ADR-013](../../decisions/ADR-013-site-identity-and-lifecycle.md), [ADR-014](../../decisions/ADR-014-runtime-configuration-authority.md), [M2 implementation checklist](m2-implementation-checklist.md)
 
 ## Goal and scope
 
@@ -221,4 +221,4 @@ All M3 decisions are closed for the local development target. Deployment targets
 
 M3 does not make the database runtime authority. M4 separately reconciles each TOML site/environment, origin and key against DB policy; reviews historical `ANALYTICS_DEFINITIONS_FILE` imports; then removes or explicitly gates TOML fallback. Preserve last-known-good behavior for temporary DB outages while explicit missing, disabled or archived DB policy fails closed.
 
-Historical-only Registry Sites with no capability document can query Page View overview, timeline and pages under [ADR-019](decisions/ADR-019-historical-page-view-query-without-capabilities.md). This read-only compatibility path does not change Collector authorization or enable other reports.
+Historical-only Registry Sites with no capability document can query Page View overview, timeline and pages under [ADR-019](../../decisions/ADR-019-historical-page-view-query-without-capabilities.md). This read-only compatibility path does not change Collector authorization or enable other reports.

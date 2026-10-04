@@ -3,7 +3,7 @@
 - Status: Proposed
 - Scope: Event protocol schemas, configuration contracts, capability manifest, runtime validation
 - Overall sequence and gates: [Platform Improvement Roadmap](platform-improvement-roadmap.md)
-- Related: [Site Onboarding and Settings Design](site-onboarding-settings-design.md), [Capability-oriented configuration (ADR-007)](decisions/ADR-007-capability-oriented-configuration.md)
+- Related: [Site Onboarding and Settings Design](site-onboarding-settings-design.md), [Capability-oriented configuration (ADR-007)](../../decisions/ADR-007-capability-oriented-configuration.md)
 
 ## 背景
 
@@ -11,7 +11,7 @@
 
 当前服务将部分 Schema 通过 `include_str!` 嵌入二进制，并在运行时建立 JSON Schema validator。部分路径存在重复编译：Collector environment policy 每轮配置刷新都会建立 validator；configuration runtime 一方面缓存 validator，另一方面在文档转换函数内重新编译；Analytics API 也会在管理请求处理时编译 Schema。
 
-本设计采用分阶段路径：在跨语言 parity 尚未完成前，运行时继续使用 Schema validator；每个契约的 validator 应在进程启动时构造并注入消费者，避免 Handler 或刷新循环重复加载/编译。parity 结果经评审后，再决定是否把生产运行时切换为静态解析和显式校验；Schema 继续作为协议契约及开发期/CI fixtures 验证依据。Collector 事件与存储策略样本的决策见 [ADR-015](decisions/ADR-015-validation-lifecycle-and-staged-static-migration.md)。
+本设计采用分阶段路径：在跨语言 parity 尚未完成前，运行时继续使用 Schema validator；每个契约的 validator 应在进程启动时构造并注入消费者，避免 Handler 或刷新循环重复加载/编译。parity 结果经评审后，再决定是否把生产运行时切换为静态解析和显式校验；Schema 继续作为协议契约及开发期/CI fixtures 验证依据。Collector 事件与存储策略样本的决策见 [ADR-015](../../decisions/ADR-015-validation-lifecycle-and-staged-static-migration.md)。
 
 ## 设计原则
 

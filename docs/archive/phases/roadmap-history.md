@@ -4,7 +4,7 @@
 
 项目按线性方式推进：一次只实施一个主要模块，完成并验证后再添加下一个模块。模块之间通过明确的契约衔接，不提前创建没有实际内容的长期空 package。
 
-MVP 的最低成功标准是：一个网站接入 SDK 后，可以在 Dashboard 看到并配置完整的浏览、事件和基础性能分析。完整范围以 [MVP Scope](../../mvp-scope.md) 为准；[MVP Release Readiness](../../release-readiness-design.md) 定义功能回归与 CI 退出条件，产品运行后的运维和生产部署演练另行安排。
+MVP 的最低成功标准是：一个网站接入 SDK 后，可以在 Dashboard 看到并配置完整的浏览、事件和基础性能分析。完整范围以 [MVP Scope](../../mvp-scope.md) 为准；[MVP Release Readiness](../development/release-readiness-design.md) 定义功能回归与 CI 退出条件，产品运行后的运维和生产部署演练另行安排。
 
 ## Phase 0 — Project Foundation
 
@@ -242,7 +242,7 @@ PR0 Pre-configuration Hardening
 
 ## MVP Release Readiness
 
-详细执行方案见：[release-readiness-design.md](../../release-readiness-design.md)。
+详细执行方案见：[release-readiness-design.md](../development/release-readiness-design.md)。
 
 这是 MVP 的最后阶段，范围限定为功能回归与 CI 验收：
 

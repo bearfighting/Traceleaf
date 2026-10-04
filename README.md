@@ -4,9 +4,7 @@
 
 ## 当前状态
 
-MVP 范围已冻结。Phase 0–8 的功能和验收记录已归档；最新 CI 通过情况由项目维护者于 2026-09-27 确认。当前不再添加 MVP 功能。
-
-产品运行后的待办集中在 [Post-MVP Follow-up](docs/post-mvp-follow-up.md)。冻结不代表已完成生产级运行、备份恢复或 SDK 正式发布验证。
+MVP 功能已冻结，暂不增加新功能。唯一的未完成与部署待办清单见[功能冻结与部署待办](docs/project-status.md)。功能范围见 [MVP Scope](docs/mvp-scope.md)。
 
 ## 核心 Workflow
 
@@ -21,13 +19,10 @@ Website → Browser SDK → Router Adapter → Event Protocol → Collector → 
 ## 文档入口
 
 - [Documentation Index](docs/README.md)
-- [MVP Scope and Freeze Record](docs/mvp-scope.md)
-- [Roadmap](docs/roadmap.md)
-- [Post-MVP Follow-up](docs/post-mvp-follow-up.md)
-- [Architecture Design](docs/architecture-design.md)
+- [Feature Freeze and Deployment Follow-up](docs/project-status.md)
+- [MVP Scope](docs/mvp-scope.md)
+- [Getting Started](docs/getting-started.md)
 - [Event Protocol](docs/event-protocol.md)
-- [Release Readiness Freeze Record](docs/release-readiness-design.md)
-- [Archived Phase 0–8 Records](docs/archive/README.md)
 
 ## 开发与验证
 

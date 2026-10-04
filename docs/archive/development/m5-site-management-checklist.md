@@ -2,7 +2,7 @@
 
 - Status: Complete (2026-10-01); M5.1–M5.4 verified against PostgreSQL integration tests and isolated end-to-end workflows
 - Prerequisites: M1 module boundaries, M3 Site Registry, and M4 local runtime-authority cutover; ADR-013 and ADR-014 accepted
-- Related: [Platform improvement roadmap](platform-improvement-roadmap.md), [Site Onboarding and Settings Design](site-onboarding-settings-design.md), [Analytics and Site Management Module Boundaries](analytics-site-management-module-boundaries.md), [ADR-013](decisions/ADR-013-site-identity-and-lifecycle.md), [ADR-014](decisions/ADR-014-runtime-configuration-authority.md)
+- Related: [Platform improvement roadmap](platform-improvement-roadmap.md), [Site Onboarding and Settings Design](site-onboarding-settings-design.md), [Analytics and Site Management Module Boundaries](analytics-site-management-module-boundaries.md), [ADR-013](../../decisions/ADR-013-site-identity-and-lifecycle.md), [ADR-014](../../decisions/ADR-014-runtime-configuration-authority.md)
 
 ## Goal and scope
 
@@ -80,4 +80,4 @@ PostgreSQL HTTP tests cover create/replay/conflict, concurrent same-key requests
 
 ## M5.1 contract references
 
-M5.1 froze its detailed wire and persistence decisions in [the configuration OpenAPI contract](../protocol/contracts/configuration/current/openapi.json), [Site creation schema](../protocol/contracts/configuration/current/site-create-request.schema.json), [persistence contract](../protocol/contracts/configuration/current/site-management-persistence.md), and [contract fixtures](../protocol/contracts/configuration/current/fixtures/site-management-cases.json). M5.2/M5.3 implement these contracts without changing their semantics; any later contract change requires updating these artifacts together.
+M5.1 froze its detailed wire and persistence decisions in [the configuration OpenAPI contract](../../../protocol/contracts/configuration/current/openapi.json), [Site creation schema](../../../protocol/contracts/configuration/current/site-create-request.schema.json), [persistence contract](../../../protocol/contracts/configuration/current/site-management-persistence.md), and [contract fixtures](../../../protocol/contracts/configuration/current/fixtures/site-management-cases.json). M5.2/M5.3 implement these contracts without changing their semantics; any later contract change requires updating these artifacts together.

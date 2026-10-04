@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-29
-- Related: [M2 configuration contract inventory](../m2-configuration-contract-inventory.md), [M2 implementation checklist](../m2-implementation-checklist.md), [M0b parity report](../m0b-step6-parity-report.md), [ADR-015](ADR-015-validation-lifecycle-and-staged-static-migration.md)
+- Related: [M2 configuration contract inventory](../archive/development/m2-configuration-contract-inventory.md), [M2 implementation checklist](../archive/development/m2-implementation-checklist.md), [M0b parity report](../archive/development/m0b-step6-parity-report.md), [ADR-015](ADR-015-validation-lifecycle-and-staged-static-migration.md)
 
 ## Context
 

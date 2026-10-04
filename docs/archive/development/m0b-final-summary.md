@@ -2,7 +2,7 @@
 
 - 状态：评估与决策已完成（2026-09-29）
 - 范围：Event Batch V1（含三类事件与 Browser Context）和 Stored Environment Policy V1
-- 决策依据：[ADR-015](decisions/ADR-015-validation-lifecycle-and-staged-static-migration.md)、[ADR-016](decisions/ADR-016-contract-type-sources-and-generation.md)
+- 决策依据：[ADR-015](../../decisions/ADR-015-validation-lifecycle-and-staged-static-migration.md)、[ADR-016](../../decisions/ADR-016-contract-type-sources-and-generation.md)
 
 ## 结论
 

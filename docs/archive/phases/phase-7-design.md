@@ -368,7 +368,7 @@ Geo PR2（region/city）已决定延期至 MVP 之后，不阻塞其他 MVP capa
 - Dashboard component tests；
 - 每个 capability 的最小 E2E。
 
-完整 CI、migration regression、Collector hardening 和部署验证统一放在 [Release Readiness](../../release-readiness-design.md)；Firefox/WebKit 完整浏览器矩阵延期至 MVP 之后。
+完整 CI、migration regression、Collector hardening 和部署验证统一放在 [Release Readiness](../development/release-readiness-design.md)；Firefox/WebKit 完整浏览器矩阵延期至 MVP 之后。
 
 ## 13. PR7 — MVP functional acceptance
 

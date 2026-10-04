@@ -3,7 +3,7 @@
 - Status: Complete (2026-10-04)
 - Prerequisites: M6 explicit empty/seeded startup and Site onboarding complete; M7c Settings complete
 - Scope: Remove Playground client configuration as an implicit input to platform database initialization
-- Design references: [Platform Improvement Roadmap](platform-improvement-roadmap.md), [M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md), [Site Onboarding and Settings Design](site-onboarding-settings-design.md), [ADR-014 Runtime Configuration Authority](decisions/ADR-014-runtime-configuration-authority.md)
+- Design references: [Platform Improvement Roadmap](platform-improvement-roadmap.md), [M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md), [Site Onboarding and Settings Design](site-onboarding-settings-design.md), [ADR-014 Runtime Configuration Authority](../../decisions/ADR-014-runtime-configuration-authority.md)
 
 ## Goal
 

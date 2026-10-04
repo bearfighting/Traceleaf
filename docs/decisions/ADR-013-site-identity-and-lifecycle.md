@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-28
-- Related: [ADR-007](ADR-007-capability-oriented-configuration.md), [ADR-008](ADR-008-internal-capability-boundaries.md), [M0a baseline](../m0a-baseline-and-decisions.md)
+- Related: [ADR-007](ADR-007-capability-oriented-configuration.md), [ADR-008](ADR-008-internal-capability-boundaries.md), [M0a baseline](../archive/development/m0a-baseline-and-decisions.md)
 
 ## Context
 

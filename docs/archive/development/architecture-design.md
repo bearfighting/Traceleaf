@@ -1469,7 +1469,7 @@ Eventual Consistency
 
 # 32. MVP Scope
 
-本节保留架构层面的 MVP 摘要；完整范围、阶段顺序和发布门槛以 [docs/mvp-scope.md](mvp-scope.md) 为准。
+本节保留架构层面的 MVP 摘要；完整范围、阶段顺序和发布门槛以 [docs/mvp-scope.md](../../mvp-scope.md) 为准。
 
 除产品能力外，MVP 还包含 capability 配置 API、Dashboard 配置、Origin/Ingest Key 管理，以及 Release Readiness 定义的完整测试和部署验证。
 

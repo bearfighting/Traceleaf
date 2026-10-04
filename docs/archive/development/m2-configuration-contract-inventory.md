@@ -1,7 +1,7 @@
 # M2 Configuration Contract Inventory
 
 - Status: baseline for M2.1 (2026-09-29)
-- Related: [M2 implementation checklist](m2-implementation-checklist.md), [ADR-017](decisions/ADR-017-policy-date-time-compatibility.md)
+- Related: [M2 implementation checklist](m2-implementation-checklist.md), [ADR-017](../../decisions/ADR-017-policy-date-time-compatibility.md)
 
 This inventory fixes the existing M2 contract scope and records the current validation and consumer paths. It describes the implementation before M2.2; validator lifecycle and production format behavior are not changed by this inventory.
 

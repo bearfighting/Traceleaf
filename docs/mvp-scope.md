@@ -1,6 +1,6 @@
 # MVP Scope and Freeze Record
 
-> Status: Frozen — MVP feature scope and Phase 0–8 implementation are closed. The latest CI pass was reported on 2026-09-27.
+> Status: Frozen — MVP feature scope is closed. Formal deployment preparation and open follow-up items are tracked in [Project Status](project-status.md).
 
 ## MVP Baseline
 
@@ -28,4 +28,4 @@ The MVP scope is frozen: further product features or release requirements need a
 
 ## Deferred Work
 
-Performance optimization, production operations, retention policy, live Geo evaluation, recovery exercises and independent SDK publication are tracked separately in [Post-MVP Follow-up](post-mvp-follow-up.md).
+Performance optimization, production operations, retention policy, live Geo evaluation, recovery exercises and independent SDK publication are tracked separately in [Project Status](project-status.md).
