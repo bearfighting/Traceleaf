@@ -179,7 +179,7 @@ flowchart LR
 
 **最终验收**：联合检查 Rust 模块依赖、repository SQL 写入、Schema/类型 parity、历史数据兼容和 Site 创建至报表查询链路。是否拆 crate、进程或数据库由后续实际需求另行决定。
 
-### M10：站点验证与管理身份扩展（后续规划）
+### M10：站点验证、管理身份与完整产品验收（后续规划）
 
 **前置**：需要独立设计和安全评审；不阻塞 M6–M9 的本地 MVP 或受信任部署。
 
@@ -187,17 +187,18 @@ flowchart LR
 - 域名所有权验证：作为独立于可达性检查的能力设计，可评估 DNS TXT 或 well-known 文件 challenge，并定义验证状态、过期与重验证行为。
 - 多用户身份与 RBAC：在对外开放管理界面或支持多个管理员前，设计用户身份、角色、Site 访问范围、审计 actor 和凭据迁移；完成前继续将全局 deployment-admin token 限定在受信任的管理环境。
 
-这些工作可以拆成独立交付，不要求 URL 检查、域名验证和 RBAC 同步上线。是否启动 M10 由真实部署与产品需求触发。
-
-### 最终产品验收（跨 M 阶段）
+**M7b 延期验收**：在 M10 的完整产品验收中完成 M7b.4 响应式与无障碍检查，以及 M7b.5 Dashboard E2E。即使 M10 的站点验证或身份扩展拆分、延期，这些产品验收仍属于 M10 交付范围。完成验收并把证据记录到 [M7b Analytics Reports Checklist](m7b-analytics-reports-checklist.md) 后，方可关闭 M7b。
 
 **前置**：提供一个可访问且已配置 Site Registry 的 Dashboard 环境，并准备至少一个可打开 Analytics 报表的 Site。优先复用现有运行环境；执行前不得为此自动启动或恢复 Docker 服务。
 
-**从 M7b.4 延后的 Dashboard 响应式与无障碍验收**：
+**完整产品验收项**：
 
 - 在 320、390、768、1023、1024 和 1440px 视口检查 Analytics Sidebar 的窄屏菜单/桌面导航切换、筛选器换行、表格横向溢出和键盘滚动、可见焦点及报表直链行为。
 - 用键盘操作 Sidebar、筛选器和表格；用 Firefox + Orca 检查报表导航当前页语义、页面标题和加载、空数据、不可用及错误状态播报。
+- 在已准备好的 E2E 环境运行 `pnpm e2e:dashboard`，确认 Site/date 上下文、报表导航与浏览器历史流程通过；该命令会启动 Compose 服务，执行前须确认环境符合本地 Docker 操作约束。
 - 记录实际 Dashboard 环境、浏览器与辅助技术版本及每项结果；只有实际执行通过后，才回填 [M7b Analytics Reports Checklist](m7b-analytics-reports-checklist.md) 中 M7b.4 对应验收项。
+
+M10 的站点可达性、域名验证、RBAC 与产品验收可以拆分交付，不要求同时上线；M7b 的延期验收仍归属 M10 完整产品验收。是否启动其他 M10 能力由真实部署与产品需求触发。
 
 ## 并行工作与合并顺序
 
