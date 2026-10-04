@@ -4,7 +4,10 @@ import type { ReactNode } from "react";
 import "../styles.css";
 
 export const metadata: Metadata = {
-  title: "Analytics Dashboard",
+  title: {
+    default: "Analytics Dashboard",
+    template: "%s | Analytics Dashboard",
+  },
   description: "Web Analytics Platform Dashboard",
 };
 

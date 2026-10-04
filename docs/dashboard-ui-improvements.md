@@ -1,6 +1,6 @@
 # Dashboard UI 改进方案
 
-- Status: M7a, M7b, and M7c complete (2026-10-03)
+- Status: M7a and M7c complete; M7b.1–M7b.3 delivered; M7b.4 product acceptance and M7b.5 browser E2E closeout remain open (2026-10-03)
 - Scope: Dashboard information architecture and UI foundation
 - Overall sequence and gates: [Platform Improvement Roadmap](platform-improvement-roadmap.md)
 - M7b Analytics reports execution checklist: [M7b Analytics Reports Checklist](m7b-analytics-reports-checklist.md)
@@ -105,8 +105,8 @@ Capability 的启用状态来源仍是现有配置服务与 contract，不由 Si
 
 1. **M7a 基础样式与组件**：配置 Tailwind 和 shadcn/ui，建立主题 token、通用控件与页面容器。
 2. **M7a 应用 Shell**：实现 Global Header、Analytics / Settings 一级导航、响应式 Analytics Sidebar 和 active state；站点选择通过可替换的数据入口读取，过渡期可接现有列表，但不把环境变量写进 Shell 组件。
-3. **M7b Analytics 页面**：将共享筛选项与页面标题分离，保留站点、日期等 URL 参数；把已有 Overview、Pages、Dimensions、Visitors、Sessions、Custom events、Web Vitals、Countries、Conversions、Funnels 报表移到对应页面。只依赖现有 Analytics 查询 API。
-4. **M7c Settings 页面**：在动态 Site Registry 和 onboarding API 完成后，按站点管理任务组织 Overview、Capabilities、Environments & Origins、Ingest Keys、Definitions；M7c.1–M7c.5 已交付各任务页。M7c.6 补充了任务页的 Site/Environment 上下文测试、Settings 窄屏换行，并通过 Dashboard 与 Site Onboarding 浏览器 E2E 验证窄屏、键盘导航、焦点可见性和 key 生命周期。
+3. **M7c Settings 页面**：在动态 Site Registry 和 onboarding API 完成后，按站点管理任务组织 Overview、Capabilities、Environments & Origins、Ingest Keys、Definitions；M7c.1–M7c.6 已交付并完成自动化 closeout。Firefox + Orca 实际播报复核作为非阻塞后续项记录在 M7c Settings Checklist。
+4. **M7b Analytics 页面**：M7b.1 已交付 `/dashboard` Overview 与 Pages、Dimensions、Visitors、Sessions、Custom events、Web Vitals、Countries、Conversions、Funnels 独立路由；M7b.2 完成共享筛选器及 URL 上下文；M7b.3 完成报表加载、空数据、不可用、缺少 definitions 和 API 错误状态区分，并提供对应 Settings 入口。M7b.5 覆盖审查确认现有 Dashboard 单测覆盖导航/路由、URL 参数、报表筛选器和状态；记录的 Dashboard 单测（42 files / 213 tests）、类型检查、`pnpm check`、构建和格式检查通过。Dashboard E2E 仍延期，未作为本次通过证据；执行脚本会启动 Docker Compose，而本次要求保持 Docker 原状。M7b.4 的响应式和 Firefox + Orca 产品验收及 M7b.5 E2E 关闭条件仍未完成；详见 M7b checklist。
 5. **视觉验收**：统一 loading、empty、error、disabled/unavailable 状态，验证窄屏、键盘导航、表格溢出和现有业务测试。Dashboard 测试、项目检查、构建、格式检查及两条浏览器 E2E 均通过；Runtime status 已补充原子化 live status 语义，并验证刷新后状态能更新到已挂载的编辑器；一次性密钥提示也已与密钥明文分开，避免创建时自动朗读密钥。M7c.6 已完成；Firefox + Orca 实际播报复核作为非阻塞后续项记录在 M7c Settings Checklist。
 
 每阶段都应保持 Dashboard 可构建、可访问；不需要一次性重写数据层。

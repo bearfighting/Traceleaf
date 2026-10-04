@@ -1,7 +1,10 @@
 import React from "react";
 
+import { DisabledState } from "./states/disabled-state";
 import { EmptyState } from "./states/empty-state";
 import { ErrorState } from "./states/error-state";
+import { UnavailableState } from "./states/unavailable-state";
+import { Table } from "./ui";
 
 import type { PagesResponse } from "../lib/analytics-api/types";
 import type { DashboardOverviewContext } from "../lib/dashboard-overview";
@@ -19,11 +22,13 @@ export function TopPagesTable({ context, state }: TopPagesTableProps) {
       {state.status === "error" ? (
         <ErrorState context={context} message={state.error.message} />
       ) : state.status === "disabled" ? (
-        <p role="status">Page View analytics is not enabled for this site.</p>
+        <DisabledState context={context} label="Page View" />
+      ) : state.status === "unavailable" ? (
+        <UnavailableState context={context} label="Page View" />
       ) : state.data.items.length === 0 ? (
         <EmptyState context={context} />
       ) : (
-        <table className="data-table">
+        <Table className="data-table">
           <caption className="table-caption">Page Views by path</caption>
           <thead>
             <tr>
@@ -41,7 +46,7 @@ export function TopPagesTable({ context, state }: TopPagesTableProps) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
       )}
     </section>
   );

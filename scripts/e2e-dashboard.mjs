@@ -189,19 +189,35 @@ async function assertDashboardShell(page) {
   );
   await expect(page.getByRole("navigation", { name: "Primary navigation" })).toBeVisible();
   await expect(page.locator(".analytics-sidebar-desktop")).toBeVisible();
-  await expect(page.locator(".analytics-sidebar-desktop a[href='#overview']")).toHaveAttribute(
+  await expect(page.locator(".analytics-sidebar-desktop a[href^='/dashboard?']")).toHaveAttribute(
     "aria-current",
-    "location",
+    "page",
   );
 
-  await page.locator(".analytics-sidebar-desktop a[href='#timeline']").click();
+  await page.locator(".analytics-sidebar-desktop a[href^='/dashboard/pages?']").click();
   await expect(page).toHaveURL(
-    /site_id=site_playground&environment=config-e2e&from=2026-09-20&to=2026-09-21&dimension=browser#timeline$/,
+    /\/dashboard\/pages\?(?=.*site_id=site_playground)(?=.*from=2026-09-20)(?=.*to=2026-09-21)(?=.*environment=config-e2e)/,
   );
-  await expect(page.locator("#timeline")).toBeInViewport();
-  await expect(page.locator(".analytics-sidebar-desktop a[href='#timeline']")).toHaveAttribute(
+  await expect(page.getByRole("heading", { name: "Pages", level: 1 })).toBeVisible();
+  await expect(
+    page.locator(".analytics-sidebar-desktop a[href^='/dashboard/pages?']"),
+  ).toHaveAttribute("aria-current", "page");
+  await page.goBack();
+  await expect(page.locator(".analytics-sidebar-desktop a[href^='/dashboard?']")).toHaveAttribute(
     "aria-current",
-    "location",
+    "page",
+  );
+  await page.goForward();
+  await expect(
+    page.locator(".analytics-sidebar-desktop a[href^='/dashboard/pages?']"),
+  ).toHaveAttribute("aria-current", "page");
+  await page.locator('input[name="from"]').fill("2026-09-19");
+  await page.locator('button[type="submit"]').click();
+  await expect(page).toHaveURL(/\/dashboard\/pages\?(?=.*from=2026-09-19)(?=.*to=2026-09-21)/);
+  await page.goto(`${dashboardUrl}/dashboard/not-a-report`);
+  await page.getByText("This page could not be found.", { exact: true }).waitFor();
+  await page.goto(
+    `${dashboardUrl}/dashboard/pages?site_id=site_playground&from=2026-09-20&to=2026-09-21&environment=config-e2e&dimension=browser`,
   );
 
   await page.getByRole("link", { name: "Settings", exact: true }).click();
@@ -294,10 +310,12 @@ async function assertDashboardShell(page) {
   await expect(mobileMenu).toHaveAttribute("open", "");
   const dimensionsLink = mobileMenu.getByRole("link", { name: "Dimensions" });
   await dimensionsLink.click();
-  await expect(page).toHaveURL(/#dimensions$/);
-  await expect(mobileMenu.locator("a[href='#dimensions']")).toHaveAttribute(
+  await expect(page).toHaveURL(
+    /\/dashboard\/dimensions\?(?=.*site_id=site_playground)(?=.*from=2026-09-20)(?=.*to=2026-09-21)/,
+  );
+  await expect(mobileMenu.locator("a[href^='/dashboard/dimensions?']")).toHaveAttribute(
     "aria-current",
-    "location",
+    "page",
   );
 
   await page.getByRole("link", { name: "Settings", exact: true }).click();
@@ -640,8 +658,8 @@ async function preparePhase6Fixture(data) {
   runProcessorBackfill("2026-09-20", "2026-09-21");
 }
 
-function rangeUrl(siteId, from, to) {
-  return `${dashboardUrl}/dashboard?site_id=${siteId}&from=${from}&to=${to}`;
+function rangeUrl(siteId, from, to, report = "") {
+  return `${dashboardUrl}/dashboard${report ? `/${report}` : ""}?site_id=${siteId}&from=${from}&to=${to}`;
 }
 
 async function expectMetric(page, label, value) {
@@ -653,7 +671,25 @@ async function expectMetric(page, label, value) {
 }
 
 async function expectReportRows(page, sectionName, rows) {
-  const section = page.locator("section.card").filter({ hasText: sectionName });
+  await page.waitForFunction(
+    ({ sectionName: expectedSectionName, expectedRows }) => {
+      const heading = Array.from(document.querySelectorAll("h2")).find(
+        (element) => element.textContent?.trim() === expectedSectionName,
+      );
+      const section = heading?.closest("section.card");
+      if (!section) return false;
+
+      const actualRows = Array.from(section.querySelectorAll("tbody tr"), (row) =>
+        Array.from(row.querySelectorAll("td"), (cell) => cell.textContent?.trim() ?? "").join(" "),
+      );
+      return JSON.stringify(actualRows) === JSON.stringify(expectedRows);
+    },
+    { sectionName, expectedRows: rows },
+  );
+
+  const heading = page.getByRole("heading", { name: sectionName, exact: true, level: 2 });
+  await heading.waitFor();
+  const section = page.locator("section.card").filter({ has: heading });
   const actual = await section
     .locator("tbody tr")
     .evaluateAll((rows) =>
@@ -670,7 +706,7 @@ async function expectReportRows(page, sectionName, rows) {
 async function assertGeoCountries(page) {
   const data = await fixture("geo-countries");
   await prepareFixture(data);
-  await page.goto(rangeUrl("site_playground", "2026-09-18", "2026-09-18"));
+  await page.goto(rangeUrl("site_playground", "2026-09-18", "2026-09-18", "countries"));
   await expectReportRows(page, "Countries", ["GB 1", "Unknown 1"]);
   assert(
     !(await page.getByText(/Geo report data freshness:/).count()),
@@ -700,7 +736,7 @@ async function assertGeoCountries(page) {
     "href",
     "https://db-ip.com",
   );
-  await page.goto(rangeUrl("site_playground", "2026-09-01", "2026-09-01"));
+  await page.goto(rangeUrl("site_playground", "2026-09-01", "2026-09-01", "countries"));
   await page
     .locator("section.card")
     .filter({ hasText: "Countries" })
@@ -722,6 +758,7 @@ async function assertSinglePageView(page) {
   await page.goto(rangeUrl("site_playground", "2026-09-18", "2026-09-18"));
   await expectMetric(page, "Site total Page Views", overview.page_views);
   await expectMetric(page, "Selected range Page Views", rangeOverview.page_views);
+  await page.goto(rangeUrl("site_playground", "2026-09-18", "2026-09-18", "pages"));
   await expectReportRows(
     page,
     "Timeline",
@@ -890,7 +927,7 @@ function readBrowserEvents() {
 async function assertWebVitals(page) {
   const data = await fixture("web-vitals");
   await prepareFixture(data);
-  await page.goto(rangeUrl("site_playground", "2026-09-18", "2026-09-18"));
+  await page.goto(rangeUrl("site_playground", "2026-09-18", "2026-09-18", "web-vitals"));
   const section = page.locator('section[aria-labelledby="web-vitals-heading"]');
   await expectReportRows(page, "Web Vitals", [
     "/vitals CLS 4 0.09 3 1 0",
@@ -908,7 +945,7 @@ async function assertWebVitals(page) {
 async function assertCustomEvents(page) {
   const data = await fixture("custom-events");
   await prepareFixture(data);
-  await page.goto(rangeUrl("site_playground", "2026-09-18", "2026-09-18"));
+  await page.goto(rangeUrl("site_playground", "2026-09-18", "2026-09-18", "custom-events"));
   const section = page.locator("section.card").filter({ hasText: "Custom Events" });
   await section.getByText("2", { exact: true }).waitFor();
   await expectReportRows(page, "Custom Events", [
@@ -920,12 +957,16 @@ async function assertCustomEvents(page) {
     !content.includes("amount") && !content.includes("email"),
     "Custom event properties must not be displayed",
   );
-  const conversions = page.locator("section.card").filter({ hasText: "Conversions" });
+  await page.goto(rangeUrl("site_playground", "2026-09-18", "2026-09-18", "conversions"));
+  const conversions = page.locator("section.card").filter({
+    has: page.getByRole("heading", { name: "Conversions", exact: true, level: 2 }),
+  });
   await expectReportRows(page, "Conversions", ["purchase_completed 2026-09-18 1 0.0%"]);
   assert(
     !(await conversions.textContent()).includes("currency"),
     "Conversion properties must not be displayed",
   );
+  await page.goto(rangeUrl("site_playground", "2026-09-18", "2026-09-18", "funnels"));
   const funnels = page.locator("section.card").filter({ hasText: "Funnels" });
   await funnels.getByText("No funnel data is available for this selection.").waitFor();
 }
@@ -972,8 +1013,9 @@ async function assertBackfilledConversionFunnels(page) {
   await enablePhase6("site_playground");
   runProcessorBackfill("2026-09-20", "2026-09-21");
   runProcessorRebuildConversionFunnels("site_playground", importedDefinitionVersion);
-  await page.goto(rangeUrl("site_playground", "2026-09-20", "2026-09-21"));
+  await page.goto(rangeUrl("site_playground", "2026-09-20", "2026-09-21", "conversions"));
   await expectReportRows(page, "Conversions", ["purchase_completed 2026-09-20 1 100.0%"]);
+  await page.goto(rangeUrl("site_playground", "2026-09-20", "2026-09-21", "funnels"));
   await expectReportRows(page, "Funnels", [
     "checkout 2026-09-20 1 1 100.0%",
     "checkout 2026-09-20 2 1 100.0%",
@@ -1096,6 +1138,7 @@ async function assertMultiPageNavigation(page) {
   await prepareFixture(data);
   await page.goto(rangeUrl("site_playground", "2026-09-18", "2026-09-18"));
   await expectMetric(page, "Selected range Page Views", rangeOverview.page_views);
+  await page.goto(rangeUrl("site_playground", "2026-09-18", "2026-09-18", "pages"));
   await expectReportRows(
     page,
     "Top Pages",
@@ -1118,6 +1161,7 @@ async function assertMultiSiteIsolation(page) {
   await page.locator('button[type="submit"]').click();
   await page.waitForURL(/site_id=site_beta/);
   await expectMetric(page, "Selected range Page Views", beta.rangeOverview.page_views);
+  await page.goto(rangeUrl("site_beta", "2026-09-18", "2026-09-18", "pages"));
   await expectReportRows(
     page,
     "Top Pages",
@@ -1131,12 +1175,8 @@ async function assertEmptyRange(page) {
   await prepareFixture(data);
   await page.goto(rangeUrl("site_playground", "2026-09-01", "2026-09-01"));
   await expectMetric(page, "Selected range Page Views", rangeOverview.page_views);
+  await page.goto(rangeUrl("site_playground", "2026-09-01", "2026-09-01", "pages"));
   await page.getByText("No page view data is available for this selection.").nth(0).waitFor();
-  await page
-    .locator("section.card")
-    .filter({ hasText: "Web Vitals" })
-    .getByText("No page view data is available for this selection.")
-    .waitFor();
   const emptyCopy = "No page view data is available for this selection.";
   assert(
     (await page
@@ -1151,6 +1191,12 @@ async function assertEmptyRange(page) {
         .count()) === 1,
     "Expected empty states for Timeline and Top Pages",
   );
+  await page.goto(rangeUrl("site_playground", "2026-09-01", "2026-09-01", "web-vitals"));
+  await page
+    .locator("section.card")
+    .filter({ hasText: "Web Vitals" })
+    .getByText(emptyCopy)
+    .waitFor();
 }
 
 async function assertCustomDateRange(page) {
@@ -1171,13 +1217,13 @@ async function assertPhase6Dashboard(page) {
   await page.goto(rangeUrl("site_playground", "2026-09-20", "2026-09-21"));
   await expectMetric(page, "Unique Visitors", data.expected.visitors.unique_visitors);
   await expectMetric(page, "Sessions", data.expected.visitors.sessions);
+  await page.goto(rangeUrl("site_playground", "2026-09-20", "2026-09-21", "visitors"));
   await expectReportRows(
     page,
-    "Visitors and Sessions",
-    data.expected.visitors.items.map(
-      (item) => `${item.day} ${item.page_views} ${item.unique_visitors} ${item.sessions}`,
-    ),
+    "Visitors",
+    data.expected.visitors.items.map((item) => `${item.day} ${item.unique_visitors}`),
   );
+  await page.goto(rangeUrl("site_playground", "2026-09-20", "2026-09-21", "dimensions"));
   await expectReportRows(page, "Dimension Report", [
     `${data.expected.browser.value} ${data.expected.browser.page_views} ${data.expected.browser.unique_visitors} ${data.expected.browser.sessions}`,
   ]);
@@ -1194,27 +1240,22 @@ async function assertPhase6Disabled(page) {
   await setPhase6Enabled("site_playground", false);
   await postFixtureEvents(data.input);
   runProcessorOnce();
-  await page.goto(rangeUrl("site_playground", "2026-09-18", "2026-09-18"));
-  await expectMetric(
-    page,
-    "Selected range Page Views",
-    data.expected.api.range_overview.body.page_views,
-  );
+  await page.goto(rangeUrl("site_playground", "2026-09-18", "2026-09-18", "visitors"));
   assert(
     (await page.getByText("No Phase 6 analytics data is available for this selection.").count()) ===
-      2,
-    "Expected no visitor and dimension data while Phase 6 capabilities are disabled",
+      1,
+    "Expected empty visitor data while Phase 6 capabilities are disabled",
   );
 }
 
 async function assertPhase6Empty(page) {
   const data = await phase6Fixture("dashboard-dimensions");
   await preparePhase6Fixture(data);
-  await page.goto(rangeUrl("site_playground", "2026-09-01", "2026-09-01"));
+  await page.goto(rangeUrl("site_playground", "2026-09-01", "2026-09-01", "visitors"));
   assert(
     (await page.getByText("No Phase 6 analytics data is available for this selection.").count()) ===
-      2,
-    "Expected empty state for Visitors and Dimensions",
+      1,
+    "Expected empty state for Visitors",
   );
 }
 
@@ -1793,7 +1834,14 @@ async function assertDefinitionManagement(page) {
     "Historical funnel report did not retain the imported revision's facts",
   );
   await page.goto(
-    `${dashboardUrl}/dashboard?site_id=site_playground&from=2026-09-20&to=2026-09-21&definition_version=${encodeURIComponent(importedDefinitionVersion)}`,
+    `${dashboardUrl}/dashboard/conversions?site_id=site_playground&from=2026-09-20&to=2026-09-21&definition_version=${encodeURIComponent(importedDefinitionVersion)}`,
+  );
+  await page
+    .getByText(`Definition revision: ${importedDefinitionVersion}`, { exact: true })
+    .first()
+    .waitFor();
+  await page.goto(
+    `${dashboardUrl}/dashboard/funnels?site_id=site_playground&from=2026-09-20&to=2026-09-21&definition_version=${encodeURIComponent(importedDefinitionVersion)}`,
   );
   await page
     .getByText(`Definition revision: ${importedDefinitionVersion}`, { exact: true })

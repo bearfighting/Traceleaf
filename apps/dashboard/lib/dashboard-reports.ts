@@ -1,6 +1,7 @@
 import { createAnalyticsApiClient } from "./analytics-api/client";
 import { getAnalyticsApiUrl } from "./analytics-api/config";
 import { AnalyticsApiClientError } from "./analytics-api/errors";
+import { loadDefinitionRevisionHistory } from "./definition-revision-history";
 
 import type { AnalyticsApiClient } from "./analytics-api/client";
 import type {
@@ -21,14 +22,17 @@ import type { DashboardOverviewContext } from "./dashboard-overview";
 export type DashboardReportState<T> =
   | { status: "success"; data: T }
   | { status: "error"; error: AnalyticsApiClientError }
-  | { status: "disabled"; error: AnalyticsApiClientError };
+  | { status: "disabled"; error: AnalyticsApiClientError }
+  | { status: "unavailable"; error: AnalyticsApiClientError };
+export type DashboardDefinitionReportState<T> =
+  DashboardReportState<T> | { status: "missing_definitions" };
 
 export interface DashboardReportsState {
   events: DashboardReportState<EventsResponse>;
   geoCountries: DashboardReportState<GeoCountryResponse>;
   webVitals: DashboardReportState<WebVitalsResponse>;
-  conversions: DashboardReportState<ConversionReportResponse>;
-  funnels: DashboardReportState<FunnelReportResponse>;
+  conversions: DashboardDefinitionReportState<ConversionReportResponse>;
+  funnels: DashboardDefinitionReportState<FunnelReportResponse>;
   timeline: DashboardReportState<TimelineResponse>;
   pages: DashboardReportState<PagesResponse>;
   visitors: DashboardReportState<VisitorSessionResponse>;
@@ -39,8 +43,8 @@ export interface DashboardLegacyReportsState {
   events: DashboardReportState<EventsResponse>;
   geoCountries: DashboardReportState<GeoCountryResponse>;
   webVitals: DashboardReportState<WebVitalsResponse>;
-  conversions: DashboardReportState<ConversionReportResponse>;
-  funnels: DashboardReportState<FunnelReportResponse>;
+  conversions: DashboardDefinitionReportState<ConversionReportResponse>;
+  funnels: DashboardDefinitionReportState<FunnelReportResponse>;
   timeline: DashboardReportState<TimelineResponse>;
   pages: DashboardReportState<PagesResponse>;
 }
@@ -49,6 +53,12 @@ export interface DashboardPhase6ReportsState {
   visitors: DashboardReportState<VisitorSessionResponse>;
   dimension: DashboardReportState<DimensionResponse>;
 }
+
+export type DashboardPhase6ReportName = "overview" | "visitors" | "sessions" | "dimensions";
+
+export type DashboardPhase6ReportResult =
+  | { kind: "audience"; state: DashboardReportState<VisitorSessionResponse> }
+  | { kind: "dimension"; state: DashboardReportState<DimensionResponse> };
 
 export async function loadDashboardLegacyReports(
   context: DashboardOverviewContext,
@@ -83,8 +93,8 @@ export async function loadDashboardLegacyReports(
         client.geoCountries(context.siteId, context.dateRange.from, context.dateRange.to),
       ),
       settle(() => loadWebVitals(client, context)),
-      settle(() => loadConversions(client, context)),
-      settle(() => loadFunnels(client, context)),
+      settleDefinitionReport(() => loadConversions(client, context), context),
+      settleDefinitionReport(() => loadFunnels(client, context), context),
     ]);
 
   return { timeline, pages, events, geoCountries, webVitals, conversions, funnels };
@@ -118,6 +128,79 @@ export async function loadDashboardPhase6Reports(
   ]);
 
   return { visitors, dimension: dimensionReport };
+}
+
+export async function loadDashboardPhase6Report(
+  context: DashboardOverviewContext,
+  report: DashboardPhase6ReportName,
+  dependencies: DashboardApiDependencies = {},
+  dimension: AnalyticsDimension = context.dimension ?? "browser",
+): Promise<DashboardPhase6ReportResult> {
+  let client: AnalyticsApiClient;
+  try {
+    client = resolveClient(dependencies);
+  } catch (cause) {
+    const error = toAnalyticsApiClientError(cause);
+
+    return report === "dimensions"
+      ? { kind: "dimension", state: { status: "error", error } }
+      : { kind: "audience", state: { status: "error", error } };
+  }
+
+  if (report === "dimensions") {
+    return {
+      kind: "dimension",
+      state: await settlePhase6(() =>
+        client.dimension(context.siteId, context.dateRange.from, context.dateRange.to, dimension),
+      ),
+    };
+  }
+
+  const query = report === "sessions" ? client.sessions : client.visitors;
+
+  return {
+    kind: "audience",
+    state: await settlePhase6(() =>
+      query(context.siteId, context.dateRange.from, context.dateRange.to),
+    ),
+  };
+}
+
+export async function loadDashboardLegacyReport(
+  context: DashboardOverviewContext,
+  report: "pages" | "custom-events" | "countries" | "web-vitals" | "conversions" | "funnels",
+  client: AnalyticsApiClient,
+): Promise<Partial<DashboardLegacyReportsState>> {
+  switch (report) {
+    case "pages": {
+      const [timeline, pages] = await Promise.all([
+        settle(() => client.timeline(context.siteId, context.dateRange.from, context.dateRange.to)),
+        settle(() => client.pages(context.siteId, context.dateRange.from, context.dateRange.to)),
+      ]);
+
+      return { timeline, pages };
+    }
+    case "custom-events":
+      return {
+        events: await settle(() =>
+          client.events(context.siteId, context.dateRange.from, context.dateRange.to, 100),
+        ),
+      };
+    case "countries":
+      return {
+        geoCountries: await settle(() =>
+          client.geoCountries(context.siteId, context.dateRange.from, context.dateRange.to),
+        ),
+      };
+    case "web-vitals":
+      return { webVitals: await settle(() => loadWebVitals(client, context)) };
+    case "conversions":
+      return {
+        conversions: await settleDefinitionReport(() => loadConversions(client, context), context),
+      };
+    case "funnels":
+      return { funnels: await settleDefinitionReport(() => loadFunnels(client, context), context) };
+  }
 }
 
 export async function loadDashboardReports(
@@ -165,8 +248,8 @@ export async function loadDashboardReports(
     settle(() => client.events(context.siteId, context.dateRange.from, context.dateRange.to, 100)),
     settle(() => client.geoCountries(context.siteId, context.dateRange.from, context.dateRange.to)),
     settle(() => loadWebVitals(client, context)),
-    settle(() => loadConversions(client, context)),
-    settle(() => loadFunnels(client, context)),
+    settleDefinitionReport(() => loadConversions(client, context), context),
+    settleDefinitionReport(() => loadFunnels(client, context), context),
     settlePhase6(() =>
       client.visitors(context.siteId, context.dateRange.from, context.dateRange.to),
     ),
@@ -194,16 +277,7 @@ function loadWebVitals(
 ): Promise<WebVitalsResponse> {
   return client.webVitals
     ? client.webVitals(context.siteId, context.dateRange.from, context.dateRange.to)
-    : Promise.resolve({
-        site_id: context.siteId,
-        from: context.dateRange.from,
-        to: context.dateRange.to,
-        total: 0,
-        items: [],
-        data_as_of: null,
-        freshness_status: "current",
-        aggregation_version: 1,
-      });
+    : Promise.reject(unavailableEndpointError("Web Vitals"));
 }
 
 function loadConversions(
@@ -219,17 +293,7 @@ function loadConversions(
         undefined,
         context.definitionVersion,
       )
-    : Promise.resolve({
-        site_id: context.siteId,
-        from: context.dateRange.from,
-        to: context.dateRange.to,
-        total: 0,
-        definition_version: "1",
-        items: [],
-        data_as_of: null,
-        freshness_status: "current",
-        aggregation_version: 1,
-      });
+    : Promise.reject(unavailableEndpointError("Conversions"));
 }
 
 function loadFunnels(
@@ -245,17 +309,16 @@ function loadFunnels(
         undefined,
         context.definitionVersion,
       )
-    : Promise.resolve({
-        site_id: context.siteId,
-        from: context.dateRange.from,
-        to: context.dateRange.to,
-        total: 0,
-        definition_version: "1",
-        items: [],
-        data_as_of: null,
-        freshness_status: "current",
-        aggregation_version: 1,
-      });
+    : Promise.reject(unavailableEndpointError("Funnels"));
+}
+
+function unavailableEndpointError(report: string): AnalyticsApiClientError {
+  return new AnalyticsApiClientError(
+    `${report} report is not available in this Analytics API client.`,
+    {
+      kind: "unavailable",
+    },
+  );
 }
 
 function resolveClient(dependencies: DashboardApiDependencies): AnalyticsApiClient {
@@ -271,8 +334,42 @@ async function settle<T>(request: () => Promise<T>): Promise<DashboardReportStat
   try {
     return { status: "success", data: await request() };
   } catch (cause) {
-    return { status: "error", error: toAnalyticsApiClientError(cause) };
+    const error = toAnalyticsApiClientError(cause);
+
+    return error.kind === "disabled"
+      ? { status: "disabled", error }
+      : error.kind === "unavailable"
+        ? { status: "unavailable", error }
+        : { status: "error", error };
   }
+}
+
+async function settleDefinitionReport<T>(
+  request: () => Promise<T>,
+  context: DashboardOverviewContext,
+): Promise<DashboardDefinitionReportState<T>> {
+  const state = await settle(request);
+  if (state.status !== "success") {
+    if (state.status !== "error" || state.error.code !== "invalid_definition_version") return state;
+    const history = await loadDefinitionRevisionHistory(context.siteId);
+    if (history.kind === "error") {
+      return {
+        status: "error",
+        error: new AnalyticsApiClientError(history.message, { kind: "response" }),
+      };
+    }
+
+    return history.revisions.length === 0 ? { status: "missing_definitions" } : state;
+  }
+  const history = await loadDefinitionRevisionHistory(context.siteId);
+  if (history.kind === "error") {
+    return {
+      status: "error",
+      error: new AnalyticsApiClientError(history.message, { kind: "response" }),
+    };
+  }
+
+  return history.revisions.length === 0 ? { status: "missing_definitions" } : state;
 }
 
 async function settlePhase6<T>(request: () => Promise<T>): Promise<DashboardReportState<T>> {
@@ -281,7 +378,11 @@ async function settlePhase6<T>(request: () => Promise<T>): Promise<DashboardRepo
   } catch (cause) {
     const error = toAnalyticsApiClientError(cause);
 
-    return error.kind === "disabled" ? { status: "disabled", error } : { status: "error", error };
+    return error.kind === "disabled"
+      ? { status: "disabled", error }
+      : error.kind === "unavailable"
+        ? { status: "unavailable", error }
+        : { status: "error", error };
   }
 }
 

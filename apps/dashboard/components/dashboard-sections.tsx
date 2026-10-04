@@ -4,15 +4,11 @@ import { createAnalyticsApiClient } from "../lib/analytics-api/client";
 import { getAnalyticsApiUrl } from "../lib/analytics-api/config";
 import { AnalyticsApiClientError } from "../lib/analytics-api/errors";
 
-import { ConversionFunnelTables } from "./conversion-funnel-tables";
-import { EventReportTable } from "./event-report-table";
-import { GeoCountryTable } from "./geo-country-table";
 import { LegacyDashboardSections } from "./legacy-dashboard-sections";
 import { Phase6DashboardSections } from "./phase6-dashboard-sections";
 import { Phase6LoadingState } from "./phase6-loading-state";
 import { ErrorState } from "./states/error-state";
 import { LoadingState } from "./states/loading-state";
-import { WebVitalsTable } from "./web-vitals-table";
 
 import type { AnalyticsApiClient } from "../lib/analytics-api/client";
 import type { AnalyticsDimension } from "../lib/analytics-api/types";
@@ -23,6 +19,8 @@ interface DashboardSectionsProps {
   to: string;
   dimension: AnalyticsDimension;
   definitionVersion?: string;
+  report: string;
+  environment?: string;
 }
 
 export function DashboardSections({
@@ -31,8 +29,10 @@ export function DashboardSections({
   to,
   dimension,
   definitionVersion,
+  report,
+  environment,
 }: DashboardSectionsProps) {
-  const context = { siteId, dateRange: { from, to }, dimension, definitionVersion };
+  const context = { siteId, dateRange: { from, to }, dimension, definitionVersion, environment };
   let client: AnalyticsApiClient;
 
   try {
@@ -47,25 +47,9 @@ export function DashboardSections({
           });
 
     return (
-      <>
-        <section className="card" id="overview" aria-label="Overview">
-          <h2>Overview</h2>
-          <ErrorState context={context} message={error.message} />
-        </section>
-        <EventReportTable context={context} state={{ status: "error", error }} />
-        <GeoCountryTable context={context} state={{ status: "error", error }} />
-        <WebVitalsTable context={context} state={{ status: "error", error }} />
-        <ConversionFunnelTables
-          context={context}
-          conversions={{ status: "error", error }}
-          funnels={{ status: "error", error }}
-        />
-        <section className="card" id="visitors" aria-label="Phase 6 analytics">
-          <span aria-hidden="true" className="report-anchor" id="sessions" />
-          <ErrorState context={context} message={error.message} />
-          <span aria-hidden="true" className="report-anchor" id="dimensions" />
-        </section>
-      </>
+      <section className="card" aria-label={report}>
+        <ErrorState context={context} message={error.message} />
+      </section>
     );
   }
 
@@ -73,49 +57,50 @@ export function DashboardSections({
     <>
       <Suspense
         fallback={
-          <>
-            <section className="card" id="overview" aria-label="Overview">
-              <LoadingState context={context} />
+          [
+            "overview",
+            "pages",
+            "custom-events",
+            "countries",
+            "web-vitals",
+            "conversions",
+            "funnels",
+          ].includes(report) ? (
+            <section className="card" aria-label={`${report} loading`}>
+              {report === "overview" ? (
+                <LoadingState context={context} />
+              ) : (
+                <p role="status">Loading {report.replaceAll("-", " ")}...</p>
+              )}
             </section>
-            <section className="card" id="custom-events" aria-label="Custom Events">
-              <h2>Custom Events</h2>
-              <p role="status">Loading custom events...</p>
-            </section>
-            <section className="card" id="countries" aria-label="Geo countries">
-              <h2>Countries</h2>
-              <p role="status">Loading country data...</p>
-            </section>
-            <section className="card" id="web-vitals" aria-label="Web Vitals">
-              <h2>Web Vitals</h2>
-              <p role="status">Loading Web Vitals...</p>
-            </section>
-            <section className="card" id="conversions" aria-label="Conversions">
-              <h2>Conversions</h2>
-              <p role="status">Loading conversions...</p>
-            </section>
-            <section className="card" id="funnels" aria-label="Funnels">
-              <h2>Funnels</h2>
-              <p role="status">Loading funnels...</p>
-            </section>
-          </>
+          ) : null
         }
       >
-        <LegacyDashboardSections context={context} client={client} />
+        <LegacyDashboardSections
+          context={context}
+          client={client}
+          report={report}
+          environment={environment}
+        />
       </Suspense>
       <Suspense
         fallback={
-          <>
-            <div id="visitors">
-              <Phase6LoadingState heading="Visitors and Sessions" />
-              <span aria-hidden="true" className="report-anchor" id="sessions" />
-            </div>
-            <div id="dimensions">
-              <Phase6LoadingState heading="Dimension Report" />
-            </div>
-          </>
+          ["overview", "visitors", "sessions", "dimensions"].includes(report) ? (
+            <Phase6LoadingState
+              heading={
+                report === "overview"
+                  ? "Audience summary"
+                  : report === "dimensions"
+                    ? "Dimensions"
+                    : report === "sessions"
+                      ? "Sessions"
+                      : "Visitors"
+              }
+            />
+          ) : null
         }
       >
-        <Phase6DashboardSections context={context} client={client} />
+        <Phase6DashboardSections context={context} client={client} report={report} />
       </Suspense>
     </>
   );

@@ -1,7 +1,10 @@
 import React from "react";
 
+import { DisabledState } from "./states/disabled-state";
 import { EmptyState } from "./states/empty-state";
 import { ErrorState } from "./states/error-state";
+import { UnavailableState } from "./states/unavailable-state";
+import { Table } from "./ui";
 
 import type { DimensionResponse } from "../lib/analytics-api/types";
 import type { DashboardOverviewContext } from "../lib/dashboard-overview";
@@ -19,14 +22,16 @@ export function DimensionReportTable({ context, state }: DimensionReportTablePro
       {state.status === "error" ? (
         <ErrorState context={context} message={state.error.message} />
       ) : state.status === "disabled" ? (
-        <p role="status">Phase 6 analytics is not enabled for this site.</p>
+        <DisabledState context={context} label="Dimension" />
+      ) : state.status === "unavailable" ? (
+        <UnavailableState context={context} label="Dimension" />
       ) : state.data.items.length === 0 ? (
         <EmptyState
           context={context}
           message="No Phase 6 analytics data is available for this selection."
         />
       ) : (
-        <table className="data-table">
+        <Table className="data-table">
           <caption className="table-caption">
             {state.data.dimension} values ordered by page views
           </caption>
@@ -48,7 +53,7 @@ export function DimensionReportTable({ context, state }: DimensionReportTablePro
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
       )}
     </section>
   );

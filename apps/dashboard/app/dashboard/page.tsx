@@ -5,6 +5,7 @@ import { DashboardHeader, DashboardShell } from "../../components/dashboard-shel
 import { SiteDirectoryState, SiteSelectionState } from "../../components/site-directory-state";
 import { ErrorState } from "../../components/states/error-state";
 import { selectDashboardSite, siteOptions } from "../../config/sites";
+import { getAnalyticsReportCopy } from "../../lib/analytics-report-copy";
 import { loadDefinitionRevisions } from "../../lib/dashboard-page-data";
 import {
   defaultDashboardDateRange,
@@ -14,17 +15,28 @@ import {
 } from "../../lib/query-params";
 import { loadSiteDirectory } from "../../lib/site-management/client";
 
+import type { Metadata } from "next";
+
 interface DashboardPageProps {
   searchParams: Promise<DashboardSearchParams>;
 }
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Overview" };
 
 function firstValue(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  return DashboardRouteContent({ searchParams, report: "overview" });
+}
+
+export async function DashboardRouteContent({
+  searchParams,
+  report,
+}: DashboardPageProps & { report: string }) {
+  const reportInfo = getAnalyticsReportCopy(report);
   const resolvedSearchParams = await searchParams;
   const environment = firstValue(resolvedSearchParams.environment);
   const directory = await loadSiteDirectory();
@@ -33,7 +45,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       <main className="dashboard-shell bg-canvas text-ink">
         <DashboardHeader />
         <div className="dashboard-container py-8">
-          <h1 className="mb-6 text-3xl font-bold tracking-tight">Analytics</h1>
+          <h1 className="mb-2 text-3xl font-bold tracking-tight">{reportInfo.title}</h1>
+          <p className="mb-6 text-sm leading-6 text-muted">{reportInfo.description}</p>
           <SiteDirectoryState result={directory} />
         </div>
       </main>
@@ -53,6 +66,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
     return (
       <DashboardShell
+        report={report}
         dateRange={dateRange}
         siteId={displayedSite.site_id}
         sites={options}
@@ -73,7 +87,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       <main className="dashboard-shell bg-canvas text-ink">
         <DashboardHeader />
         <div className="dashboard-container py-8">
-          <h1 className="mb-6 text-3xl font-bold tracking-tight">Analytics</h1>
+          <h1 className="mb-2 text-3xl font-bold tracking-tight">{reportInfo.title}</h1>
+          <p className="mb-6 text-sm leading-6 text-muted">{reportInfo.description}</p>
           <SiteSelectionState selection={selection} sites={directory.sites} />
         </div>
       </main>
@@ -84,7 +99,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       <main className="dashboard-shell bg-canvas text-ink">
         <DashboardHeader />
         <div className="dashboard-container py-8">
-          <h1 className="mb-6 text-3xl font-bold tracking-tight">Analytics</h1>
+          <h1 className="mb-2 text-3xl font-bold tracking-tight">{reportInfo.title}</h1>
+          <p className="mb-6 text-sm leading-6 text-muted">{reportInfo.description}</p>
           <section className="card">
             <ErrorState message="The Site Registry returned no selectable Sites." />
           </section>
@@ -109,6 +125,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
     return (
       <DashboardShell
+        report={report}
         dateRange={displayedDateRange}
         siteId={displayedSite}
         sites={options}
@@ -129,6 +146,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   return (
     <DashboardShell
+      report={report}
       definitionVersions={definitionVersions}
       definitionVersion={query.params.definitionVersion}
       dateRange={query.params.dateRange}
@@ -138,6 +156,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       environment={environment}
     >
       <DashboardSections
+        report={report}
+        environment={environment}
         from={query.params.dateRange.from}
         siteId={query.params.siteId}
         to={query.params.dateRange.to}

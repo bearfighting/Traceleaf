@@ -50,12 +50,12 @@ describe("DashboardLoadingHeader Suspense fallback", () => {
     await act(async () => root.render(<DashboardLoadingHeader />));
 
     expect(container.querySelector('a[href^="/dashboard?"]')?.getAttribute("href")).toBe(
-      "/dashboard?site_id=site_alpha&environment=staging&from=2026-09-01&to=2026-09-30&dimension=browser&definition_version=r2",
+      "/dashboard?site_id=site_alpha&from=2026-09-01&to=2026-09-30&environment=staging",
     );
     expect(
       container.querySelector('a[href^="/dashboard/settings/overview"]')?.getAttribute("href"),
     ).toBe(
-      "/dashboard/settings/overview?site_id=site_alpha&environment=staging&from=2026-09-01&to=2026-09-30&dimension=browser&definition_version=r2",
+      "/dashboard/settings/overview?site_id=site_alpha&environment=staging&from=2026-09-01&to=2026-09-30",
     );
 
     await act(async () => root.unmount());
@@ -77,13 +77,11 @@ describe("DashboardLoadingHeader Suspense fallback", () => {
     });
 
     expect(container.querySelector('a[href^="/dashboard?"]')?.getAttribute("href")).toBe(
-      "/dashboard?site_id=site_beta&environment=production&dimension=country",
+      "/dashboard?site_id=site_beta&environment=production",
     );
     expect(
       container.querySelector('a[href^="/dashboard/settings/overview"]')?.getAttribute("href"),
-    ).toBe(
-      "/dashboard/settings/overview?site_id=site_beta&environment=production&dimension=country",
-    );
+    ).toBe("/dashboard/settings/overview?site_id=site_beta&environment=production");
 
     await act(async () => root.unmount());
   });

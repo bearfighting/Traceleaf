@@ -1,7 +1,10 @@
 import React from "react";
 
+import { DisabledState } from "./states/disabled-state";
 import { EmptyState } from "./states/empty-state";
 import { ErrorState } from "./states/error-state";
+import { UnavailableState } from "./states/unavailable-state";
+import { Table } from "./ui";
 
 import type { GeoCountryResponse } from "../lib/analytics-api/types";
 import type { DashboardOverviewContext } from "../lib/dashboard-overview";
@@ -42,11 +45,13 @@ export function GeoCountryTable({
       {state.status === "error" ? (
         <ErrorState context={context} message={state.error.message} />
       ) : state.status === "disabled" ? (
-        <p role="status">Geo country reporting is unavailable.</p>
+        <DisabledState context={context} label="Geo country" />
+      ) : state.status === "unavailable" ? (
+        <UnavailableState context={context} label="Geo country" />
       ) : state.data.items.length === 0 ? (
         <EmptyState context={context} />
       ) : (
-        <table className="data-table">
+        <Table className="data-table">
           <caption className="table-caption">Page Views by country</caption>
           <thead>
             <tr>
@@ -62,7 +67,7 @@ export function GeoCountryTable({
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
       )}
     </section>
   );

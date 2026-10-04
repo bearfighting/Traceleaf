@@ -26,6 +26,7 @@ describe("TopPagesTable", () => {
       <TopPagesTable context={context} state={{ status: "success", data }} />,
     );
 
+    expect(markup).toMatch(/<table\b[^>]*\btabindex="0"/);
     expect(markup.indexOf("<code>/about</code>")).toBeLessThan(markup.indexOf("<code>/</code>"));
     expect(markup).toContain("2");
     expect(markup).toContain("1");

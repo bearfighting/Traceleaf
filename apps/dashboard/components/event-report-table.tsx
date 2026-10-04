@@ -1,7 +1,10 @@
 import React from "react";
 
+import { DisabledState } from "./states/disabled-state";
 import { EmptyState } from "./states/empty-state";
 import { ErrorState } from "./states/error-state";
+import { UnavailableState } from "./states/unavailable-state";
+import { Table } from "./ui";
 
 import type { EventsResponse } from "../lib/analytics-api/types";
 import type { DashboardOverviewContext } from "../lib/dashboard-overview";
@@ -20,7 +23,9 @@ export function EventReportTable({
       {state.status === "error" ? (
         <ErrorState context={context} message={state.error.message} />
       ) : state.status === "disabled" ? (
-        <p role="status">Custom Events are unavailable.</p>
+        <DisabledState context={context} label="Custom Events" />
+      ) : state.status === "unavailable" ? (
+        <UnavailableState context={context} label="Custom Events" />
       ) : state.data.items.length === 0 ? (
         <EmptyState context={context} />
       ) : (
@@ -28,7 +33,7 @@ export function EventReportTable({
           <p className="metric" data-events={state.data.total}>
             {state.data.total}
           </p>
-          <table className="data-table">
+          <Table className="data-table">
             <caption className="table-caption">Custom Event counts by UTC date</caption>
             <thead>
               <tr>
@@ -46,7 +51,7 @@ export function EventReportTable({
                 </tr>
               ))}
             </tbody>
-          </table>
+          </Table>
         </>
       )}
     </section>

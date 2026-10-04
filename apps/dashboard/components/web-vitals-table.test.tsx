@@ -59,4 +59,20 @@ describe("WebVitalsTable", () => {
     );
     expect(error).toContain("Request failed");
   });
+
+  it("shows unsupported API clients as unavailable, not as a disabled capability", () => {
+    const unavailable = renderToStaticMarkup(
+      <WebVitalsTable
+        context={context}
+        state={{
+          status: "unavailable",
+          error: new AnalyticsApiClientError("Endpoint is missing", { kind: "unavailable" }),
+        }}
+      />,
+    );
+
+    expect(unavailable).toContain("not supported by the configured Analytics API client");
+    expect(unavailable).not.toContain("not enabled");
+    expect(unavailable).not.toContain("/dashboard/settings/capabilities");
+  });
 });

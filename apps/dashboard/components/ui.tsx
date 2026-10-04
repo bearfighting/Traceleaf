@@ -5,6 +5,7 @@ import type {
   HTMLAttributes,
   InputHTMLAttributes,
   SelectHTMLAttributes,
+  TableHTMLAttributes,
 } from "react";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
@@ -100,6 +101,16 @@ export function Alert({
   );
 }
 
-export function Table({ className = "", ...props }: HTMLAttributes<HTMLTableElement>) {
-  return <table className={`w-full border-collapse text-left text-sm ${className}`} {...props} />;
+export function Table({
+  className = "",
+  tabIndex = 0,
+  ...props
+}: TableHTMLAttributes<HTMLTableElement>) {
+  return (
+    <table
+      className={`w-full border-collapse text-left text-sm ${className}`}
+      tabIndex={tabIndex}
+      {...props}
+    />
+  );
 }

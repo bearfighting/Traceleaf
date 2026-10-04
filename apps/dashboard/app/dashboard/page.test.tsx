@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import DashboardPage from "./page";
+import DashboardPage, { DashboardRouteContent, metadata } from "./page";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -13,6 +13,10 @@ afterEach(() => {
 });
 
 describe("DashboardPage server contract", () => {
+  it("sets the Overview document title", () => {
+    expect(metadata.title).toBe("Overview");
+  });
+
   const site = {
     site_id: "site_playground",
     display_name: "Playground",
@@ -77,5 +81,20 @@ describe("DashboardPage server contract", () => {
     expect(markup).toContain("Site directory unavailable");
     expect(markup).toContain("Admin token rejected.");
     expect(markup).not.toContain("No Sites registered");
+  });
+
+  it("keeps the report title and description on a Site Registry error state", async () => {
+    configureRegistry(
+      Response.json({ error: { message: "Site management is unavailable." } }, { status: 503 }),
+    );
+
+    const element = await DashboardRouteContent({
+      searchParams: Promise.resolve({}),
+      report: "pages",
+    });
+    const markup = renderToStaticMarkup(element);
+
+    expect(markup).toContain(">Pages</h1>");
+    expect(markup).toContain("Page view trends and the most visited paths.");
   });
 });
