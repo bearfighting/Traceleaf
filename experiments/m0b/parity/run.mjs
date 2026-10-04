@@ -199,7 +199,7 @@ const tsv = [
       row.typifySerde,
       row.collector,
       row.serializedSchema.typescript,
-      row.serializedSchema.rust,
+      row.serializedSchema.rust ?? "null",
     ].join("\t"),
   ),
 ].join("\n");
