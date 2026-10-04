@@ -19,7 +19,7 @@ interface VisitorSessionTrendTableProps {
 export function VisitorSessionTrendTable({ context, state, focus }: VisitorSessionTrendTableProps) {
   return (
     <section
-      className="card scroll-mt-6"
+      className="card report-card"
       id={focus ?? "visitors"}
       aria-labelledby="visitor-session-heading"
     >

@@ -11,6 +11,7 @@ import {
 } from "../lib/settings-routes";
 
 import { AnalyticsSidebar } from "./analytics-sidebar";
+import * as UI from "./ui";
 import { Button, Select } from "./ui";
 
 import type { AnalyticsDimension } from "../lib/analytics-api/types";
@@ -83,22 +84,19 @@ export function DashboardHeader({
   settingsHref?: string;
 }) {
   return (
-    <header className="border-b border-line bg-surface">
-      <div className="dashboard-container flex min-h-[76px] flex-wrap items-center justify-between gap-4 py-3">
+    <header className="dashboard-topbar">
+      <div className="dashboard-container dashboard-topbar-inner">
         <Link
           aria-label="Web Analytics home"
-          className="flex items-center gap-3 no-underline"
+          className="brand-link"
           href={analyticsHref ?? "/dashboard"}
         >
-          <span
-            aria-hidden="true"
-            className="grid size-10 place-items-center rounded-xl bg-brand text-base font-bold text-white shadow-sm"
-          >
+          <span aria-hidden="true" className="brand-mark">
             W
           </span>
-          <span className="grid gap-0.5">
-            <span className="text-sm font-bold tracking-tight text-ink">Web Analytics</span>
-            <span className="text-xs text-muted">Platform</span>
+          <span className="brand-copy">
+            <span className="brand-name">Web Analytics</span>
+            <span className="brand-tagline">Platform</span>
           </span>
         </Link>
         <nav aria-label="Primary navigation" className="dashboard-nav">
@@ -116,6 +114,9 @@ export function DashboardHeader({
             }
           >
             Settings
+          </Link>
+          <Link className="add-site-link" href="/dashboard/sites/new">
+            Add a Site
           </Link>
         </nav>
       </div>
@@ -163,7 +164,7 @@ export function DashboardShell({
   }).split("?")[1];
 
   return (
-    <main className="dashboard-shell bg-canvas text-ink">
+    <main className="dashboard-shell">
       <DashboardHeader
         siteId={siteId}
         settingsMode={settingsMode}
@@ -171,7 +172,7 @@ export function DashboardShell({
         settingsHref={settingsHref}
       />
       <div
-        className={`dashboard-container grid gap-8 py-8 lg:gap-10 ${settingsMode ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)]"}`}
+        className={`dashboard-container dashboard-layout ${settingsMode ? "dashboard-layout-settings" : "dashboard-layout-analytics"}`}
       >
         {!settingsMode && (
           <AnalyticsSidebar
@@ -179,14 +180,12 @@ export function DashboardShell({
             search={sidebarSearch}
           />
         )}
-        <div className="min-w-0">
-          <div className="mb-6 flex flex-wrap items-end justify-between gap-5">
+        <div className="dashboard-content-main">
+          <div className="dashboard-page-heading">
             <div>
               <p className="eyebrow">{settingsMode ? "Workspace" : "Analytics"}</p>
-              <h1 className="m-0 text-3xl font-bold tracking-tight text-ink">
-                {settingsMode ? "Site settings" : reportInfo.title}
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
+              <h1 className="page-title">{settingsMode ? "Site settings" : reportInfo.title}</h1>
+              <p className="page-description">
                 {settingsMode
                   ? "Manage capabilities, ingestion, and analytics definitions for a site."
                   : reportInfo.description}
@@ -197,7 +196,7 @@ export function DashboardShell({
           {settingsMode ? (
             <form
               action={`/dashboard/settings/${settingsSection}`}
-              className="filters mb-6"
+              className="filters site-selector-form"
               method="get"
             >
               <label>
@@ -210,19 +209,19 @@ export function DashboardShell({
                   ))}
                 </Select>
               </label>
-              {dateRange.from && <input name="from" type="hidden" value={dateRange.from} />}
-              {dateRange.to && <input name="to" type="hidden" value={dateRange.to} />}
-              {dimension && <input name="dimension" type="hidden" value={dimension} />}
+              {dateRange.from && <UI.Input name="from" type="hidden" value={dateRange.from} />}
+              {dateRange.to && <UI.Input name="to" type="hidden" value={dateRange.to} />}
+              {dimension && <UI.Input name="dimension" type="hidden" value={dimension} />}
               {definitionVersion && (
-                <input name="definition_version" type="hidden" value={definitionVersion} />
+                <UI.Input name="definition_version" type="hidden" value={definitionVersion} />
               )}
-              {environment && <input name="environment" type="hidden" value={environment} />}
+              {environment && <UI.Input name="environment" type="hidden" value={environment} />}
               <Button type="submit">Select site</Button>
             </form>
           ) : (
             <form
               action={report === "overview" ? "/dashboard" : `/dashboard/${report}`}
-              className="filters mb-6 rounded-xl border border-line bg-surface p-4 shadow-sm"
+              className="filters analytics-filters"
               method="get"
             >
               <label>
@@ -237,11 +236,11 @@ export function DashboardShell({
               </label>
               <label>
                 From
-                <input defaultValue={dateRange.from} name="from" type="date" />
+                <UI.DatePicker defaultValue={dateRange.from} name="from" />
               </label>
               <label>
                 To
-                <input defaultValue={dateRange.to} name="to" type="date" />
+                <UI.DatePicker defaultValue={dateRange.to} name="to" />
               </label>
               {(report === "conversions" || report === "funnels") && (
                 <label>
@@ -268,7 +267,7 @@ export function DashboardShell({
                   </Select>
                 </label>
               )}
-              {environment && <input name="environment" type="hidden" value={environment} />}
+              {environment && <UI.Input name="environment" type="hidden" value={environment} />}
               <Button type="submit">Apply filters</Button>
             </form>
           )}

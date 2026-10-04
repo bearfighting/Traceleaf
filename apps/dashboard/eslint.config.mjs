@@ -7,6 +7,19 @@ export default defineConfig([
   prettier,
   globalIgnores([".next/**", "node_modules/**", "out/**", "dist/**", "coverage/**"]),
   {
+    files: ["app/**/*.tsx", "components/**/*.tsx"],
+    ignores: ["**/*.test.tsx", "components/ui/**"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...["button", "input", "select", "textarea", "table"].map((tag) => ({
+          selector: `JSXOpeningElement[name.name='${tag}']`,
+          message: `Use the shadcn/ui component for <${tag}> elements.`,
+        })),
+      ],
+    },
+  },
+  {
     rules: {
       "import/order": [
         "error",

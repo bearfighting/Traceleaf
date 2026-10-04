@@ -105,7 +105,7 @@ describe("IngestKeysManager create recovery", () => {
     expect(container?.querySelector('[role="alertdialog"]')?.textContent).toContain("ik_existing");
 
     await act(async () => {
-      button("Confirm revoke ik_existing").click();
+      button("Revoke ik_existing").click();
       await new Promise((resolve) => setTimeout(resolve, 1));
     });
 

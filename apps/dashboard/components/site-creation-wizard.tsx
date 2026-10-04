@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import * as UI from "./ui";
 import { Button, Input } from "./ui";
 
 type Capability = { id: string; status: string; depends_on: string[] };
@@ -339,18 +340,18 @@ export function SiteCreationWizard({ manifest }: { manifest: Capability[] }) {
     const key = created?.ingest_key.key || replacementKey;
 
     return (
-      <section className="card max-w-3xl" aria-label="Site creation result">
-        <h2 className="text-xl font-semibold">
+      <section className="card onboarding-panel" aria-label="Site creation result">
+        <h2 className="onboarding-result-title">
           {created ? "Site created" : "Credentials need recovery"}
         </h2>
-        <p className="mt-2 text-sm text-muted">
+        <p className="onboarding-copy">
           Site ID: <code>{siteId}</code>
         </p>
-        <p className="text-sm text-muted">
+        <p className="onboarding-copy">
           Environment: <code>{env}</code>
         </p>
         <Link
-          className="mt-3 inline-flex min-h-10 items-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold"
+          className="button-link button-link-secondary"
           href={`/dashboard/settings/overview?site_id=${encodeURIComponent(siteId)}&environment=${encodeURIComponent(env)}`}
           target="_blank"
           rel="noopener noreferrer"
@@ -359,28 +360,28 @@ export function SiteCreationWizard({ manifest }: { manifest: Capability[] }) {
         </Link>
         {created && (
           <>
-            <p className="text-sm text-muted">Allowed Origins: {allowedOrigins.join(", ")}</p>
-            <h3 className="mt-5 font-semibold">One-time Ingest Key</h3>
-            <p className="text-sm text-muted">
+            <p className="onboarding-copy">Allowed Origins: {allowedOrigins.join(", ")}</p>
+            <h3 className="onboarding-section-title">One-time Ingest Key</h3>
+            <p className="onboarding-copy">
               Copy this key now. It is held only in this page&apos;s memory and cannot be recovered
               after leaving or refreshing.
             </p>
           </>
         )}
         {replayedSiteId && (
-          <p className="mt-3 text-sm">
+          <p className="onboarding-notice">
             This request was already completed. Its original key cannot be recovered here.
           </p>
         )}
         {restored && (
-          <p className="mt-3 text-sm">
+          <p className="onboarding-notice">
             The original key is no longer available in this page. Creating a replacement keeps the
             current keys active until you verify the new one.
           </p>
         )}
         {key && (
-          <div className="mt-3 flex gap-2">
-            <code className="break-all rounded bg-slate-100 p-3">{key}</code>
+          <div className="onboarding-key-row">
+            <code className="onboarding-key-code">{key}</code>
             <Button variant="secondary" onClick={() => void navigator.clipboard.writeText(key)}>
               Copy
             </Button>
@@ -388,7 +389,7 @@ export function SiteCreationWizard({ manifest }: { manifest: Capability[] }) {
         )}
         {(replayedSiteId || restored) && (
           <Button
-            className="mt-4"
+            className="onboarding-recovery-action"
             disabled={
               !replacementStatusLoaded ||
               replacementPending ||
@@ -409,14 +410,14 @@ export function SiteCreationWizard({ manifest }: { manifest: Capability[] }) {
           </Button>
         )}
         {replacementNeedsReview && (
-          <div className="mt-3 rounded-lg border border-amber-700/20 bg-warning-soft p-3 text-sm text-amber-900">
+          <div className="onboarding-warning">
             <p>
               Check the environment&apos;s key list in Settings. If a new key appeared, verify it or
               revoke it there before starting another replacement.
             </p>
             <Button
               variant="secondary"
-              className="mt-2"
+              className="onboarding-warning-action"
               onClick={() => {
                 updateReplacementAttemptMarker(replacementAttemptKey, null);
                 setReplacementNeedsReview(false);
@@ -428,15 +429,15 @@ export function SiteCreationWizard({ manifest }: { manifest: Capability[] }) {
           </div>
         )}
         {replacementError && (
-          <p role="alert" className="mt-2 text-sm text-red-700">
+          <p role="alert" className="onboarding-error">
             {replacementError}
           </p>
         )}
         {(created || replacementKey) && (
           <>
-            <h3 className="mt-6 font-semibold">Install the browser SDK</h3>
-            <pre className="mt-2 overflow-auto rounded bg-slate-950 p-4 text-sm text-white">{`# .env.local on the observed Next.js website\nNEXT_PUBLIC_ANALYTICS_TRANSPORT=fetch\nNEXT_PUBLIC_ANALYTICS_ENDPOINT=https://<collector-host>/v1/events\nNEXT_PUBLIC_ANALYTICS_SITE_ID=${siteId}\nNEXT_PUBLIC_ANALYTICS_INGEST_KEY=${key || "<copy the key above>"}`}</pre>
-            <p className="mt-2 text-sm text-muted">
+            <h3 className="onboarding-section-title">Install the browser SDK</h3>
+            <pre className="onboarding-code-block">{`# .env.local on the observed Next.js website\nNEXT_PUBLIC_ANALYTICS_TRANSPORT=fetch\nNEXT_PUBLIC_ANALYTICS_ENDPOINT=https://<collector-host>/v1/events\nNEXT_PUBLIC_ANALYTICS_SITE_ID=${siteId}\nNEXT_PUBLIC_ANALYTICS_INGEST_KEY=${key || "<copy the key above>"}`}</pre>
+            <p className="onboarding-copy">
               Configure these values on the observed website and replace the Collector URL with your
               deployment&apos;s full POST /v1/events endpoint. This Site uses the {env} environment;
               the Collector matches it through the configured Origin policy. Keep the key out of
@@ -452,26 +453,26 @@ export function SiteCreationWizard({ manifest }: { manifest: Capability[] }) {
   const steps = ["Site details", "Environment & Origins", "Capabilities", "Review"];
 
   return (
-    <section className="card max-w-3xl" aria-label="Site creation wizard">
-      <ol className="mb-6 flex flex-wrap gap-3 text-sm">
+    <section className="card onboarding-panel" aria-label="Site creation wizard">
+      <ol className="onboarding-steps">
         {steps.map((label, index) => (
           <li
             key={label}
             aria-current={step === index ? "step" : undefined}
-            className={step === index ? "font-semibold text-blue-700" : "text-muted"}
+            className="onboarding-step"
           >
             {index + 1}. {label}
           </li>
         ))}
       </ol>
       {step === 0 && (
-        <div className="grid gap-4">
-          <label className="grid gap-1">
+        <div className="onboarding-step-content">
+          <label className="form-field">
             Site name
             <Input value={values.name} onChange={(e) => update("name", e.target.value)} />
           </label>
           {fieldErrors.name && <p role="alert">{fieldErrors.name}</p>}
-          <label className="grid gap-1">
+          <label className="form-field">
             Website URL
             <Input
               type="url"
@@ -486,8 +487,8 @@ export function SiteCreationWizard({ manifest }: { manifest: Capability[] }) {
         </div>
       )}
       {step === 1 && (
-        <div className="grid gap-4">
-          <label className="grid gap-1">
+        <div className="onboarding-step-content">
+          <label className="form-field">
             Environment
             <Input
               value={values.environment}
@@ -496,7 +497,7 @@ export function SiteCreationWizard({ manifest }: { manifest: Capability[] }) {
           </label>
           {fieldErrors.environment && <p role="alert">{fieldErrors.environment}</p>}
           <div>
-            <label className="grid gap-1">
+            <label className="form-field">
               Allowed Origins
               <Input
                 value={originInput}
@@ -504,13 +505,13 @@ export function SiteCreationWizard({ manifest }: { manifest: Capability[] }) {
                 onChange={(e) => setOriginInput(e.target.value)}
               />
             </label>
-            <Button variant="secondary" className="mt-2" onClick={addOrigin}>
+            <Button variant="secondary" className="onboarding-add-origin" onClick={addOrigin}>
               Add Origin
             </Button>
             {fieldErrors.origins && <p role="alert">{fieldErrors.origins}</p>}
-            <ul>
+            <ul className="origin-entry-list">
               {allowedOrigins.map((origin) => (
-                <li key={origin} className="mt-2 flex items-center gap-2">
+                <li key={origin} className="origin-entry">
                   <code>{origin}</code>
                   {origin !== websiteOrigin && (
                     <Button
@@ -530,21 +531,20 @@ export function SiteCreationWizard({ manifest }: { manifest: Capability[] }) {
               ))}
             </ul>
           </div>
-          <p className="text-sm text-muted">
+          <p className="onboarding-copy">
             Origins are validated locally; the Dashboard does not request these URLs.
           </p>
         </div>
       )}
       {step === 2 && (
-        <fieldset>
-          <legend className="mb-3 font-semibold">Choose implemented capabilities</legend>
+        <fieldset className="capability-choice-list">
+          <legend>Choose implemented capabilities</legend>
           {manifest
             .filter((item) => item.status === "implemented")
             .map((item) => (
-              <label key={item.id} className="mb-2 flex gap-2">
-                <input
+              <label key={item.id} className="capability-choice">
+                <UI.Checkbox
                   type="checkbox"
-                  className="mt-1 accent-brand"
                   checked={enabledCapabilities.includes(item.id)}
                   disabled={item.id === "page_views"}
                   onChange={(event) =>
@@ -559,13 +559,11 @@ export function SiteCreationWizard({ manifest }: { manifest: Capability[] }) {
                 {item.id === "page_views" && " (required)"}
               </label>
             ))}
-          <p className="mt-3 text-sm text-muted">
-            Required dependencies are enabled automatically.
-          </p>
+          <p className="onboarding-copy">Required dependencies are enabled automatically.</p>
         </fieldset>
       )}
       {step === 3 && (
-        <div className="space-y-2 text-sm">
+        <div className="onboarding-review">
           <p>
             <b>Name:</b> {values.name}
           </p>
@@ -584,18 +582,18 @@ export function SiteCreationWizard({ manifest }: { manifest: Capability[] }) {
         </div>
       )}
       {error && (
-        <p role="alert" className="mt-4 text-sm text-red-700">
+        <p role="alert" className="onboarding-error">
           {error}
         </p>
       )}
       {Object.entries(fieldErrors)
         .filter(([, message]) => Boolean(message))
         .map(([field, message]) => (
-          <p role="alert" key={field} className="mt-2 text-sm text-red-700">
+          <p role="alert" key={field} className="onboarding-error">
             {field}: {message}
           </p>
         ))}
-      <div className="mt-6 flex justify-between">
+      <div className="onboarding-wizard-actions">
         <Button
           variant="secondary"
           disabled={step === 0 || creating}

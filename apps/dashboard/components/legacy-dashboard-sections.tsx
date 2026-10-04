@@ -62,7 +62,7 @@ export async function LegacyDashboardSections({
         )}
         <section className="card" aria-label="Detailed reports">
           <h2>Explore reports</h2>
-          <div className="flex flex-wrap gap-3">
+          <nav aria-label="Explore reports" className="report-links">
             {[
               "pages",
               "dimensions",
@@ -75,14 +75,14 @@ export async function LegacyDashboardSections({
               "funnels",
             ].map((path) => (
               <a
-                className="button button-secondary"
+                className="report-link"
                 href={`/dashboard/${path}?${params.toString()}`}
                 key={path}
               >
                 {path.replaceAll("-", " ")}
               </a>
             ))}
-          </div>
+          </nav>
         </section>
       </>
     );

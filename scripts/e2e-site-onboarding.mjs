@@ -195,7 +195,10 @@ async function main() {
     const page = await browser.newPage();
     await page.goto(`${dashboardUrl}/dashboard`);
     await page.getByText("No Sites registered").waitFor();
-    await page.getByRole("link", { name: /Add a Site/i }).click();
+    await page
+      .getByRole("region", { name: "Site directory status" })
+      .getByRole("link", { name: /Add a Site/i })
+      .click();
     await page.getByLabel("Site name").fill("Onboarding E2E Site");
     await page.getByLabel("Website URL").fill(playgroundUrl);
     await page.getByRole("button", { name: "Continue" }).click();
@@ -303,7 +306,7 @@ async function main() {
     const settingsText = await connectionStatus.innerText();
     assert.match(
       settingsText,
-      /Site Page Views \(all environments\):\s*[1-9][0-9]*/,
+      /SITE PAGE VIEWS\s*[1-9][0-9]*/,
       `Settings did not show the received Page View count: ${settingsText}`,
     );
     console.log("PASS Settings shows the received Page View count");

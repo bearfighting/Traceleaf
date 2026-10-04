@@ -155,7 +155,7 @@ flowchart LR
 
 ### M7：Dashboard 视觉与信息架构
 
-**状态（2026-10-02）：M7a 完成**。Tailwind 主题与基础控件、Global Header、Analytics Sidebar、响应式导航及 Analytics/Settings 筛选状态保持已实现并验证；记录见 [Dashboard UI 改进方案](dashboard-ui-improvements.md)。
+**状态（2026-10-04）：M7a 重新验收完成**。Dashboard 业务控件已统一迁移到 `components/ui/` shadcn 源码组件，ESLint 禁止业务页面直接编写原生交互控件。Dashboard 单测、项目检查/测试/构建/格式检查、Dashboard E2E 和 Site onboarding E2E 均通过；验收证据见 [Dashboard UI 改进方案](dashboard-ui-improvements.md)。
 
 **M7a 可在 M0a 后与 M1–M5 并行**：接入 Tailwind/shadcn，建立主题 token、基础控件、Global Header、页面骨架、Analytics Sidebar 和筛选状态规则。使用可替换的站点数据入口承接当前静态列表，不把环境变量固定进新 Shell。
 

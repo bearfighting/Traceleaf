@@ -5,6 +5,8 @@ import React, { useState } from "react";
 
 import { configurationRequestError } from "../lib/configuration-api/errors";
 
+import * as UI from "./ui";
+
 import type { DefinitionLoadResult } from "../lib/configuration-api/server";
 import type { DefinitionSetResponse } from "../lib/configuration-api/types";
 
@@ -79,6 +81,7 @@ function Editor({
   const [error, setError] = useState("");
   const [message, setMessage] = useState(savedMessage);
   const [versionConflict, setVersionConflict] = useState(false);
+  const [confirmReload, setConfirmReload] = useState(false);
   const hasUnsavedChanges =
     JSON.stringify({ conversions, funnels }) !==
     JSON.stringify({ conversions: baseline?.conversions ?? [], funnels: baseline?.funnels ?? [] });
@@ -127,12 +130,13 @@ function Editor({
     }
   }
 
-  async function reloadLatest() {
-    if (
-      hasUnsavedChanges &&
-      !window.confirm("Reload the latest definitions and discard your unsaved changes?")
-    )
+  async function reloadLatest(force = false) {
+    if (hasUnsavedChanges && !force) {
+      setConfirmReload(true);
+
       return;
+    }
+    setConfirmReload(false);
 
     setBusy(true);
     setError("");
@@ -161,7 +165,11 @@ function Editor({
   }
 
   return (
-    <section className="card" aria-label="Conversion and funnel definitions" id="definitions">
+    <section
+      className="card definition-editor"
+      aria-label="Conversion and funnel definitions"
+      id="definitions"
+    >
       <h2>Conversions and funnels</h2>
       <p>
         Each save creates an immutable site revision. Deactivate definitions to preserve their IDs
@@ -171,9 +179,9 @@ function Editor({
         <div role="alert">
           <p>{error}</p>
           {versionConflict && (
-            <button type="button" disabled={busy} onClick={() => void reloadLatest()}>
+            <UI.Button type="button" disabled={busy} onClick={() => void reloadLatest()}>
               {busy ? "Loading latest definitions…" : "Reload latest definitions"}
-            </button>
+            </UI.Button>
           )}
         </div>
       )}
@@ -183,127 +191,153 @@ function Editor({
           Stored revision: {revision} · {definitionVersion}
         </p>
       )}
-      <fieldset disabled={busy}>
-        <h3>Conversions</h3>
-        {conversions.map((item, index) => (
-          <fieldset key={item.id} className="card">
-            <legend>{item.name || item.id || "Conversion"}</legend>
-            <label>
-              ID{" "}
-              <input
-                value={item.id}
-                disabled={index < (baseline?.conversions.length ?? 0)}
-                onChange={(event) =>
+      <fieldset className="definition-groups" disabled={busy}>
+        <section className="definition-group" aria-labelledby="conversions-heading">
+          <h3 id="conversions-heading">Conversions</h3>
+          {conversions.map((item, index) => (
+            <fieldset key={item.id} className="card definition-item">
+              <legend>{item.name || item.id || "Conversion"}</legend>
+              <label className="definition-field">
+                ID{" "}
+                <UI.Input
+                  value={item.id}
+                  disabled={index < (baseline?.conversions.length ?? 0)}
+                  onChange={(event) =>
+                    setConversions(
+                      conversions.map((row, i) =>
+                        i === index ? { ...row, id: event.target.value } : row,
+                      ),
+                    )
+                  }
+                />
+              </label>
+              <label className="definition-field">
+                Name{" "}
+                <UI.Input
+                  value={item.name}
+                  onChange={(event) =>
+                    setConversions(
+                      conversions.map((row, i) =>
+                        i === index ? { ...row, name: event.target.value } : row,
+                      ),
+                    )
+                  }
+                />
+              </label>
+              <label className="definition-field">
+                Event name{" "}
+                <UI.Input
+                  value={item.event_name}
+                  onChange={(event) =>
+                    setConversions(
+                      conversions.map((row, i) =>
+                        i === index ? { ...row, event_name: event.target.value } : row,
+                      ),
+                    )
+                  }
+                />
+              </label>
+              <PropertyConditions
+                value={item.properties}
+                onChange={(properties) =>
                   setConversions(
-                    conversions.map((row, i) =>
-                      i === index ? { ...row, id: event.target.value } : row,
-                    ),
+                    conversions.map((row, i) => (i === index ? { ...row, properties } : row)),
                   )
                 }
               />
-            </label>
-            <label>
-              Name{" "}
-              <input
-                value={item.name}
-                onChange={(event) =>
-                  setConversions(
-                    conversions.map((row, i) =>
-                      i === index ? { ...row, name: event.target.value } : row,
-                    ),
-                  )
-                }
-              />
-            </label>
-            <label>
-              Event name{" "}
-              <input
-                value={item.event_name}
-                onChange={(event) =>
-                  setConversions(
-                    conversions.map((row, i) =>
-                      i === index ? { ...row, event_name: event.target.value } : row,
-                    ),
-                  )
-                }
-              />
-            </label>
-            <PropertyConditions
-              value={item.properties}
-              onChange={(properties) =>
-                setConversions(
-                  conversions.map((row, i) => (i === index ? { ...row, properties } : row)),
-                )
-              }
-            />
-            <label>
-              <input
-                type="checkbox"
-                checked={item.active}
-                onChange={(event) =>
-                  setConversions(
-                    conversions.map((row, i) =>
-                      i === index ? { ...row, active: event.target.checked } : row,
-                    ),
-                  )
-                }
-              />{" "}
-              Active
-            </label>
-          </fieldset>
-        ))}
-        <button type="button" onClick={() => setConversions([...conversions, blankConversion()])}>
-          Add conversion
-        </button>
-        <h3>Funnels</h3>
-        {funnels.map((item, index) => (
-          <fieldset key={`${item.id}:${index}`} className="card">
-            <legend>{item.name || item.id || "Funnel"}</legend>
-            <label>
-              ID{" "}
-              <input
-                value={item.id}
-                disabled={index < (baseline?.funnels.length ?? 0)}
-                onChange={(event) =>
-                  setFunnels(
-                    funnels.map((row, i) =>
-                      i === index ? { ...row, id: event.target.value } : row,
-                    ),
-                  )
-                }
-              />
-            </label>
-            <label>
-              Name{" "}
-              <input
-                value={item.name}
-                onChange={(event) =>
-                  setFunnels(
-                    funnels.map((row, i) =>
-                      i === index ? { ...row, name: event.target.value } : row,
-                    ),
-                  )
-                }
-              />
-            </label>
-            <h4>Ordered steps</h4>
-            {item.steps.map((step, stepIndex) => (
-              <fieldset key={`step-${stepIndex}`}>
-                <legend>Step {stepIndex + 1}</legend>
-                <label>
-                  Event name{" "}
-                  <input
-                    value={step.event_name}
-                    onChange={(event) =>
+              <label className="definition-active-toggle">
+                <UI.Checkbox
+                  type="checkbox"
+                  checked={item.active}
+                  onChange={(event) =>
+                    setConversions(
+                      conversions.map((row, i) =>
+                        i === index ? { ...row, active: event.target.checked } : row,
+                      ),
+                    )
+                  }
+                />{" "}
+                Active
+              </label>
+            </fieldset>
+          ))}
+          <UI.Button
+            type="button"
+            className="button-fit"
+            variant="secondary"
+            onClick={() => setConversions([...conversions, blankConversion()])}
+          >
+            Add conversion
+          </UI.Button>
+        </section>
+        <section className="definition-group" aria-labelledby="funnels-heading">
+          <h3 id="funnels-heading">Funnels</h3>
+          {funnels.map((item, index) => (
+            <fieldset key={`${item.id}:${index}`} className="card definition-item">
+              <legend>{item.name || item.id || "Funnel"}</legend>
+              <label className="definition-field">
+                ID{" "}
+                <UI.Input
+                  value={item.id}
+                  disabled={index < (baseline?.funnels.length ?? 0)}
+                  onChange={(event) =>
+                    setFunnels(
+                      funnels.map((row, i) =>
+                        i === index ? { ...row, id: event.target.value } : row,
+                      ),
+                    )
+                  }
+                />
+              </label>
+              <label className="definition-field">
+                Name{" "}
+                <UI.Input
+                  value={item.name}
+                  onChange={(event) =>
+                    setFunnels(
+                      funnels.map((row, i) =>
+                        i === index ? { ...row, name: event.target.value } : row,
+                      ),
+                    )
+                  }
+                />
+              </label>
+              <h4 className="definition-subheading">Ordered steps</h4>
+              {item.steps.map((step, stepIndex) => (
+                <fieldset className="definition-step" key={`step-${stepIndex}`}>
+                  <legend>Step {stepIndex + 1}</legend>
+                  <label className="definition-field">
+                    Event name{" "}
+                    <UI.Input
+                      value={step.event_name}
+                      onChange={(event) =>
+                        setFunnels(
+                          funnels.map((row, i) =>
+                            i === index
+                              ? {
+                                  ...row,
+                                  steps: row.steps.map((value, j) =>
+                                    j === stepIndex
+                                      ? { ...value, event_name: event.target.value }
+                                      : value,
+                                  ),
+                                }
+                              : row,
+                          ),
+                        )
+                      }
+                    />
+                  </label>
+                  <PropertyConditions
+                    value={step.properties}
+                    onChange={(properties) =>
                       setFunnels(
                         funnels.map((row, i) =>
                           i === index
                             ? {
                                 ...row,
                                 steps: row.steps.map((value, j) =>
-                                  j === stepIndex
-                                    ? { ...value, event_name: event.target.value }
-                                    : value,
+                                  j === stepIndex ? { ...value, properties } : value,
                                 ),
                               }
                             : row,
@@ -311,79 +345,79 @@ function Editor({
                       )
                     }
                   />
-                </label>
-                <PropertyConditions
-                  value={step.properties}
-                  onChange={(properties) =>
-                    setFunnels(
-                      funnels.map((row, i) =>
-                        i === index
-                          ? {
-                              ...row,
-                              steps: row.steps.map((value, j) =>
-                                j === stepIndex ? { ...value, properties } : value,
-                              ),
-                            }
-                          : row,
-                      ),
-                    )
-                  }
-                />
-                {item.steps.length > 2 && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFunnels(
-                        funnels.map((row, i) =>
-                          i === index
-                            ? { ...row, steps: row.steps.filter((_, j) => j !== stepIndex) }
-                            : row,
-                        ),
-                      )
-                    }
-                  >
-                    Remove step
-                  </button>
-                )}
-              </fieldset>
-            ))}
-            <button
-              type="button"
-              onClick={() =>
-                setFunnels(
-                  funnels.map((row, i) =>
-                    i === index
-                      ? { ...row, steps: [...row.steps, { event_name: "", properties: {} }] }
-                      : row,
-                  ),
-                )
-              }
-            >
-              Add step
-            </button>
-            <label>
-              <input
-                type="checkbox"
-                checked={item.active}
-                onChange={(event) =>
+                  {item.steps.length > 2 && (
+                    <UI.Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() =>
+                        setFunnels(
+                          funnels.map((row, i) =>
+                            i === index
+                              ? { ...row, steps: row.steps.filter((_, j) => j !== stepIndex) }
+                              : row,
+                          ),
+                        )
+                      }
+                    >
+                      Remove step
+                    </UI.Button>
+                  )}
+                </fieldset>
+              ))}
+              <UI.Button
+                type="button"
+                variant="secondary"
+                onClick={() =>
                   setFunnels(
                     funnels.map((row, i) =>
-                      i === index ? { ...row, active: event.target.checked } : row,
+                      i === index
+                        ? { ...row, steps: [...row.steps, { event_name: "", properties: {} }] }
+                        : row,
                     ),
                   )
                 }
-              />{" "}
-              Active
-            </label>
-          </fieldset>
-        ))}
-        <button type="button" onClick={() => setFunnels([...funnels, blankFunnel()])}>
-          Add funnel
-        </button>
+              >
+                Add step
+              </UI.Button>
+              <label className="definition-active-toggle">
+                <UI.Checkbox
+                  type="checkbox"
+                  checked={item.active}
+                  onChange={(event) =>
+                    setFunnels(
+                      funnels.map((row, i) =>
+                        i === index ? { ...row, active: event.target.checked } : row,
+                      ),
+                    )
+                  }
+                />{" "}
+                Active
+              </label>
+            </fieldset>
+          ))}
+          <UI.Button
+            type="button"
+            className="button-fit"
+            variant="secondary"
+            onClick={() => setFunnels([...funnels, blankFunnel()])}
+          >
+            Add funnel
+          </UI.Button>
+        </section>
       </fieldset>
-      <button type="button" disabled={busy} onClick={() => void save()}>
-        {busy ? "Saving…" : "Save new revision"}
-      </button>
+      <div className="definition-editor-actions">
+        <UI.Button type="button" className="button-fit" disabled={busy} onClick={() => void save()}>
+          {busy ? "Saving…" : "Save new revision"}
+        </UI.Button>
+      </div>
+      <UI.AlertDialog
+        open={confirmReload}
+        title="Discard unsaved changes?"
+        description="Reload the latest definitions and discard your unsaved changes?"
+        confirmLabel="Reload definitions"
+        onCancel={() => setConfirmReload(false)}
+        onConfirm={() => void reloadLatest(true)}
+      />
     </section>
   );
 }
@@ -398,16 +432,16 @@ function PropertyConditions({
   const conditions = value ?? {};
 
   return (
-    <fieldset>
+    <fieldset className="property-conditions">
       <legend>Property conditions</legend>
       {Object.entries(conditions).map(([key, propertyValue], index) => {
         const type = propertyValue === null ? "null" : typeof propertyValue;
 
         return (
-          <div key={`${key}:${index}`}>
-            <label>
+          <div key={`${key}:${index}`} className="property-condition-row">
+            <label className="definition-field">
               Key{" "}
-              <input
+              <UI.Input
                 value={key}
                 onChange={(event) => {
                   const next = { ...value };
@@ -417,9 +451,9 @@ function PropertyConditions({
                 }}
               />
             </label>
-            <label>
+            <label className="definition-field">
               Type{" "}
-              <select
+              <UI.Select
                 value={type}
                 onChange={(event) => {
                   const nextType = event.target.value;
@@ -440,23 +474,23 @@ function PropertyConditions({
                 <option value="number">Number</option>
                 <option value="boolean">Boolean</option>
                 <option value="null">Null</option>
-              </select>
+              </UI.Select>
             </label>
             {type === "boolean" ? (
-              <label>
+              <label className="definition-field">
                 Value{" "}
-                <select
+                <UI.Select
                   value={String(propertyValue)}
                   onChange={(event) => onChange({ ...value, [key]: event.target.value === "true" })}
                 >
                   <option value="true">True</option>
                   <option value="false">False</option>
-                </select>
+                </UI.Select>
               </label>
             ) : type !== "null" ? (
-              <label>
+              <label className="definition-field">
                 Value{" "}
-                <input
+                <UI.Input
                   value={String(propertyValue)}
                   type={type === "number" ? "number" : "text"}
                   onChange={(event) =>
@@ -468,7 +502,7 @@ function PropertyConditions({
                 />
               </label>
             ) : null}
-            <button
+            <UI.Button
               type="button"
               onClick={() => {
                 const next = { ...value };
@@ -477,18 +511,18 @@ function PropertyConditions({
               }}
             >
               Remove condition
-            </button>
+            </UI.Button>
           </div>
         );
       })}
-      <button
+      <UI.Button
         type="button"
         onClick={() =>
           onChange({ ...conditions, [`property_${Object.keys(conditions).length + 1}`]: "" })
         }
       >
         Add property condition
-      </button>
+      </UI.Button>
     </fieldset>
   );
 }

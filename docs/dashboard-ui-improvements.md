@@ -1,6 +1,6 @@
 # Dashboard UI 改进方案
 
-- Status: M7a and M7c complete; M7b.1–M7b.3 delivered; M7b.4 product acceptance and M7b.5 browser E2E closeout are deferred to M10 (2026-10-03)
+- Status: M7a shadcn/ui reacceptance complete (2026-10-04); M7c complete; M7b.1–M7b.3 delivered; M7b.4 product acceptance and M7b.5 browser E2E closeout are deferred to M10 (2026-10-03)
 - Scope: Dashboard information architecture and UI foundation
 - Overall sequence and gates: [Platform Improvement Roadmap](platform-improvement-roadmap.md)
 - M7b Analytics reports execution checklist: [M7b Analytics Reports Checklist](m7b-analytics-reports-checklist.md)
@@ -94,6 +94,7 @@ Capability 的启用状态来源仍是现有配置服务与 contract，不由 Si
 
 - Tailwind CSS 管理布局、响应式规则和常规样式。
 - shadcn/ui 组件作为项目内可维护源码，统一 Button、Input、Select、Card、Table、Badge、Alert 等视觉和交互基础。
+- Dashboard 页面和业务组件通过 `components/ui/` 使用项目内 shadcn 风格源码组件；原生交互标签仅允许出现在这些基础组件实现中，ESLint 会阻止页面和业务组件直接写裸控件。表格由共享组件包裹横向滚动区域，日期筛选使用 Date Picker 组件，危险和丢弃草稿确认使用 Alert Dialog。
 - 全局样式只保留 Tailwind 导入、主题 token、基础 reset 和少量全局规则；避免继续扩展全局语义类名样式表。
 - 统一颜色、字体、边框、圆角、阴影、间距和 focus ring token；默认采用浅色、中性背景和克制的蓝色强调。
 - 表单和导航保留语义化 HTML、键盘操作、可见焦点、label 关联和 screen reader 状态。
@@ -127,3 +128,10 @@ Capability 的启用状态来源仍是现有配置服务与 contract，不由 Si
 - no data、disabled、missing definitions、API error 和 loading 状态可区分。
 - Dashboard 全部主要控件使用统一 Tailwind/shadcn 视觉基础并支持键盘和窄屏操作。
 - 现有业务/API 测试保持通过；新增导航、筛选参数和状态显示测试。
+
+## M7a shadcn/ui 重新验收
+
+- 本次范围：迁移 Analytics、Settings、Site onboarding、加载/错误反馈及报表表格中的按钮、输入、选择、复选框和表格基础控件；新增 Alert Dialog 确认、组件路径别名和禁止业务 JSX 直接使用原生交互标签的 lint 规则。
+- 约束：不更改 API、Event Protocol 或业务语义；`components/ui/` 源码可使用语义化原生 HTML。
+- 验收（2026-10-04）：Dashboard typecheck、lint、单测（43 files / 214 tests）、构建、格式检查，`pnpm check`、`pnpm test`、`pnpm build`、`pnpm format:check:docs`、`git diff --check` 均通过。Dashboard 浏览器 E2E 与 Site onboarding E2E 通过；Dashboard E2E 覆盖报表、筛选与历史导航、键盘导航、响应式状态、Settings 配置、一次性密钥、Alert Dialog 撤销、定义冲突恢复及 API 错误状态。E2E 使用隔离的 Compose 项目和备用宿主端口，未更改已有开发服务。
+- M7b 仍按 M10 完整产品验收计划开放；本次 Dashboard E2E 回归通过不替代待完成的 M7b.4 手工辅助技术验收。

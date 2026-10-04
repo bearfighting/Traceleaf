@@ -29,15 +29,15 @@ export function SettingsNavigation({
             : "Overview";
 
   return (
-    <div className="mb-6 grid gap-4">
-      <nav aria-label="Breadcrumb" className="text-sm text-muted">
+    <div className="settings-navigation">
+      <nav aria-label="Breadcrumb" className="settings-breadcrumb">
         <Link href={settingsRoute("overview", context)}>Settings</Link>
         <span aria-hidden="true"> / </span>
         <span aria-current="page">{current}</span>
         {site && <span> · {siteLabel}</span>}
         {currentEnvironment && <span> · {currentEnvironment}</span>}
       </nav>
-      <nav aria-label="Settings navigation" className="dashboard-nav">
+      <nav aria-label="Settings navigation" className="settings-tabs">
         {(["overview", "definitions", "capabilities", "environments", "ingest-keys"] as const).map(
           (item) => {
             const label =

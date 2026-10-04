@@ -37,14 +37,14 @@ export async function SettingsTaskPage({
   const directory = await loadSiteDirectory();
   if (directory.kind !== "ready" || directory.sites.length === 0)
     return (
-      <main className="dashboard-shell bg-canvas text-ink">
+      <main className="dashboard-shell">
         <DashboardHeader
           settingsMode
           analyticsHref={dashboardRoute(context)}
           settingsHref={settingsRoute(section, context)}
         />
-        <div className="dashboard-container py-8">
-          <h1 className="mb-6 text-3xl font-bold tracking-tight">
+        <div className="dashboard-content">
+          <h1 className="page-title">
             {section === "capabilities"
               ? "Capabilities"
               : section === "environments"
@@ -58,14 +58,14 @@ export async function SettingsTaskPage({
   const selection = selectDashboardSite(directory.sites, first(params.site_id));
   if (selection.kind !== "selected")
     return (
-      <main className="dashboard-shell bg-canvas text-ink">
+      <main className="dashboard-shell">
         <DashboardHeader
           settingsMode
           analyticsHref={dashboardRoute(context)}
           settingsHref={settingsRoute(section, context)}
         />
-        <div className="dashboard-container py-8">
-          <h1 className="mb-6 text-3xl font-bold tracking-tight">Settings</h1>
+        <div className="dashboard-content">
+          <h1 className="page-title">Settings</h1>
           <SiteSelectionState selection={selection} sites={directory.sites} />
         </div>
       </main>
@@ -104,7 +104,7 @@ export async function SettingsTaskPage({
         context={routeContext}
         section={section}
       />
-      <h1 className="mb-6 text-3xl font-bold tracking-tight">
+      <h1 className="page-title settings-task-title">
         {section === "capabilities"
           ? "Capabilities"
           : section === "environments"

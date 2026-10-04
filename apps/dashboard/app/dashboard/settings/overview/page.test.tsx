@@ -135,9 +135,9 @@ describe("SettingsPage status navigation", () => {
     expect(markup).toContain("site_alpha");
     expect(markup).toContain("Alpha Analytics");
     expect(markup).toContain("https://alpha.example");
-    expect(markup).toContain("Lifecycle: active");
-    expect(markup).toContain("Setup readiness: ready");
-    expect(markup).toContain("Environment: staging");
+    expect(markup).toMatch(/<dt>Lifecycle:<\/dt>\s*<dd>active<\/dd>/);
+    expect(markup).toMatch(/<dt>Setup readiness:<\/dt>\s*<dd>ready<\/dd>/);
+    expect(markup).toMatch(/<dt>Environment:<\/dt>\s*<dd>staging<\/dd>/);
     expect(markup).toContain("Connection summary");
     expect(markup).not.toContain("Configuration controls");
     expect(loadSiteConfiguration).toHaveBeenCalledWith("site_alpha", "staging");
