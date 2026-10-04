@@ -162,6 +162,7 @@ fn stored_event(site_id: &str, event_id: &str, payload: serde_json::Value) -> St
             context: None,
             visitor_id: None,
             context_schema_version: None,
+            extensions: Default::default(),
         }),
         payload,
         received_at: Utc::now(),

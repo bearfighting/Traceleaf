@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct EventBatch {
@@ -24,15 +25,24 @@ pub struct PageViewEvent {
     pub site_id: String,
     pub occurred_at: i64,
     pub path: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub referrer: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context: Option<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub visitor_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context_schema_version: Option<i32>,
+    #[serde(flatten)]
+    pub extensions: BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct CustomEvent {
     pub schema_version: u8,
     pub event_id: String,
@@ -42,10 +52,12 @@ pub struct CustomEvent {
     pub occurred_at: i64,
     pub event_name: String,
     pub properties: Value,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub visitor_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct WebVitalEvent {
     pub schema_version: u8,
     pub event_id: String,

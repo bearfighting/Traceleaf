@@ -245,7 +245,88 @@ impl Retrieve for EmbeddedResolver {
 mod tests {
     use std::fs;
 
-    use super::Validator;
+    use super::{CUSTOM_EVENT_SCHEMA, CustomEvent, Validator, WebVitalEvent};
+
+    #[test]
+    fn wire_round_trips_remain_schema_valid_and_preserve_page_view_extensions() {
+        let validator = Validator::new().expect("embedded schemas should compile");
+        let page_views = [
+            serde_json::json!({
+                "schema_version": 1, "event_id": "01J00000000000000000000001",
+                "type": "page_view", "site_id": "site_example", "occurred_at": 1760000000000_i64,
+                "path": "/"
+            }),
+            serde_json::json!({
+                "schema_version": 1, "event_id": "01J00000000000000000000002",
+                "type": "page_view", "site_id": "site_example", "occurred_at": 1760000000000_i64,
+                "path": "/about", "context_schema_version": 1,
+                "context": {"language": "en", "timezone": "America/Toronto", "viewport_width": 1280,
+                    "viewport_height": 800, "screen_width": 1920, "screen_height": 1080, "user_agent": "test"},
+                "route_pattern": "/about", "experiment": {"variant": "a"}
+            }),
+        ];
+        for input in page_views {
+            let decoded = validator.validate_event(&input).expect("valid page view");
+            let encoded = serde_json::to_value(decoded).expect("page view serializes");
+            assert!(validator.page_view.is_valid(&encoded), "{encoded}");
+            assert_eq!(encoded["path"], input["path"]);
+            if input.get("route_pattern").is_some() {
+                assert_eq!(encoded["route_pattern"], input["route_pattern"]);
+                assert_eq!(encoded["experiment"], input["experiment"]);
+                assert!(encoded.get("url").is_none());
+                assert!(encoded.get("title").is_none());
+                assert!(encoded.get("referrer").is_none());
+                assert!(encoded.get("visitor_id").is_none());
+            }
+        }
+    }
+
+    #[test]
+    fn optional_custom_event_field_is_omitted_and_schema_valid() {
+        let validator = Validator::new().expect("embedded schemas should compile");
+        let input = serde_json::json!({
+            "schema_version": 1, "event_id": "01J00000000000000000000003",
+            "type": "custom_event", "site_id": "site_example", "occurred_at": 1760000000000_i64,
+            "event_name": "signup", "properties": {}
+        });
+        let decoded = validator
+            .validate_event(&input)
+            .expect("valid custom event");
+        let encoded = serde_json::to_value(decoded).expect("custom event serializes");
+        let schema: serde_json::Value = serde_json::from_str(CUSTOM_EVENT_SCHEMA).unwrap();
+        let schema_validator = jsonschema::validator_for(&schema).unwrap();
+        assert!(schema_validator.is_valid(&encoded), "{encoded}");
+        assert!(encoded.get("visitor_id").is_none());
+    }
+
+    #[test]
+    fn schema_forbidden_null_is_rejected() {
+        let validator = Validator::new().expect("embedded schemas should compile");
+        let page_view = serde_json::json!({
+            "schema_version": 1, "event_id": "01J00000000000000000000004",
+            "type": "page_view", "site_id": "site_example", "occurred_at": 1760000000000_i64,
+            "path": "/", "title": null
+        });
+        assert!(validator.validate_event(&page_view).is_err());
+    }
+
+    #[test]
+    fn closed_event_wire_types_reject_unknown_fields() {
+        let custom = serde_json::json!({
+            "schema_version": 1, "event_id": "01J00000000000000000000005",
+            "type": "custom_event", "site_id": "site_example", "occurred_at": 1760000000000_i64,
+            "event_name": "signup", "properties": {}, "extra": true
+        });
+        assert!(serde_json::from_value::<CustomEvent>(custom).is_err());
+        let vital = serde_json::json!({
+            "schema_version": 1, "event_id": "01J00000000000000000000006",
+            "type": "web_vital", "site_id": "site_example", "occurred_at": 1760000000000_i64,
+            "page_view_event_id": "01J00000000000000000000001", "path": "/",
+            "page_view_occurred_at": 1759999999000_i64, "metric": "LCP", "value": 1.0,
+            "rating": "good", "navigation_type": "navigate", "report_sequence": 1, "extra": true
+        });
+        assert!(serde_json::from_value::<WebVitalEvent>(vital).is_err());
+    }
 
     #[test]
     fn canonical_valid_fixtures_are_accepted() {
