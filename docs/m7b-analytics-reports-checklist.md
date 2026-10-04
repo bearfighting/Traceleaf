@@ -67,13 +67,13 @@ The inventory is limited to reports already supported in the Dashboard and Analy
 - [x] Keep page titles, headings, form labels, active navigation, and status messages semantically accessible.
 - [ ] Check filter wrapping, table overflow, focus visibility, and direct-link behavior at desktop and mobile viewport sizes.
 
-The remaining browser and assistive-technology checks are deferred to [Final Product Acceptance](platform-improvement-roadmap.md#最终产品验收跨-m-阶段). They require a configured Site Registry and an accessible Analytics report; do not mark them complete based on source or unit-test review alone.
+The remaining browser and assistive-technology checks are deferred to **M10 complete product acceptance** in the [Platform Improvement Roadmap](platform-improvement-roadmap.md). They require a configured Site Registry and an accessible Analytics report; do not mark them complete based on source or unit-test review alone.
 
 ### M7b.5 — Tests and closeout
 
 - [x] Audit existing tests for report route selection, query parameter preservation, page-specific filter visibility, report state distinctions, and navigation history; the current Dashboard unit tests cover these contracts without requiring duplicate tests.
 - [ ] Verify Site and date context survive report navigation and refresh; verify incompatible parameters do not mislead users.
-- [ ] Run Dashboard tests, `pnpm check`, `pnpm build`, `pnpm e2e:dashboard`, `pnpm format:check`, and `pnpm format:check:docs`.
+- [ ] Run Dashboard tests, `pnpm check`, `pnpm build`, `pnpm e2e:dashboard`, `pnpm format:check`, and `pnpm format:check:docs`. Run `pnpm e2e:dashboard` as part of M10 complete product acceptance before closing M7b.
 - [x] Record each command and its actual result below; mark only executed and passing items complete. Dashboard E2E remains deferred and is not counted as a pass.
 - [x] Update the Dashboard UI plan, roadmap, and this checklist with the delivered routes and deferred items.
 
@@ -116,3 +116,4 @@ The remaining browser and assistive-technology checks are deferred to [Final Pro
 - 2026-10-03 — M7b.5 coverage audit: `analytics-sidebar.test.tsx` checks grouped report routes and accessible current-page state; `settings-routes.test.ts` checks shared Site/date/environment context, compatible Dimension and definition revision propagation, and omission of incompatible report filters; `query-params.test.ts` and `dashboard-page-data.test.ts` cover query parsing and report selection/validation; report section and state tests cover distinct report outcomes. `scripts/e2e-dashboard.mjs` contains Site/date navigation, refresh-by-direct-reload entry, browser back/forward, filter submission, and report-specific Dimension selection flows. This was a source audit, not a browser execution. The previously recorded Dashboard test run (42 files / 213 tests), check, build, formatting checks, and `git diff --check` provide current code verification evidence; no code or tests changed in this closeout.
 - 2026-10-03 — `pnpm e2e:dashboard` deferred: the script starts isolated Docker Compose services, and the active instruction is to keep Docker unchanged. No E2E pass is claimed. M7b.5 and M7b remain open pending browser E2E; M7b.4 real Firefox/Orca and responsive report acceptance remains under Final Product Acceptance.
 - 2026-10-03 — Documentation closeout verification: `pnpm check`, `pnpm build`, `pnpm format:check`, `pnpm format:check:docs`, and `git diff --check` passed after the documentation updates. `pnpm check` reported the same 5 existing unused ESLint disable warnings in generated protocol files. No Dashboard tests were rerun because this closeout changed documentation only; the previously recorded 42-file / 213-test Dashboard run remains the test evidence. `pnpm e2e:dashboard` was not run and Docker was left untouched.
+- 2026-10-03 — Scheduling decision: defer remaining M7b.4 browser/responsive/accessibility acceptance and the Dashboard browser E2E closeout to M10 complete product acceptance. M7b remains open until those checks pass and their evidence is recorded here.
