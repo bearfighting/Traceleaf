@@ -6,8 +6,8 @@ import { buildCapabilityConfigurationSeedSql } from "./capability-seed.mjs";
 
 export const DEV_SEED_SITE_ID = "site_example";
 
-function requiredEnvironment(name) {
-  const value = process.env[name]?.trim();
+export function requiredEnvironment(name, environment = process.env) {
+  const value = environment[name]?.trim();
   if (!value) throw new Error(`${name} must be set to initialize the local development database.`);
   return value;
 }

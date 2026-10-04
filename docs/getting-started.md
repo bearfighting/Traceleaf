@@ -133,7 +133,7 @@ pnpm dev:up --seed-init
 # --seed 是 --seed-init 的简写
 ```
 
-Seed 在 migration 成功后创建固定的 `site_example`、capabilities、activation windows 和 `development` Ingest Policy；Registry 元数据使用 `Local Example Site` 与 `http://localhost:3000`。策略只保存本地 Playground Ingest Key 的 SHA-256 摘要，并允许默认 Playground 端口（3000、3101、3102）；可通过 `PLAYGROUND_ORIGINS` 设置逗号分隔的 Origin 列表。Seed 仅补齐缺失记录，不覆盖已有配置，也不生成分析事件。本地示例凭据不可用于生产。
+Seed 在 migration 成功后创建固定的 `site_example`、capabilities、activation windows 和 `development` Ingest Policy；Registry 元数据使用 `Local Example Site` 与 `http://localhost:3000`。默认启动不会创建 Site，只有显式传入 `--seed-init`（或简写 `--seed`）才会执行初始化。开发 Compose overlay 的 seed 与三个 Playground SDK 共用 `.env` 中显式设置的 `LOCAL_DEV_INGEST_KEY`；缺失或空白时 seed 会报错，不会生成凭据。策略只保存 key 的 SHA-256 摘要，并允许默认 Playground 端口（3000、3101、3102）；可通过 `PLAYGROUND_ORIGINS` 设置逗号分隔的 Origin 列表。Seed 仅补齐缺失记录，不覆盖已有配置，也不生成分析事件。本地示例凭据不可用于生产。
 
 同一显式开关也适用于 `pnpm docker:backend --seed-init`、`pnpm docker:processing --seed-init` 和 `pnpm docker:dev --with-backend --seed-init`。这些后端启动入口默认都不 seed。
 
@@ -353,7 +353,7 @@ http://localhost:3000
 
 默认 Compose 只运行 Playground，不包含 PostgreSQL；页面内的 SDK workflow 使用本地 MockTransport，不发起真实 API request。通过 backend override 可以额外启动 Phase 2 Collector。
 
-Playground 默认使用 MockTransport。要启用本地 Collector workflow，在 `.env` 中设置：
+Playground 默认使用 MockTransport。独立启动 Playground 或使用不带开发 overlay 的 Compose 时，要显式配置 Browser SDK 的 `NEXT_PUBLIC_ANALYTICS_*` 环境变量来启用本地 Collector workflow：
 
 ```env
 NEXT_PUBLIC_ANALYTICS_TRANSPORT=fetch
@@ -362,7 +362,7 @@ NEXT_PUBLIC_ANALYTICS_INGEST_KEY=public-key-example
 NEXT_PUBLIC_ANALYTICS_SITE_ID=site_example
 ```
 
-配置后运行 `pnpm docker:dev --with-backend` 启动当前 Router、Collector 和数据库迁移，不自动创建 Site。需要 Demo Site 时加 `--seed-init`；使用 React Router 或 TanStack Router 时，seed 默认也允许对应的本地端口 Origin。自定义端口或 Origin 时，同步更新 `PLAYGROUND_ORIGINS`。
+开发 Compose 启动入口（如 `pnpm dev:up`、`pnpm docker:dev --with-backend`）会从 `LOCAL_DEV_INGEST_KEY` 配置 Playground SDK，并将其独立映射给显式 seed 的输入；此时无需另设 `NEXT_PUBLIC_ANALYTICS_INGEST_KEY`。这些入口仍默认不创建 Site，需要 Demo Site 时显式加 `--seed-init`。使用 React Router 或 TanStack Router 时，seed 默认也允许对应的本地端口 Origin。自定义端口或 Origin 时，同步更新 `PLAYGROUND_ORIGINS`。基础 Compose 保留 `NEXT_PUBLIC_ANALYTICS_SITE_ID` 和 `NEXT_PUBLIC_ANALYTICS_INGEST_KEY` 作为独立 Playground SDK 配置；它们不会初始化数据库 Site 或 key。
 
 `NEXT_PUBLIC_ANALYTICS_ENDPOINT` 必须是完整的 `POST /v1/events` URL，不能只填写 Collector base URL。浏览器会自动发送 `Origin`，Collector 会执行 CORS、Origin、Ingest Key、Schema 和限流校验。
 

@@ -16,7 +16,7 @@
 
 ## 背景与问题
 
-Dashboard 的站点目录和选择器现从 Site Registry 获取；没有显式 `site_id` 时默认选择 Registry 顺序中的首个 active Site。`DASHBOARD_DEFAULT_ENVIRONMENT` 仍用于 Settings 默认环境，后续环境选择 UI 切片会替代该默认值。Dashboard 首站创建、一次性 key 和 SDK 接入已在 M6 交付。开发 Compose seed 仍从 `NEXT_PUBLIC_ANALYTICS_SITE_ID`、`NEXT_PUBLIC_ANALYTICS_INGEST_KEY` 和 Origin 环境变量初始化站点策略，计划在 M8 清理平台初始化用途。Collector 只从数据库加载 environment policy；旧 TOML 示例不再作为运行时 fallback。Processor 还提供显式 `--import-definitions-if-empty` 命令，可从 `ANALYTICS_DEFINITIONS_FILE` 初始化 definition revisions；普通处理循环不会自动执行该导入。
+Dashboard 的站点目录和选择器现从 Site Registry 获取；没有显式 `site_id` 时默认选择 Registry 顺序中的首个 active Site。`DASHBOARD_DEFAULT_ENVIRONMENT` 仍用于 Settings 默认环境，后续环境选择 UI 切片会替代该默认值。Dashboard 首站创建、一次性 key 和 SDK 接入已在 M6 交付。M8 冻结并实现了本地配置约定：开发 Compose overlay 的显式 seed 和三个 Playground SDK 共用 `.env` 中的 `LOCAL_DEV_INGEST_KEY`，分别映射为 seed 输入 `DEV_SEED_INGEST_KEY` 与浏览器 SDK 的 `NEXT_PUBLIC_ANALYTICS_INGEST_KEY`；seed 使用固定 `site_example`，不读取任何 `NEXT_PUBLIC_*` 配置。普通启动不执行 seed，只有显式 `--seed-init`（或 `--seed`）才创建示例 Site，key 缺失或空白时明确失败。基础 Compose 中的 `NEXT_PUBLIC_ANALYTICS_SITE_ID` 和 `NEXT_PUBLIC_ANALYTICS_INGEST_KEY` 仍可用于独立配置 Playground，但不作为数据库初始化输入。Collector 只从数据库加载 environment policy；旧 TOML 示例不再作为运行时 fallback。Processor 还提供显式 `--import-definitions-if-empty` 命令，可从 `ANALYTICS_DEFINITIONS_FILE` 初始化 definition revisions；普通处理循环不会自动执行该导入。
 
 Settings 页面目前把 capability 开关、环境接收策略、Allowed Origins、Ingest Keys 和 conversion/funnel definitions 放在一张长页面里。它能管理 Registry 中站点的部分配置；M6 首站 onboarding 已提供创建和接入流程，但完整任务型 Settings 导航及配置页面拆分仍由 M7c 跟踪。
 
@@ -200,6 +200,8 @@ M6.0 已将普通 `pnpm dev:up` 及其他本地后端 Compose 入口改为默认
 - 将来可单独提供 `--seed-init` 和 `--seed-analysis`。前者初始化配置；后者只导入固定的合成分析数据，并要求 demo Site 已存在。组合运行可以使用 `--seed --seed-analysis`。
 - Seed 只允许在开发 Compose workflow 使用，必须有明确 flag；CI/E2E 使用各自隔离 fixture，不受影响。
 - Seed 数据应固定、明确标注为 demo/local only；不得从常规平台 `.env` 推导 Site runtime config。
+- 开发 Compose overlay 从 `LOCAL_DEV_INGEST_KEY` 分别映射 seed 的 `DEV_SEED_INGEST_KEY` 与 Playground SDK 的 `NEXT_PUBLIC_ANALYTICS_INGEST_KEY`；seed 不消费 `NEXT_PUBLIC_*`。普通启动保持空 Registry，只有显式 `--seed-init` / `--seed` 启用 seed，且不静默生成 key。
+- 基础 Compose 的 `NEXT_PUBLIC_ANALYTICS_SITE_ID` / `NEXT_PUBLIC_ANALYTICS_INGEST_KEY` 仅是显式 Playground SDK 配置，允许 `site_playground` fallback；它们不触发 Site 创建或数据库配置写入。
 - Seed 幂等、不覆盖手工修改的配置；需要重置数据时使用单独且明确的 destructive 命令，不与 `dev:down` 绑定。
 
 ## 迁移与渐进实施

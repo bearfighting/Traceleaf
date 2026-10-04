@@ -17,7 +17,7 @@ const postgresPort = process.env.E2E_POSTGRES_PORT ?? "15443";
 const dashboardPort = process.env.E2E_DASHBOARD_PORT ?? "13143";
 const playgroundPort = process.env.E2E_PLAYGROUND_PORT ?? "13043";
 const collectorUrl = `http://127.0.0.1:${collectorPort}`;
-const localKey = `m6-local-${randomBytes(12).toString("hex")}`;
+const localKey = `m8-local-${randomBytes(12).toString("hex")}`;
 const localOrigin = `http://localhost:${playgroundPort}`;
 const composeArgs = [
   "compose",
@@ -51,8 +51,7 @@ function runCompose(args, { capture = false, allowFailure = false } = {}) {
       maxBuffer: 20 * 1024 * 1024,
       env: {
         ...process.env,
-        NEXT_PUBLIC_ANALYTICS_INGEST_KEY: localKey,
-        NEXT_PUBLIC_ANALYTICS_SITE_ID: "site_example",
+        LOCAL_DEV_INGEST_KEY: localKey,
         PLAYGROUND_ORIGINS: localOrigin,
         PLAYGROUND_NEXT_PORT: playgroundPort,
         DASHBOARD_PORT: dashboardPort,
@@ -148,6 +147,33 @@ async function main() {
     "0",
     "seed must not create analytics events",
   );
+  assert.equal(
+    query(`SELECT
+      (SELECT count(*) FROM normalized_event_context) +
+      (SELECT count(*) FROM visitor_event_facts) +
+      (SELECT count(*) FROM session_events) +
+      (SELECT count(*) FROM sessions) +
+      (SELECT count(*) FROM visitor_daily) +
+      (SELECT count(*) FROM session_daily) +
+      (SELECT count(*) FROM page_view_daily) +
+      (SELECT count(*) FROM page_view_routes) +
+      (SELECT count(*) FROM page_view_totals) +
+      (SELECT count(*) FROM dimension_event_facts) +
+      (SELECT count(*) FROM dimension_daily) +
+      (SELECT count(*) FROM custom_event_facts) +
+      (SELECT count(*) FROM conversion_facts) +
+      (SELECT count(*) FROM funnel_step_facts) +
+      (SELECT count(*) FROM web_vital_facts) +
+      (SELECT count(*) FROM geo_event_metadata) +
+      (SELECT count(*) FROM geo_country_facts)`),
+    "0",
+    "seed must not create derived analytics facts",
+  );
+  assert.equal(
+    query("SELECT count(*) FROM site_definition_revisions"),
+    "0",
+    "seed must not create definition revisions",
+  );
   console.log("PASS explicit seed creates the fixed demo Site and runtime configuration");
 
   runCompose([
@@ -207,6 +233,39 @@ async function main() {
     "repeated seed must preserve manually changed capabilities",
   );
   console.log("PASS repeated seed preserves manually changed Site policy");
+
+  runCompose(["down"]);
+  runCompose([
+    "up",
+    "-d",
+    "--build",
+    "--wait",
+    "postgres",
+    "collector",
+    "analytics-api",
+    "processor",
+    "dashboard",
+    "playground-next",
+  ]);
+  assert.equal(query("SELECT count(*) FROM site_registry WHERE site_id = 'site_example'"), "1");
+  assert.equal(
+    query(
+      "SELECT document->'allowed_origins' FROM site_environment_policies WHERE site_id = 'site_example' AND environment = 'development'",
+    ),
+    '["http://manual.example"]',
+  );
+  assert.equal(
+    query(
+      "SELECT document #>> '{capabilities,web_vitals,enabled}' FROM site_capability_configurations WHERE site_id = 'site_example'",
+    ),
+    "false",
+  );
+  assert.equal(
+    query("SELECT count(*) FROM site_registry"),
+    "1",
+    "ordinary startup must not add or remove Registry entries",
+  );
+  console.log("PASS ordinary startup leaves existing Registry and manual configuration unchanged");
 
   runCompose(["down"]);
   runCompose(["up", "-d", "--wait", "postgres"]);

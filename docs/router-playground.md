@@ -22,6 +22,12 @@ pnpm docker:dev --router tanstack
 
 Next、React Router、TanStack Router 的默认端口分别为 `3000`、`3101`、`3102`。
 
+## 本地 Collector 配置
+
+Playground 默认使用 MockTransport。使用本地开发 Compose overlay（`pnpm dev:up` 或 `pnpm docker:dev --with-backend`）时，在 `.env` 中显式设置 `LOCAL_DEV_INGEST_KEY`；该值由三个 Playground SDK 共用，也作为显式 seed 的 key 输入。Site 固定为 `site_example`，但必须通过 `--seed-init`（或 `--seed`）显式创建；普通启动不会写入 Site。缺少 key 时显式 seed 会失败，不会生成替代值。
+
+独立运行或仅使用基础 Compose 时，Browser SDK 可通过 `NEXT_PUBLIC_ANALYTICS_TRANSPORT`、`NEXT_PUBLIC_ANALYTICS_ENDPOINT`、`NEXT_PUBLIC_ANALYTICS_INGEST_KEY` 和 `NEXT_PUBLIC_ANALYTICS_SITE_ID` 配置。基础 Compose 的 SDK 设置只是客户端配置，不会初始化平台数据库。示例值见仓库根目录 `.env.example`，仅供本地开发。
+
 统一 facade 的 import 取决于 Router：
 
 ```tsx

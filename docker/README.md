@@ -28,7 +28,8 @@ selected playground profile. Ports can be overridden with
 `PLAYGROUND_NEXT_PORT`, `PLAYGROUND_REACT_PORT` and
 `PLAYGROUND_TANSTACK_PORT`.
 
-The Playground uses `MockTransport` by default. To send browser events to the Collector, set these values in `.env`:
+The Playground uses `MockTransport` by default. For a standalone Playground or
+the base Compose configuration, set these Browser SDK values in `.env`:
 
 ```env
 NEXT_PUBLIC_ANALYTICS_TRANSPORT=fetch
@@ -37,7 +38,22 @@ NEXT_PUBLIC_ANALYTICS_INGEST_KEY=public-key-example
 NEXT_PUBLIC_ANALYTICS_SITE_ID=site_example
 ```
 
-Start the Collector with the backend profile:
+Those `NEXT_PUBLIC_ANALYTICS_*` values configure the browser SDK only; they do
+not create a Site or initialize database policy. The `pnpm docker:backend`
+development entry point loads `compose.dev.yaml`, where the SDK key instead
+comes from `LOCAL_DEV_INGEST_KEY` and the Playground targets the fixed
+`site_example` Site. Set `LOCAL_DEV_INGEST_KEY` in `.env` and explicitly seed
+that Site with:
+
+```bash
+pnpm docker:backend --seed-init
+```
+
+Ordinary startup does not seed. The same `LOCAL_DEV_INGEST_KEY` is mapped to
+the seed and Playground SDK; a missing or blank key makes explicit seeding
+fail. These sample values are for local development only.
+
+For a manually configured Site, start the Collector with the backend profile:
 
 ```bash
 docker compose --profile backend up --build collector
