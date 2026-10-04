@@ -161,6 +161,8 @@ flowchart LR
 
 **M7b 在 M7c 后执行**：[M7b Analytics Reports Checklist](m7b-analytics-reports-checklist.md)。把现有 Analytics 报表分配到对应页面，统一 contextual filters、空数据/禁用/错误状态和窄屏交互。只依赖现有 Analytics 查询 API。虽然该切片与 M3–M6 在技术上可并行，本项目当前顺序是在 M7c 后完成 M7b。
 
+**状态（2026-10-03）**：Overview、Pages、Dimensions、Visitors、Sessions、Custom events、Web Vitals、Countries、Conversions 和 Funnels 报表页面及其共享 Site/date 上下文已交付。M7b.5 测试覆盖审查记录了现有单测与 E2E 脚本的覆盖范围；Dashboard 单测、`pnpm check`、`pnpm build` 和格式检查已有通过记录。`pnpm e2e:dashboard` 本次延期，因为它会启动 Docker Compose，当前要求保持 Docker 原状；不将此前 E2E 记录计为本次验证。M7b.4 响应式与 Firefox/Orca 实际验收及浏览器 E2E 仍未完成，因此 M7b 保持开放，详见 checklist 与下方最终产品验收。
+
 **M7c 在 M6 后完成**：[M7c Site Settings Checklist](m7c-settings-checklist.md)。M7c.1–M7c.6 已交付 Overview、Capabilities、Environments & Origins、Ingest Keys、Definitions 页面和站点级次级导航，并完成响应式、键盘、自动化语义与回归验收。Firefox + Orca 实际语音播报复核作为非阻塞后续项。Settings 功能语义以站点接入设计为准。
 
 **完成条件**：已实现的报表可从 Sidebar 到达；站点、日期、维度和 definition revision 在适用页面间正确保持；Settings 配置项有清晰位置并使用同一组件系统。
