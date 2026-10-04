@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -27,5 +30,12 @@ describe("AnalyticsSidebar", () => {
     expect(markup.match(/aria-current="page"/g)).toHaveLength(2);
     expect(markup).toContain("Pages");
     expect(markup).not.toContain("Page views</a>");
+  });
+
+  it("styles the current report using the same aria-current value exposed to assistive technology", () => {
+    const styles = readFileSync(fileURLToPath(new URL("../styles.css", import.meta.url)), "utf8");
+
+    expect(styles).toContain('.analytics-sidebar-link[aria-current="page"]');
+    expect(styles).not.toContain('.analytics-sidebar-link[aria-current="location"]');
   });
 });

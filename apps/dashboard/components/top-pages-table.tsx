@@ -4,6 +4,7 @@ import { DisabledState } from "./states/disabled-state";
 import { EmptyState } from "./states/empty-state";
 import { ErrorState } from "./states/error-state";
 import { UnavailableState } from "./states/unavailable-state";
+import { Table } from "./ui";
 
 import type { PagesResponse } from "../lib/analytics-api/types";
 import type { DashboardOverviewContext } from "../lib/dashboard-overview";
@@ -27,7 +28,7 @@ export function TopPagesTable({ context, state }: TopPagesTableProps) {
       ) : state.data.items.length === 0 ? (
         <EmptyState context={context} />
       ) : (
-        <table className="data-table">
+        <Table className="data-table">
           <caption className="table-caption">Page Views by path</caption>
           <thead>
             <tr>
@@ -45,7 +46,7 @@ export function TopPagesTable({ context, state }: TopPagesTableProps) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
       )}
     </section>
   );

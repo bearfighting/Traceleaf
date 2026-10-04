@@ -1,6 +1,6 @@
 # M7b Analytics Reports Checklist
 
-- Status: Planned
+- Status: In progress
 - Prerequisites: M7a Dashboard UI foundation complete; current Analytics query APIs and report capabilities available
 - Scope: Move existing Analytics reports into task-focused pages and make shared filters, navigation, and report states consistent
 - Design references: [Platform Improvement Roadmap](platform-improvement-roadmap.md), [Dashboard UI Improvements](dashboard-ui-improvements.md), [M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md)
@@ -64,8 +64,10 @@ The inventory is limited to reports already supported in the Dashboard and Analy
 ### M7b.4 — Responsive and accessible interaction
 
 - [ ] Verify Sidebar behavior on narrow screens and keep report navigation usable by keyboard and assistive technology.
-- [ ] Keep page titles, headings, form labels, active navigation, and status messages semantically accessible.
+- [x] Keep page titles, headings, form labels, active navigation, and status messages semantically accessible.
 - [ ] Check filter wrapping, table overflow, focus visibility, and direct-link behavior at desktop and mobile viewport sizes.
+
+The remaining browser and assistive-technology checks are deferred to [Final Product Acceptance](platform-improvement-roadmap.md#最终产品验收跨-m-阶段). They require a configured Site Registry and an accessible Analytics report; do not mark them complete based on source or unit-test review alone.
 
 ### M7b.5 — Tests and closeout
 
@@ -103,3 +105,11 @@ The inventory is limited to reports already supported in the Dashboard and Analy
 - 2026-10-03 — M7b.2 implemented typed destination-aware Analytics URL construction, consistent Site/date/environment context, compatible Dimension and definition revision propagation, destination-specific filter controls, and report-specific historical revision links from Definitions.
 - 2026-10-03 — M7b.2 verification: `pnpm --filter @web-analytics/dashboard test` passed (41 files, 200 tests); `pnpm check` passed (including format checks; ESLint reports 5 existing generated-file warnings); `pnpm build` passed; `pnpm format:check:docs` passed; `git diff --check` passed.
 - 2026-10-03 — `pnpm e2e:dashboard` could not complete because default PostgreSQL port 15432 was already allocated. Two isolated retries using port 15445 completed database migration and seed setup, then stalled during `importDefinitionsIfEmpty`; both were interrupted and their generated containers and volumes were cleaned up. Dashboard E2E remains unverified for this delivery.
+- 2026-10-03 — M7b.4 review found that the Sidebar visual active-state selector targeted `aria-current="location"` while report links expose `aria-current="page"`. Updated the selector and added a regression test; this keeps the visible active report state aligned with its assistive-technology state.
+- 2026-10-03 — M7b.4 `pnpm --filter @web-analytics/dashboard test`: passed (41 files, 206 tests); `pnpm --filter @web-analytics/dashboard typecheck`: passed; `pnpm check`: passed with the same 5 existing generated-file ESLint warnings; `pnpm build`: passed; `pnpm format:check`: passed; `pnpm format:check:docs`: passed; `git diff --check`: passed.
+- 2026-10-03 — M7b.4 headless Chromium smoke check at 320, 390, 768, 1023, 1024, and 1440px against the locally running Dashboard returned no document/body horizontal overflow; the page title heading stayed visible. At 390px, keyboard focus on Analytics showed a solid 3px outline. The available page was the Site Registry configuration error state (`DASHBOARD_CONFIG_ADMIN_TOKEN` is not configured), so these measurements do not verify the Analytics Sidebar, filter wrapping, report tables, or the 1023/1024px Sidebar switch.
+- 2026-10-03 — Firefox + Orca report-navigation and status-announcement review not completed: the local Dashboard has no report content because Site management is not configured. The unavailable Firefox + Orca run is not counted as verified. Docker was not started or resumed. M7b.4 responsive report interaction and direct-link checks remain open; M7b.5 closeout remains untouched.
+- 2026-10-03 — Follow-up review fixes: all report data tables now expose a keyboard focus target while retaining native table and caption semantics; Overview and each report route set a descriptive document title from the shared report copy. Dashboard tests passed (42 files, 213 tests), typecheck and build passed. Live narrow-screen table scrolling and Firefox + Orca interaction remain unverified because the local Site Registry is unconfigured.
+- 2026-10-03 — Follow-up verification: `pnpm check`, `pnpm format:check`, `pnpm format:check:docs`, and `git diff --check` passed. The same 5 existing generated-file ESLint warnings remain. `pnpm e2e:dashboard` was not run; Docker remained untouched.
+- 2026-10-03 — Final review aligned Site Registry unavailable/empty-state H1 and description with the selected report and its document title; added a server-rendered regression test. Final Dashboard tests passed (42 files, 213 tests), `pnpm check`, `pnpm build`, formatting checks, and `git diff --check` passed.
+- 2026-10-03 — Full workspace `pnpm test` passed, including Rust workspace tests, protocol and contract validation, all package tests, 213 Dashboard tests, and script tests. PostgreSQL integration tests were ignored by the suite because they require a migrated PostgreSQL service. Dashboard browser E2E was not run because its script starts Docker Compose services; Docker was left untouched.

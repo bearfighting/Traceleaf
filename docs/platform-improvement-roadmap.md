@@ -187,6 +187,16 @@ flowchart LR
 
 这些工作可以拆成独立交付，不要求 URL 检查、域名验证和 RBAC 同步上线。是否启动 M10 由真实部署与产品需求触发。
 
+### 最终产品验收（跨 M 阶段）
+
+**前置**：提供一个可访问且已配置 Site Registry 的 Dashboard 环境，并准备至少一个可打开 Analytics 报表的 Site。优先复用现有运行环境；执行前不得为此自动启动或恢复 Docker 服务。
+
+**从 M7b.4 延后的 Dashboard 响应式与无障碍验收**：
+
+- 在 320、390、768、1023、1024 和 1440px 视口检查 Analytics Sidebar 的窄屏菜单/桌面导航切换、筛选器换行、表格横向溢出和键盘滚动、可见焦点及报表直链行为。
+- 用键盘操作 Sidebar、筛选器和表格；用 Firefox + Orca 检查报表导航当前页语义、页面标题和加载、空数据、不可用及错误状态播报。
+- 记录实际 Dashboard 环境、浏览器与辅助技术版本及每项结果；只有实际执行通过后，才回填 [M7b Analytics Reports Checklist](m7b-analytics-reports-checklist.md) 中 M7b.4 对应验收项。
+
 ## 并行工作与合并顺序
 
 | 工作线                                    | 可开始时间        | 合并约束                                         |

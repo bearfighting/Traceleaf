@@ -4,6 +4,7 @@ import { settingsRoute } from "../lib/settings-routes";
 
 import { ErrorState } from "./states/error-state";
 import { UnavailableState } from "./states/unavailable-state";
+import { Table } from "./ui";
 
 import type { ConversionReportResponse, FunnelReportResponse } from "../lib/analytics-api/types";
 import type { DashboardOverviewContext } from "../lib/dashboard-overview";
@@ -50,7 +51,7 @@ export function ConversionFunnelTables({
                 ) : (
                   <>
                     <p className="metric">{conversions.data.total}</p>
-                    <table className="data-table">
+                    <Table className="data-table">
                       <caption className="table-caption">
                         Conversion events and session rate by UTC date
                       </caption>
@@ -72,7 +73,7 @@ export function ConversionFunnelTables({
                           </tr>
                         ))}
                       </tbody>
-                    </table>
+                    </Table>
                   </>
                 )}
                 <p className={`freshness-${conversions.data.freshness_status}`} role="status">
@@ -105,7 +106,7 @@ export function ConversionFunnelTables({
                 ) : (
                   <>
                     <p className="metric">{funnels.data.total}</p>
-                    <table className="data-table">
+                    <Table className="data-table">
                       <caption className="table-caption">
                         Sessions reaching each funnel step by first-step cohort
                       </caption>
@@ -129,7 +130,7 @@ export function ConversionFunnelTables({
                           </tr>
                         ))}
                       </tbody>
-                    </table>
+                    </Table>
                   </>
                 )}
                 <p className={`freshness-${funnels.data.freshness_status}`} role="status">

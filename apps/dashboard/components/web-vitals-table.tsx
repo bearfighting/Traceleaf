@@ -4,6 +4,7 @@ import { DisabledState } from "./states/disabled-state";
 import { EmptyState } from "./states/empty-state";
 import { ErrorState } from "./states/error-state";
 import { UnavailableState } from "./states/unavailable-state";
+import { Table } from "./ui";
 
 import type { WebVitalsResponse } from "../lib/analytics-api/types";
 import type { DashboardOverviewContext } from "../lib/dashboard-overview";
@@ -27,7 +28,7 @@ export function WebVitalsTable({
       ) : state.data.items.length === 0 ? (
         <EmptyState context={context} />
       ) : (
-        <table className="data-table">
+        <Table className="data-table">
           <caption className="table-caption">Document load metrics by route</caption>
           <thead>
             <tr>
@@ -57,7 +58,7 @@ export function WebVitalsTable({
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
       )}
     </section>
   );

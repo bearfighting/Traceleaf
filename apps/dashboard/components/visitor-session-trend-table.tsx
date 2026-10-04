@@ -4,6 +4,7 @@ import { DisabledState } from "./states/disabled-state";
 import { EmptyState } from "./states/empty-state";
 import { ErrorState } from "./states/error-state";
 import { UnavailableState } from "./states/unavailable-state";
+import { Table } from "./ui";
 
 import type { VisitorSessionResponse } from "../lib/analytics-api/types";
 import type { DashboardOverviewContext } from "../lib/dashboard-overview";
@@ -41,7 +42,7 @@ export function VisitorSessionTrendTable({ context, state, focus }: VisitorSessi
           message="No Phase 6 analytics data is available for this selection."
         />
       ) : (
-        <table className="data-table">
+        <Table className="data-table">
           <caption className="table-caption">Daily Visitor and Session metrics in UTC</caption>
           <thead>
             <tr>
@@ -61,7 +62,7 @@ export function VisitorSessionTrendTable({ context, state, focus }: VisitorSessi
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
       )}
     </section>
   );

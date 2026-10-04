@@ -5,6 +5,7 @@ import { settingsRoute } from "../lib/settings-routes";
 import { EmptyState } from "./states/empty-state";
 import { ErrorState } from "./states/error-state";
 import { UnavailableState } from "./states/unavailable-state";
+import { Table } from "./ui";
 
 import type { TimelineResponse } from "../lib/analytics-api/types";
 import type { DashboardOverviewContext } from "../lib/dashboard-overview";
@@ -43,7 +44,7 @@ export function TimelineTable({ context, state }: TimelineTableProps) {
       ) : state.data.items.length === 0 ? (
         <EmptyState context={context} />
       ) : (
-        <table className="data-table">
+        <Table className="data-table">
           <caption className="table-caption">Daily Page Views in UTC</caption>
           <thead>
             <tr>
@@ -59,7 +60,7 @@ export function TimelineTable({ context, state }: TimelineTableProps) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
       )}
     </section>
   );
