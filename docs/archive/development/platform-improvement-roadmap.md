@@ -99,7 +99,7 @@ flowchart LR
 
 ### M0b：静态类型生成器与 contract parity 试验
 
-**状态：评估与决策完成（2026-09-29）**。结论与证据见 [M0b checklist](m0b-protocol-static-runtime-checklist.md)、[收尾摘要](m0b-final-summary.md) 和 [ADR-016](decisions/ADR-016-contract-type-sources-and-generation.md)。
+**状态：评估与决策完成（2026-09-29）**。结论与证据见 [M0b checklist](m0b-protocol-static-runtime-checklist.md)、[收尾摘要](m0b-final-summary.md) 和 [ADR-016](../../decisions/ADR-016-contract-type-sources-and-generation.md)。
 
 **交付与结论**：已使用 Event Batch V1 和 Stored Environment Policy V1 评估 Schema → TS/Rust 类型生成、候选类型质量、Schema 外约束、运行时责任及 56 个 canonical fixtures 的跨语言 parity。当前生产接入策略为事件/配置 TS 使用 json-schema-to-typescript、policy Rust 使用 typify 加显式约束、事件 Rust 手工维护并做 parity。受测 Toolkit commit / SDK 0.7.0 不接入生产，但保留为长期优先改进候选；达到专项报告定义的四路径能力、wire 行为、完整诊断、parity 与可重复生成门槛后重新评估为主要工具。工具版本、逐阶段证据及差异见 checklist 链接的报告。
 

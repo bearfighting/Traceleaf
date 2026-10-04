@@ -4,7 +4,7 @@
 - Prerequisites: M0b event contract, canonical fixtures, and static type strategy accepted; ADR-016 and ADR-015
 - Roadmap: [Platform Improvement Roadmap](platform-improvement-roadmap.md)
 - Design: [Protocol Schema and Static Runtime Models](protocol-static-runtime-design.md)
-- Decisions: [ADR-015 Validation Lifecycle and Staged Static Migration](decisions/ADR-015-validation-lifecycle-and-staged-static-migration.md), [ADR-016 Contract Type Sources and Generation](decisions/ADR-016-contract-type-sources-and-generation.md)
+- Decisions: [ADR-015 Validation Lifecycle and Staged Static Migration](../../decisions/ADR-015-validation-lifecycle-and-staged-static-migration.md), [ADR-016 Contract Type Sources and Generation](../../decisions/ADR-016-contract-type-sources-and-generation.md)
 - Scope: Collector Event Batch V1 / event parsing only, plus final architecture and end-to-end boundary evidence explicitly listed below
 
 ## Goal

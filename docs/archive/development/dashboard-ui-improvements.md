@@ -5,7 +5,7 @@
 - Overall sequence and gates: [Platform Improvement Roadmap](platform-improvement-roadmap.md)
 - M7b Analytics reports execution checklist: [M7b Analytics Reports Checklist](m7b-analytics-reports-checklist.md)
 - M7c Settings execution checklist: [M7c Site Settings Checklist](m7c-settings-checklist.md)
-- Related: [Capability-oriented configuration (ADR-007)](decisions/ADR-007-capability-oriented-configuration.md)
+- Related: [Capability-oriented configuration (ADR-007)](../../decisions/ADR-007-capability-oriented-configuration.md)
 - Site creation and Settings behavior: [Site Onboarding and Settings Design](site-onboarding-settings-design.md)
 
 ## 背景

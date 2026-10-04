@@ -4,7 +4,7 @@
 - Prerequisites: M0a, M0b, M1
 - Scope: stored configuration contracts, existing management API contracts, runtime configuration views, capability registry validation, and Schema validator lifecycle
 - Out of scope: Site Registry migrations and Site creation API (M3/M5), event wire model migration (M9), and adoption of Schema Transformation Toolkit before it passes its project-specific acceptance gates
-- Decision references: [ADR-015](decisions/ADR-015-validation-lifecycle-and-staged-static-migration.md), [ADR-016](decisions/ADR-016-contract-type-sources-and-generation.md), [M0b checklist](m0b-protocol-static-runtime-checklist.md), [M0b final summary](m0b-final-summary.md)
+- Decision references: [ADR-015](../../decisions/ADR-015-validation-lifecycle-and-staged-static-migration.md), [ADR-016](../../decisions/ADR-016-contract-type-sources-and-generation.md), [M0b checklist](m0b-protocol-static-runtime-checklist.md), [M0b final summary](m0b-final-summary.md)
 
 This checklist turns the M2 roadmap item into reviewable implementation slices. Mark a checkbox complete only when its evidence is recorded in the Evidence column or linked from the slice report. Do not mark a slice complete solely because its types compile: runtime input validation and Schema parity are separate acceptance requirements.
 
@@ -23,7 +23,7 @@ This checklist turns the M2 roadmap item into reviewable implementation slices. 
 
 - [x] Inventory contracts, models, consumers, validators, and fixture evidence in [M2 configuration contract inventory](m2-configuration-contract-inventory.md).
 - [x] Confirm the existing update contracts: Environment Policy, Capability, and Conversion/Funnel Definition Set. New Site APIs remain M5; Site Registry remains M3; event wire types remain M9; audit events are out of scope.
-- [x] Select Schema-strict behavior for stored policy `updated_at` and `ingest_keys[].created_at`; see [ADR-017](decisions/ADR-017-policy-date-time-compatibility.md).
+- [x] Select Schema-strict behavior for stored policy `updated_at` and `ingest_keys[].created_at`; see [ADR-017](../../decisions/ADR-017-policy-date-time-compatibility.md).
 - [x] Record compatibility behavior: invalid policies are stale and retain last-good state; without last-good, they are not applied.
 - [x] Add the read-only preflight, require an explicit `DATABASE_URL` with a database name and one explicit hostname, reject multi-host URLs, require a writable primary, ignore inherited libpq routing variables and `PGOPTIONS`, reject URL `options` and `target_session_attrs`, and verify its canonical fixture mode.
 - [x] Run the preflight against the current local-development database before enabling format assertions; record environment, date, document counts, result, and remediation evidence without timestamp values. Any future environment with existing data must pass the preflight before rollout.
@@ -31,7 +31,7 @@ This checklist turns the M2 roadmap item into reviewable implementation slices. 
 
 **Exit criteria:** in-scope contracts and consumers are recorded; date-time behavior and deployment gate are explicit; M2.1 recorded the original compatibility behavior; M2.4 enabled strict format assertion only after the current-environment audit passed.
 
-**Evidence:** [contract inventory](m2-configuration-contract-inventory.md), [ADR-017](decisions/ADR-017-policy-date-time-compatibility.md), [M2.1 completion record](m2.1-scope-and-compatibility.md), and `node scripts/audit-policy-datetimes.mjs --fixtures`.
+**Evidence:** [contract inventory](m2-configuration-contract-inventory.md), [ADR-017](../../decisions/ADR-017-policy-date-time-compatibility.md), [M2.1 completion record](m2.1-scope-and-compatibility.md), and `node scripts/audit-policy-datetimes.mjs --fixtures`.
 
 ### M2.2 — Construct and reuse runtime Schema validators
 
@@ -48,7 +48,7 @@ This checklist turns the M2 roadmap item into reviewable implementation slices. 
 
 ### M2.3 — Integrate pinned configuration type generation
 
-- [x] Record a per-contract type-source decision for Stored Environment Policy, Stored Site Capabilities, and the three in-scope update requests, including language, generated/hand-maintained choice, consumer entry point, and rationale in [ADR-016](decisions/ADR-016-contract-type-sources-and-generation.md).
+- [x] Record a per-contract type-source decision for Stored Environment Policy, Stored Site Capabilities, and the three in-scope update requests, including language, generated/hand-maintained choice, consumer entry point, and rationale in [ADR-016](../../decisions/ADR-016-contract-type-sources-and-generation.md).
 - [x] Pin json-schema-to-typescript 16.0.0 in packages/protocol-ts/package.json and pnpm-lock.yaml; pin cargo-typify 0.8.0 using its release lockfile and repository Rust toolchain 1.98.1.
 - [x] Generate all five M2 configuration TypeScript contracts and the Stored Environment Policy Rust structure from the repository Schemas without hand edits.
 - [x] Add generated files under packages/protocol-ts/src/generated/ and services/collector/src/generated/; expose TypeScript types only through the @web-analytics/protocol-ts package root, and compile the Rust module through Collector.
@@ -68,7 +68,7 @@ This checklist turns the M2 roadmap item into reviewable implementation slices. 
 - [x] Exercise stored fixtures through Rust parsing and explicit rules, and all management update fixtures through production Schema and service rules; see the M2.4 parity assessment for the per-fixture outcome matrix.
 - [x] Extend `node scripts/audit-policy-datetimes.mjs` to inspect both stored policy and capability tables in read-only transactions; fixture mode covers the capability date-time candidate. Executed both result paths against disposable PostgreSQL 18.6 tables; see the parity report.
 - [x] Run the preflight against the only current environment (local development); both tables passed with no remediation. Future deployments with existing data must pass before rollout.
-- [x] Record strict Stored Capabilities updated_at behavior in [ADR-018](decisions/ADR-018-capability-date-time-compatibility.md); assertions are enabled after the current-environment audit passed.
+- [x] Record strict Stored Capabilities updated_at behavior in [ADR-018](../../decisions/ADR-018-capability-date-time-compatibility.md); assertions are enabled after the current-environment audit passed.
 - [x] Record policy integer bounds as an implementation-range exception without changing Schema or wire format.
 - [x] Add representative TypeScript positive/negative probes for non-empty Origins, schema version, date-time string limits, funnel step minimum, and unconstrained definition IDs; package typecheck passes.
 - [x] Check the production policy creation, capability replacement, ingest-key addition, and definition revision serialization paths against their stored/update Schemas; revisions have no standalone stored Schema.
@@ -76,7 +76,7 @@ This checklist turns the M2 roadmap item into reviewable implementation slices. 
 
 **Exit criteria:** fixture outcomes match or have documented exceptions; unknown-field/version behavior is explicit; current-environment policy and capability preflight passed before strict format assertions were enabled. Current status: complete for the current local-development environment.
 
-**Evidence:** [M2.4 parity assessment](m2.4-configuration-parity.md), [ADR-017](decisions/ADR-017-policy-date-time-compatibility.md), [ADR-018](decisions/ADR-018-capability-date-time-compatibility.md), `node scripts/m2-configuration-parity.mjs`. The local-development audit passed on 2026-09-30 (1 policy document, 7 capability documents, 0 invalid fields); future environments with existing data require a pre-rollout audit. Generated TypeScript probes prove static assignability only.
+**Evidence:** [M2.4 parity assessment](m2.4-configuration-parity.md), [ADR-017](../../decisions/ADR-017-policy-date-time-compatibility.md), [ADR-018](../../decisions/ADR-018-capability-date-time-compatibility.md), `node scripts/m2-configuration-parity.mjs`. The local-development audit passed on 2026-09-30 (1 policy document, 7 capability documents, 0 invalid fields); future environments with existing data require a pre-rollout audit. Generated TypeScript probes prove static assignability only.
 
 ### M2.5 — Establish static runtime views and capability registry
 

@@ -11,7 +11,7 @@ cargo run --offline --manifest-path artifacts/m0b-type-quality/rust/Cargo.toml
 pnpm protocol:validate
 ```
 
-上述命令均退出 0。Rust 临时 crate 使用 Rust `1.98.1`，serde `1.0.229`、serde_json `1.0.151`、chrono `0.4.45` 均取自仓库 Cargo.lock 的版本；生成代码另需 regress `0.12.0`。Rust crate 编译了未修改的 [typify 配置样本](../experiments/m0b/generated/typify/policy.rs)，并读取仓库 environment-policy fixtures。Serde 输出保存在 `artifacts/m0b-type-quality/serde-results.tsv`。
+上述命令均退出 0。Rust 临时 crate 使用 Rust `1.98.1`，serde `1.0.229`、serde_json `1.0.151`、chrono `0.4.45` 均取自仓库 Cargo.lock 的版本；生成代码另需 regress `0.12.0`。Rust crate 编译了未修改的 [typify 配置样本](../../../experiments/m0b/generated/typify/policy.rs)，并读取仓库 environment-policy fixtures。Serde 输出保存在 `artifacts/m0b-type-quality/serde-results.tsv`。
 
 ## TypeScript 结果
 

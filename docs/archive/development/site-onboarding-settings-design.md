@@ -3,7 +3,7 @@
 - Status: M6 onboarding implemented and accepted; full Settings information architecture remains in M7c
 - Scope: Site onboarding, runtime configuration ownership, Settings information architecture, optional development seed
 - Overall sequence and gates: [Platform Improvement Roadmap](platform-improvement-roadmap.md)
-- Related: [Dashboard UI Improvements](dashboard-ui-improvements.md), [Capability-oriented configuration (ADR-007)](decisions/ADR-007-capability-oriented-configuration.md)
+- Related: [Dashboard UI Improvements](dashboard-ui-improvements.md), [Capability-oriented configuration (ADR-007)](../../decisions/ADR-007-capability-oriented-configuration.md)
 - Runtime contract direction: [Protocol Schema and Static Runtime Models](protocol-static-runtime-design.md)
 - Backend owner: [Analytics and Site Management Module Boundaries](analytics-site-management-module-boundaries.md)
 - M6 execution checklist: [M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md)
@@ -88,7 +88,7 @@ Collector 和 Analytics API 从持久化配置读取这些数据。Dashboard 的
 
 ### Admin API
 
-以下路由方向由 M5.1 HTTP contract 冻结，并已在 M5.2/M5.3 实施；字段、错误 envelope、ETag、幂等摘要和持久化细节见 [configuration OpenAPI](../protocol/contracts/configuration/current/openapi.json)、[Site creation schema](../protocol/contracts/configuration/current/site-create-request.schema.json) 与 [persistence contract](../protocol/contracts/configuration/current/site-management-persistence.md)。
+以下路由方向由 M5.1 HTTP contract 冻结，并已在 M5.2/M5.3 实施；字段、错误 envelope、ETag、幂等摘要和持久化细节见 [configuration OpenAPI](../../../protocol/contracts/configuration/current/openapi.json)、[Site creation schema](../../../protocol/contracts/configuration/current/site-create-request.schema.json) 与 [persistence contract](../../../protocol/contracts/configuration/current/site-management-persistence.md)。
 
 提供受 deployment-admin 保护的站点集合、创建、元数据和生命周期接口：
 

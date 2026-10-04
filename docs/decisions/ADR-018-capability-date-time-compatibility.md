@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-29
-- Related: [ADR-017](ADR-017-policy-date-time-compatibility.md), [M2 checklist](../m2-implementation-checklist.md), [M2.4 parity assessment](../m2.4-configuration-parity.md)
+- Related: [ADR-017](ADR-017-policy-date-time-compatibility.md), [M2 checklist](../archive/development/m2-implementation-checklist.md), [M2.4 parity assessment](../archive/development/m2.4-configuration-parity.md)
 
 ## Context
 

@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-29
-- Related: [Protocol Schema and Static Runtime Models](../protocol-static-runtime-design.md), [M0b checklist](../m0b-protocol-static-runtime-checklist.md), [ADR-014](ADR-014-runtime-configuration-authority.md)
+- Related: [Protocol Schema and Static Runtime Models](../archive/development/protocol-static-runtime-design.md), [M0b checklist](../archive/development/m0b-protocol-static-runtime-checklist.md), [ADR-014](ADR-014-runtime-configuration-authority.md)
 
 ## Context
 

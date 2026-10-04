@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-29
-- Related: [M0b checklist](../m0b-protocol-static-runtime-checklist.md), [Step 2 generator feasibility](../m0b-step2-generator-feasibility.md), [Step 3 generated type quality](../m0b-step3-generated-type-quality.md), [Step 6 parity report](../m0b-step6-parity-report.md), [ADR-015](ADR-015-validation-lifecycle-and-staged-static-migration.md)
+- Related: [M0b checklist](../archive/development/m0b-protocol-static-runtime-checklist.md), [Step 2 generator feasibility](../archive/development/m0b-step2-generator-feasibility.md), [Step 3 generated type quality](../archive/development/m0b-step3-generated-type-quality.md), [Step 6 parity report](../archive/development/m0b-step6-parity-report.md), [ADR-015](ADR-015-validation-lifecycle-and-staged-static-migration.md)
 
 ## Context
 

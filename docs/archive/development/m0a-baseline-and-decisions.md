@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-09-28
 - Scope: 现状证据、既有兼容行为、Site 与运行配置共同语义
-- Related: [Platform Improvement Roadmap](platform-improvement-roadmap.md)、[Site identity and lifecycle (ADR-013)](decisions/ADR-013-site-identity-and-lifecycle.md)、[Runtime configuration authority (ADR-014)](decisions/ADR-014-runtime-configuration-authority.md)
+- Related: [Platform Improvement Roadmap](platform-improvement-roadmap.md)、[Site identity and lifecycle (ADR-013)](../../decisions/ADR-013-site-identity-and-lifecycle.md)、[Runtime configuration authority (ADR-014)](../../decisions/ADR-014-runtime-configuration-authority.md)
 
 ## 结论摘要
 
@@ -68,7 +68,7 @@ M0a 完成了进入 M1、M2、M3 前所需的现状盘点与领域语义冻结�
 
 ## 已冻结的首版语义
 
-稳定决策由 [ADR-013](decisions/ADR-013-site-identity-and-lifecycle.md) 与 [ADR-014](decisions/ADR-014-runtime-configuration-authority.md) 记录，摘要如下：
+稳定决策由 [ADR-013](../../decisions/ADR-013-site-identity-and-lifecycle.md) 与 [ADR-014](../../decisions/ADR-014-runtime-configuration-authority.md) 记录，摘要如下：
 
 - 新 Site 使用服务端生成、稳定且不从名称/URL推导的 ID；名称可重复、可修改。新创建要求名称与 HTTP(S) 网站 URL；旧 Site 保留 ID，URL 缺失时进入 needs-attention，不从 Origin 静默补写。
 - 一个 Site 可有多个 environment；onboarding 首个 environment 默认显示 `production`，但这是创建时显式提交的可修改值，不是协议或 Collector 的隐式默认。开发初始化使用 `development`。

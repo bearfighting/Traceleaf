@@ -2,7 +2,7 @@
 
 - Status: M4.1–M4.5 implementation and acceptance complete for the local development target; rollout to other deployment targets remains open
 - Prerequisites: M3 local-development target complete; ADR-014 accepted
-- Related: [M4.2 Local Policy Reconciliation](m4.2-local-policy-reconciliation-plan.md), [Platform improvement roadmap](platform-improvement-roadmap.md), [M3 Site Registry checklist](m3-site-registry-checklist.md), [ADR-014](decisions/ADR-014-runtime-configuration-authority.md), [Site Onboarding and Settings Design](site-onboarding-settings-design.md)
+- Related: [M4.2 Local Policy Reconciliation](m4.2-local-policy-reconciliation-plan.md), [Platform improvement roadmap](platform-improvement-roadmap.md), [M3 Site Registry checklist](m3-site-registry-checklist.md), [ADR-014](../../decisions/ADR-014-runtime-configuration-authority.md), [Site Onboarding and Settings Design](site-onboarding-settings-design.md)
 
 ## Goal and scope
 

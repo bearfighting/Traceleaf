@@ -41,7 +41,7 @@
 **证据 / 备注**
 
 - 候选及固定版本：Toolkit commit `825f4398e125f586354a18ba575d4d37edc5c745`、json-schema-to-typescript `16.0.0`、cargo-typify `0.8.0`；锁定方式、许可与工具链见[第二步结果报告](m0b-step2-generator-feasibility.md)。
-- 生成 / 检查命令：[试验脚本](../scripts/m0b-generation-trial.mjs) 的 `--snapshot` / `--check`；精确命令、原始失败和输入处理见第二步结果报告。
+- 生成 / 检查命令：[试验脚本](../../../scripts/m0b-generation-trial.mjs) 的 `--snapshot` / `--check`；精确命令、原始失败和输入处理见第二步结果报告。
 - 可重复性结果：两个干净目录的结果清单和四份成功产物逐字节一致；`--check` 正常通过，故意改动临时样本时退出 1；`pnpm protocol:validate` 退出 0。
 - 人工介入或不支持特性：无生成后人工修补。事件 Rust 因外部 `$ref`、保留约束后的 `if/then/else` 未生成；Toolkit 配置 TS 有损，typify 配置 Rust 的 `schema_version` 类型变宽。四条路径的限定结论见第二步结果报告；Toolkit 的详细问题见[专项报告](m0b-toolkit-findings.md)。
 
@@ -86,7 +86,7 @@
 **证据 / 备注**
 
 - 当前实现：`services/collector/src/main.rs` 创建事件 `Validator` 并传给 `http::router_with_capabilities`；`services/collector/src/http.rs` 将其放入共享 `AppState`，事件请求通过 validator 后执行时间范围等 HTTP 语义校验。`services/collector/src/runtime_policy.rs::refresh_once` 每轮重建 policy validator，`parse_database_policy` 执行 Schema、Serde、数据库行身份/版本和 digest 校验。
-- 目标结构与错误语义：见[协议静态运行时设计](protocol-static-runtime-design.md)及 [ADR-015](decisions/ADR-015-validation-lifecycle-and-staged-static-migration.md)。事件与 policy 使用分开的具体验证组件，由启动层构造并注入；事件无效仍返回 `invalid_event_batch`，无效 policy 保留 last-good 并标记 stale。
+- 目标结构与错误语义：见[协议静态运行时设计](protocol-static-runtime-design.md)及 [ADR-015](../../decisions/ADR-015-validation-lifecycle-and-staged-static-migration.md)。事件与 policy 使用分开的具体验证组件，由启动层构造并注入；事件无效仍返回 `invalid_event_batch`，无效 policy 保留 last-good 并标记 stale。
 - 后续阶段：一次性构造并复用 policy validator 属于后续低风险实现任务；第六项完成 parity 并解释所有差异后，再决定是否推进生产静态校验。ADR-015 仅涵盖本次 M0b 样本与 Collector 直接消费者，不替其他配置/API contract 作决定。
 
 ### 6. 验证跨语言 parity
@@ -123,7 +123,7 @@
 - 产物位置 / 消费者：继续在 monorepo 内维护，不拆 protocol repository。TypeScript 生成文件放入 `packages/protocol-ts/src/generated/`，由现有 package 根入口导出事件与配置类型。Rust 事件手工 wire 类型由 Collector 现有 `services/collector/src/protocol.rs` 提供；配置生成类型放入 Collector 的专用 generated 模块，并由 policy runtime 的模块入口使用。此布局是后续接入目标，本步不新增文件或改消费者。
 - 未知字段 / 版本：严格遵循各 Schema 的规则。Stored Environment Policy V1 拒绝未声明字段及非 V1 `schema_version`。事件对象仅在 Schema 允许时接受扩展；Page View Rust 类型须保留允许的扩展字段。事件 V1 的版本/判别字段按 Schema 常量处理，不接受其他版本。
 - CI 门禁：后续接入时固定生成器版本并提交 lock 信息；生成 `--check` 发现产物漂移，TypeScript package typecheck/test 与 Collector Rust compile/test 检查消费兼容性，`node experiments/m0b/parity/run.mjs` 检查两语言与 Schema/Collector 的 fixture parity。Schema fixtures 继续由 `pnpm protocol:validate` 检查。M0b 第七步只定义门禁，不接入 CI workflow 或构建脚本。
-- 证据 / 决策文档：第二步生成流程报告、第三步质量报告、第六步 parity 报告与逐例矩阵；决策及备选方案见 [ADR-016](decisions/ADR-016-contract-type-sources-and-generation.md)。
+- 证据 / 决策文档：第二步生成流程报告、第三步质量报告、第六步 parity 报告与逐例矩阵；决策及备选方案见 [ADR-016](../../decisions/ADR-016-contract-type-sources-and-generation.md)。
 
 ### 8. 完成 M0b 并拆出实施任务
 
@@ -141,6 +141,6 @@
 
 **最终证据**
 
-- 总结：[M0b 收尾摘要](m0b-final-summary.md)；生成策略：[ADR-016](decisions/ADR-016-contract-type-sources-and-generation.md)；运行时边界：[ADR-015](decisions/ADR-015-validation-lifecycle-and-staged-static-migration.md)。
+- 总结：[M0b 收尾摘要](m0b-final-summary.md)；生成策略：[ADR-016](../../decisions/ADR-016-contract-type-sources-and-generation.md)；运行时边界：[ADR-015](../../decisions/ADR-015-validation-lifecycle-and-staged-static-migration.md)。
 - 逐阶段记录：[样本基线](m0b-step1-sample-baseline.md)、[生成可行性](m0b-step2-generator-feasibility.md)、[类型质量](m0b-step3-generated-type-quality.md)、[约束责任清单](m0b-step4-constraint-inventory.md)、[parity 报告](m0b-step6-parity-report.md)和[逐 fixture 矩阵](m0b-step6-parity-matrix.tsv)。
 - 后续实施归属：配置类型、policy validator 生命周期和 date-time 差异进入 M2；事件 Rust wire 行为和静态迁移进入 M9。生产切换前继续保留当前校验行为。
