@@ -169,9 +169,11 @@ flowchart LR
 
 ### M8：旧配置入口清理
 
-**前置**：M6、M7c。M6.1 已移除 Dashboard 的 `DASHBOARD_SITES` / `DASHBOARD_DEFAULT_SITE` 配置。M8 剩余交付是移除用于平台数据库初始化的 Playground site/key wiring，同时保留 Playground 自身作为被观测网站所需的 SDK 接入配置。未来 `--seed-analysis` 是独立的合成分析数据任务。
+**前置**：M6、M7c，已满足。执行清单：[M8 Legacy Configuration Cleanup Checklist](m8-legacy-configuration-cleanup-checklist.md)。M6.1 已移除 Dashboard 的 `DASHBOARD_SITES` / `DASHBOARD_DEFAULT_SITE` 配置；M6 已将默认开发启动改为空 Registry，并将本地 seed 改为显式 `--seed-init`。M8 剩余交付是解除平台数据库初始化对 Playground `NEXT_PUBLIC_*` site/key 配置的隐式依赖，同时保留 Playground 作为被观测网站所需的 SDK 配置。M8.1 已冻结 seed 输入与 Playground SDK 的配置契约；后续按清单完成实现验证和开发文档更新。未来 `--seed-analysis` 是独立的合成分析数据任务。
 
-**完成条件**：动态站点目录和显式 `--seed-init` 是本地初始化入口；`dev:down` 保留数据卷；CI/E2E fixture 不受可选 seed 影响。
+**状态（2026-10-04）：M8.1–M8.4 全部完成。** 开发 Compose 现从 `LOCAL_DEV_INGEST_KEY` 分别配置显式 seed 与 Playground SDK；基础 Compose 的显式 SDK 配置入口保留。Getting Started、Router Playground 和 Site Onboarding 文档已区分两条配置路径并说明 seed 的显式启用与缺 key 行为。隔离启动 E2E、seed/Compose 定向测试以及 `pnpm test`、`pnpm check`、`pnpm build`、格式检查和 `git diff --check` 均通过；check 仅报告既有 lint/Vite warnings。验证详情见 [M8 Legacy Configuration Cleanup Checklist](m8-legacy-configuration-cleanup-checklist.md)。
+
+**完成条件**：数据库 seed 不读取 Playground 的 `NEXT_PUBLIC_ANALYTICS_SITE_ID` / `NEXT_PUBLIC_ANALYTICS_INGEST_KEY`；Playground 仍可按文档显式配置以观测一个 Site；默认启动仍为空，显式 seed 保持幂等且不覆盖手工配置；`dev:down` 保留数据卷；CI/E2E fixture 不依赖本地 seed。
 
 ### M9：事件协议静态化与最终边界验收
 

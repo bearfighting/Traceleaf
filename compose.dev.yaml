@@ -7,7 +7,7 @@ services:
     environment:
       DATABASE_URL: ${COLLECTOR_DATABASE_URL:-postgres://analytics:analytics@postgres:5432/analytics}
       DEV_SEED_ORIGINS: ${PLAYGROUND_ORIGINS:-http://localhost:3000,http://localhost:3101,http://localhost:3102}
-      DEV_SEED_INGEST_KEY: ${NEXT_PUBLIC_ANALYTICS_INGEST_KEY:-}
+      DEV_SEED_INGEST_KEY: ${LOCAL_DEV_INGEST_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -17,14 +17,17 @@ services:
   playground-next:
     environment:
       NEXT_PUBLIC_ANALYTICS_SITE_ID: site_example
+      NEXT_PUBLIC_ANALYTICS_INGEST_KEY: ${LOCAL_DEV_INGEST_KEY:-}
 
   playground-react:
     environment:
       NEXT_PUBLIC_ANALYTICS_SITE_ID: site_example
+      NEXT_PUBLIC_ANALYTICS_INGEST_KEY: ${LOCAL_DEV_INGEST_KEY:-}
 
   playground-tanstack:
     environment:
       NEXT_PUBLIC_ANALYTICS_SITE_ID: site_example
+      NEXT_PUBLIC_ANALYTICS_INGEST_KEY: ${LOCAL_DEV_INGEST_KEY:-}
 
   dashboard:
     environment:

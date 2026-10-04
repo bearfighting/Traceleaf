@@ -96,7 +96,11 @@ export function startProfileCompose(
   });
 }
 
-export function runDevelopmentMode(mode, args) {
+export function runDevelopmentMode(
+  mode,
+  args,
+  { spawnSyncImpl = spawnSync, spawnImpl = spawn, env = process.env } = {},
+) {
   let parsed;
   try {
     parsed = parseSeedInitArgs(args);
@@ -108,20 +112,20 @@ export function runDevelopmentMode(mode, args) {
     process.exit(2);
   }
 
-  const composeVersion = spawnSync("docker", ["compose", "version"], { stdio: "ignore" });
+  const composeVersion = spawnSyncImpl("docker", ["compose", "version"], { stdio: "ignore" });
   if (composeVersion.status !== 0) {
     console.error("Docker Compose v2 is required. Use the 'docker compose' command.");
     process.exit(1);
   }
 
   try {
-    const seedStatus = runSeedIfRequested(parsed.seedInit);
+    const seedStatus = runSeedIfRequested(parsed.seedInit, { spawnSyncImpl });
     if (seedStatus !== 0) process.exit(seedStatus);
   } catch (error) {
     console.error(`Failed to initialize the local development Site: ${error.message}`);
     process.exit(1);
   }
-  startDevelopmentCompose(mode);
+  startDevelopmentCompose(mode, { spawnImpl, env });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
