@@ -58,7 +58,7 @@ This work does not change Event V1 wire semantics, Analytics API contracts, repo
 ### M9.4 — Decide production Schema validator lifecycle per contract
 
 - [x] Review M9.3 evidence and record whether Event Batch V1 production validation remains Schema-based or moves to static decoding plus explicit checks.
-- [ ] If production Schema validation is removed, verify all equivalent constraints remain enforced at runtime and Schema/fixture validation remains in CI.
+- [n/a] Production Schema validation remains in place, so the removal-only verification does not apply.
 - [x] If it remains, record the reason and ensure validator construction/lifecycle follows ADR-015; do not use this slice to broaden validator abstractions.
 - [x] Record any change to accepted input, rejection behavior, or runtime validation ownership in an ADR before changing the contract.
 
@@ -89,7 +89,7 @@ Append dated command results, fixture/parity findings, runtime validation decisi
 - **Parity runner status at baseline:** The initial `node experiments/m0b/parity/run.mjs` attempt failed because the standalone lockfile omitted Collector's `regress` dependency. M9.3 refreshed that lockfile offline and completed the run; results are recorded below. This successful run postdates M9.2 and does not replace the requested pre-change parity baseline.
 - **TypeScript ownership:** event consumer types are imported from the `@web-analytics/protocol-ts` package root (`packages/protocol-ts/src/index.ts`), including `EventBatch` and the three event types. The current M2 drift-check script `scripts/generate-m2-configuration-types.mjs` generates configuration contract types only; event TypeScript source types under `packages/protocol-ts/src/` are hand-maintained. M9 consumes the package's existing public entry point and does not add a second generator.
 - **M9.2 round-trip risks to probe:** (1) Page View schema-allowed extension fields are dropped by the closed Rust struct on deserialize/serialize, although ingest currently retains the original JSON payload; (2) absent `Option` fields serialize as `null` without `skip_serializing_if`, which can violate Schema; (3) context values pass through `serde_json::Value`, but the surrounding optional field has the same omission risk. Exercise each event/context omission and Page View extension through the actual intended round-trip path, then validate serialized JSON against its Schema. Keep the current production Schema validator decision deferred to M9.4.
-- **Documentation validation:** `pnpm format:check:docs` and `git diff --check` passed on 2026-10-04. The checklist is intentionally not marked complete while shared parity evidence is unavailable.
+- **Documentation validation:** `pnpm format:check:docs` and `git diff --check` passed on 2026-10-04. At this inventory checkpoint M9.1 was still open pending shared parity evidence; the later M9.1 baseline entry records its completion.
 
 ### 2026-10-04 — M9.2 Rust wire round-trip
 
@@ -116,7 +116,7 @@ Append dated command results, fixture/parity findings, runtime validation decisi
 - **Snapshot:** Created `/tmp/web-analytics-m9-pre-m92-retry` from `git archive 0c23f3d`; the source corresponds to `0c23f3d0e93bae064c8948750329fb1a3459ebd4`. All experiment outputs and Cargo-generated files were confined to this `/tmp` snapshot.
 - **Rust static lane:** `cargo run --offline --manifest-path experiments/m0b/parity/rust/Cargo.toml` completed successfully in the isolated snapshot (Cargo resolved/updated only the snapshot's lockfile). The standalone Rust program emitted fixture results, but this is only one lane and does not generate the parity matrix.
 - **Full harness:** `node experiments/m0b/parity/run.mjs` failed before compilation because the archive has no installed JS dependencies (`ERR_MODULE_NOT_FOUND: Cannot find package 'ajv'`). Linked the main checkout's existing `node_modules` into the snapshot and retried. The harness then stopped at its `pnpm exec tsc` step; the equivalent direct command, `pnpm exec tsc --strict --skipLibCheck --target ES2022 --module ES2022 --moduleResolution Bundler --outDir /tmp/web-analytics-m9-pre-m92-retry/artifacts/m0b-parity/typescript experiments/m0b/parity/typescript/static-validator.ts`, failed with `[ERROR] unable to open database file`. The `node` harness consequently exited 1 with empty captured stdout/stderr at its compile-status check. No Schema/TypeScript/Rust/Collector cross-lane matrix or fixture-level difference count was produced.
-- **Outcome:** M9.1 remains open. Reproduction of the historical baseline still requires a pnpm environment that can run the workspace `exec tsc` command; no parity source, matrix, lockfile, or historical commit in the main checkout was changed by this retry. Main checkout `git status --short` was clean before the experiment; final status is recorded with this change.
+- **Outcome at this retry checkpoint:** M9.1 remained open because no cross-lane matrix had been produced. The subsequent completed-baseline entry records the workaround and successful matrix; no parity source, matrix, lockfile, or historical commit in the main checkout was changed by this retry.
 
 ### 2026-10-04 — M9.1 isolated historical baseline completed
 
