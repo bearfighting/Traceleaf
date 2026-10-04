@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 
 import { configurationRequestError } from "../lib/configuration-api/errors";
 
+import * as UI from "./ui";
+
 import type { ConfigurationLoadResult } from "../lib/configuration-api/server";
 import type { CreatedIngestKey, IngestPolicyResponse } from "../lib/configuration-api/types";
 
@@ -332,7 +334,7 @@ export function IngestKeysManager({
       <section className="card" role="alert">
         <h2>Ingest Keys unavailable</h2>
         <p>{result.message}</p>
-        <button onClick={() => router.refresh()}>Retry</button>
+        <UI.Button onClick={() => router.refresh()}>Retry</UI.Button>
       </section>
     );
   if (!policy)
@@ -351,31 +353,35 @@ export function IngestKeysManager({
     );
 
   return (
-    <section className="card" aria-label="Ingest Keys">
-      <p>
-        Create a replacement, update your website, and verify the new key before revoking an
-        existing key. Secrets are shown once.
-      </p>
-      <button
-        disabled={busy || review || !statusLoaded || listRefreshNeeded}
-        onClick={() => void create()}
-      >
-        {busy
-          ? "Creating…"
-          : policy.policy.keys.length
-            ? "Create replacement key"
-            : "Create Ingest Key"}
-      </button>
+    <section className="card ingest-key-card" aria-label="Ingest Keys">
+      <div className="ingest-key-actions">
+        <p>
+          Create a replacement, update your website, and verify the new key before revoking an
+          existing key. Secrets are shown once.
+        </p>
+        <UI.Button
+          disabled={busy || review || !statusLoaded || listRefreshNeeded}
+          onClick={() => void create()}
+        >
+          {busy
+            ? "Creating…"
+            : policy.policy.keys.length
+              ? "Create replacement key"
+              : "Create Ingest Key"}
+        </UI.Button>
+      </div>
       {secret && (
         <div className="one-time-secret">
           <p role="status">Ingest Key created. Copy this key now; it will not be shown again.</p>
           <code>{secret.key}</code>
-          <button onClick={() => void navigator.clipboard?.writeText(secret.key)}>Copy key</button>
-          <button onClick={() => setSecret(null)}>Hide key</button>
+          <UI.Button onClick={() => void navigator.clipboard?.writeText(secret.key)}>
+            Copy key
+          </UI.Button>
+          <UI.Button onClick={() => setSecret(null)}>Hide key</UI.Button>
         </div>
       )}
       {listRefreshNeeded && (
-        <button
+        <UI.Button
           disabled={busy}
           onClick={() => {
             setBusy(true);
@@ -392,7 +398,7 @@ export function IngestKeysManager({
           }}
         >
           {busy ? "Refreshing key list…" : "Refresh active key list"}
-        </button>
+        </UI.Button>
       )}
       {review && (
         <div role="alert">
@@ -400,7 +406,7 @@ export function IngestKeysManager({
             A key request may have completed without a confirmed response. Refresh the active key
             list and have an administrator check it before another key can be created.
           </p>
-          <button
+          <UI.Button
             disabled={busy}
             onClick={() => {
               setReviewRefreshed(false);
@@ -408,10 +414,10 @@ export function IngestKeysManager({
             }}
           >
             Refresh active key list
-          </button>
-          <button disabled={busy || !reviewRefreshed} onClick={() => void completeReview()}>
+          </UI.Button>
+          <UI.Button disabled={busy || !reviewRefreshed} onClick={() => void completeReview()}>
             I checked the key list
-          </button>
+          </UI.Button>
         </div>
       )}
       <ul className="key-list">
@@ -420,27 +426,27 @@ export function IngestKeysManager({
             <span>
               <code>{key.key_id}</code> · created {new Date(key.created_at).toISOString()} · Active
             </span>
-            <button disabled={busy} onClick={() => setRevokeId(key.key_id)}>
+            <UI.Button disabled={busy} onClick={() => setRevokeId(key.key_id)}>
               Revoke
-            </button>
+            </UI.Button>
           </li>
         ))}
       </ul>
       {policy.policy.keys.length === 0 && <p>No active ingest keys.</p>}
-      {revokeId && (
-        <div role="alertdialog" aria-label="Confirm key revocation">
-          <p>
-            After verifying the replacement key, revoke <code>{revokeId}</code>?
-          </p>
-          <button disabled={busy} onClick={() => setRevokeId(null)}>
-            Cancel
-          </button>
-          <button disabled={busy} onClick={() => void revoke()}>
-            Confirm revoke {revokeId}
-          </button>
-        </div>
-      )}
       {error && <p role="alert">{error}</p>}
+      <UI.AlertDialog
+        open={revokeId !== null}
+        title="Confirm key revocation"
+        description={
+          <>
+            After verifying the replacement key, revoke <code>{revokeId}</code>?
+          </>
+        }
+        confirmLabel={`Revoke ${revokeId ?? "key"}`}
+        busy={busy}
+        onCancel={() => setRevokeId(null)}
+        onConfirm={() => void revoke()}
+      />
     </section>
   );
 }

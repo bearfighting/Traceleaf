@@ -382,8 +382,11 @@ describe("site connection status", () => {
         />,
       ),
     );
-    expect(container.textContent).toContain(`Capabilities: ${label}`);
-    expect(container.textContent).toContain(`Ingest policy: ${label}`);
+    const facts = Array.from(container.querySelectorAll(".connection-status-fact"));
+    expect(facts[0]?.querySelector("dt")?.textContent).toBe("Capabilities:");
+    expect(facts[0]?.querySelector("dd")?.textContent).toBe(label);
+    expect(facts[1]?.querySelector("dt")?.textContent).toBe("Ingest policy:");
+    expect(facts[1]?.querySelector("dd")?.textContent).toBe(label);
     act(() => root.unmount());
     container.remove();
     delete (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })

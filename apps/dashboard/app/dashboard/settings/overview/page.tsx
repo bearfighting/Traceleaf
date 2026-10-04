@@ -56,10 +56,10 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   const directory = await loadSiteDirectory();
   if (directory.kind !== "ready" || directory.sites.length === 0) {
     return (
-      <main className="dashboard-shell bg-canvas text-ink">
+      <main className="dashboard-shell">
         <SettingsStatusHeader context={requestedContext} />
-        <div className="dashboard-container py-8">
-          <h1 className="mb-6 text-3xl font-bold tracking-tight">Site settings</h1>
+        <div className="dashboard-content">
+          <h1 className="page-title settings-task-title">Site settings</h1>
           <SiteDirectoryState result={directory} />
         </div>
       </main>
@@ -70,10 +70,10 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   const selection = selectDashboardSite(directory.sites, requestedSite);
   if (selection.kind !== "selected") {
     return (
-      <main className="dashboard-shell bg-canvas text-ink">
+      <main className="dashboard-shell">
         <SettingsStatusHeader context={requestedContext} />
-        <div className="dashboard-container py-8">
-          <h1 className="mb-6 text-3xl font-bold tracking-tight">Site settings</h1>
+        <div className="dashboard-content">
+          <h1 className="page-title settings-task-title">Site settings</h1>
           <SiteSelectionState selection={selection} sites={directory.sites} />
         </div>
       </main>
@@ -124,23 +124,23 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         configuration={configuration}
         analytics={analytics}
       />
-      <section className="card mb-6" aria-label="Site overview">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="eyebrow">{selection.site.site_id}</p>
-            <h2 className="m-0 text-xl font-semibold">
-              {selection.site.display_name || selection.site.site_id}
-            </h2>
-            <p className="mb-0 mt-1 text-sm text-muted">
-              {selection.site.website_url || "Website URL missing"}
-            </p>
-          </div>
-          <div className="text-sm">
-            <p className="m-0">Lifecycle: {selection.site.lifecycle_status}</p>
-            <p className="m-0">Setup readiness: {selection.site.setup_status}</p>
-            <p className="m-0">Environment: {environment ?? "not configured"}</p>
-          </div>
+      <section className="card site-overview-card" aria-label="Site overview">
+        <div className="site-overview-primary">
+          <p className="eyebrow">{selection.site.site_id}</p>
+          <h2>{selection.site.display_name || selection.site.site_id}</h2>
+          <p>{selection.site.website_url || "Website URL missing"}</p>
         </div>
+        <dl className="site-overview-meta">
+          <div>
+            <dt>Lifecycle:</dt> <dd>{selection.site.lifecycle_status}</dd>
+          </div>
+          <div>
+            <dt>Setup readiness:</dt> <dd>{selection.site.setup_status}</dd>
+          </div>
+          <div>
+            <dt>Environment:</dt> <dd>{environment ?? "not configured"}</dd>
+          </div>
+        </dl>
       </section>
     </DashboardShell>
   );

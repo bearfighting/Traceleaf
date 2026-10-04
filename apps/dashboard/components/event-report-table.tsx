@@ -18,7 +18,7 @@ export function EventReportTable({
   state: DashboardReportState<EventsResponse>;
 }) {
   return (
-    <section className="card scroll-mt-6" id="custom-events" aria-labelledby="events-heading">
+    <section className="card report-card" id="custom-events" aria-labelledby="events-heading">
       <h2 id="events-heading">Custom Events</h2>
       {state.status === "error" ? (
         <ErrorState context={context} message={state.error.message} />

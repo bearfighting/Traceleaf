@@ -107,61 +107,56 @@ export function SiteConnectionStatus({
   };
 
   return (
-    <section className="card mb-6" aria-label="Connection status">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+    <section className="card connection-status-card" aria-label="Connection status">
+      <div className="connection-status-header">
+        <div className="connection-status-title">
           <p className="eyebrow">Connection status · {environment}</p>
-          <h2 className="m-0 text-xl font-semibold">{status.title}</h2>
-          <p className="mb-0 mt-1 text-sm text-muted">{status.description}</p>
+          <h2>{status.title}</h2>
+          <p>{status.description}</p>
         </div>
         <Button variant="secondary" onClick={() => router.refresh()}>
           Refresh status
         </Button>
       </div>
       {site.missing_requirements.length > 0 && (
-        <p className="mb-0 mt-3 text-sm" role="status">
+        <p className="connection-status-missing" role="status">
           Missing requirements:{" "}
           {site.missing_requirements.map((item) => missingLabels[item] ?? item).join(", ")}
         </p>
       )}
       {configuration.kind === "ready" && (
-        <dl className="mb-0 mt-4 grid gap-2 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="inline font-semibold">Capabilities: </dt>
-            <dd className="inline">
-              {effectiveStateLabel(configuration.capabilities.effective_state.status)}
-            </dd>
+        <dl className="connection-status-facts" aria-label="Configuration status">
+          <div className="connection-status-fact">
+            <dt>Capabilities:</dt>{" "}
+            <dd>{effectiveStateLabel(configuration.capabilities.effective_state.status)}</dd>
           </div>
-          <div>
-            <dt className="inline font-semibold">Ingest policy: </dt>
-            <dd className="inline">
+          <div className="connection-status-fact">
+            <dt>Ingest policy:</dt>{" "}
+            <dd>
               {configuration.policy
                 ? effectiveStateLabel(configuration.policy.effective_state.status)
                 : "not configured"}
             </dd>
           </div>
-          <div>
-            <dt className="inline font-semibold">Site Page Views (all environments): </dt>
-            <dd className="inline">
-              {analytics.kind === "ready" ? analytics.pageViews : "unavailable"}
-            </dd>
+          <div className="connection-status-fact">
+            <dt>Site Page Views</dt>
+            <dd>{analytics.kind === "ready" ? analytics.pageViews : "unavailable"}</dd>
+            <small>All environments</small>
           </div>
         </dl>
       )}
-      <dl className="mb-0 mt-4 grid gap-2 border-t border-line pt-3 text-sm sm:grid-cols-3">
-        <div>
-          <dt className="font-semibold">Site Management API</dt>
-          <dd className="m-0">{managementStatus(configuration)}</dd>
+      <dl className="connection-status-services" aria-label="Service availability">
+        <div className="connection-status-fact">
+          <dt>Site Management API</dt>
+          <dd>{managementStatus(configuration)}</dd>
         </div>
-        <div>
-          <dt className="font-semibold">Analytics API</dt>
-          <dd className="m-0">
-            {analytics.kind === "ready" ? "Available" : `Unavailable: ${analytics.message}`}
-          </dd>
+        <div className="connection-status-fact">
+          <dt>Analytics API</dt>
+          <dd>{analytics.kind === "ready" ? "Available" : `Unavailable: ${analytics.message}`}</dd>
         </div>
-        <div>
-          <dt className="font-semibold">Page View evidence</dt>
-          <dd className="m-0">
+        <div className="connection-status-fact">
+          <dt>Page View evidence</dt>
+          <dd>
             {analytics.kind === "ready"
               ? `${analytics.pageViews} cumulative Site Page Views (all environments)`
               : "Unavailable; Analytics API request failed"}
@@ -169,10 +164,7 @@ export function SiteConnectionStatus({
         </div>
       </dl>
       {site.lifecycle_status !== "archived" && (
-        <nav
-          aria-label="Resolve setup status"
-          className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm"
-        >
+        <nav aria-label="Resolve setup status" className="connection-status-links">
           {configuration.kind === "missing_capabilities" && (
             <a href={settingsRoute("capabilities", { siteId: site.site_id, environment })}>
               Initialize capabilities

@@ -25,6 +25,8 @@ describe("DashboardShell", () => {
 
     expect(markup).toContain("Web Analytics");
     expect(markup).toContain('aria-label="Primary navigation"');
+    expect(markup).toContain('href="/dashboard/sites/new"');
+    expect(markup).toContain("Add a Site");
     expect(markup).toContain(
       'href="/dashboard?site_id=site_playground&amp;from=2026-09-01&amp;to=2026-09-30&amp;environment=staging"',
     );

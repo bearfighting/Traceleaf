@@ -18,7 +18,7 @@ interface TimelineTableProps {
 
 export function TimelineTable({ context, state }: TimelineTableProps) {
   return (
-    <section className="card scroll-mt-6" id="timeline" aria-labelledby="timeline-heading">
+    <section className="card report-card" id="timeline" aria-labelledby="timeline-heading">
       <h2 id="timeline-heading">Timeline</h2>
       {state.status === "error" ? (
         <ErrorState context={context} message={state.error.message} />

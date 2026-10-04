@@ -2,10 +2,10 @@ import { DashboardLoadingHeader } from "../../components/dashboard-loading-heade
 
 export default function DashboardLoading() {
   return (
-    <main className="dashboard-shell bg-canvas text-ink">
+    <main className="dashboard-shell">
       <DashboardLoadingHeader />
-      <div className="dashboard-container grid gap-8 py-8 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-10">
-        <aside aria-hidden="true" className="hidden content-start gap-2 lg:grid">
+      <div className="dashboard-container dashboard-layout dashboard-layout-analytics">
+        <aside aria-hidden="true" className="loading-sidebar">
           {[
             "Overview",
             "Traffic",
@@ -20,32 +20,26 @@ export default function DashboardLoading() {
             "Geography",
             "Outcomes",
           ].map((item) => (
-            <div className="h-8 animate-pulse rounded-lg bg-slate-200/70" key={item} />
+            <div className="skeleton skeleton-nav-item" key={item} />
           ))}
         </aside>
-        <div className="min-w-0">
-          <header className="mb-6">
+        <div className="dashboard-content-main">
+          <header className="loading-page-heading">
             <p className="eyebrow">Analytics</p>
-            <h1 className="m-0 text-3xl font-bold tracking-tight">Analytics report</h1>
-            <p className="mt-2 text-sm text-muted">Loading the selected report.</p>
+            <h1 className="page-title">Analytics report</h1>
+            <p className="page-description">Loading the selected report.</p>
           </header>
-          <div
-            aria-hidden="true"
-            className="mb-6 flex flex-wrap gap-3 rounded-xl border border-line bg-surface p-4 shadow-sm"
-          >
-            {["w-40", "w-36", "w-36", "w-44", "w-32"].map((width, index) => (
-              <div
-                className={`h-10 animate-pulse rounded-lg bg-slate-200/70 ${width}`}
-                key={index}
-              />
+          <div aria-hidden="true" className="loading-filter-bar">
+            {["wide", "medium", "medium", "wide", "compact"].map((width, index) => (
+              <div className="skeleton skeleton-filter-control" data-width={width} key={index} />
             ))}
           </div>
           <section aria-label="Report loading" className="card">
             <p role="status">Loading report data for the selected site.</p>
-            <div aria-hidden="true" className="mt-4 grid gap-3">
-              <div className="h-4 w-3/4 animate-pulse rounded bg-slate-200/70" />
-              <div className="h-4 w-1/2 animate-pulse rounded bg-slate-200/70" />
-              <div className="h-24 animate-pulse rounded bg-slate-200/70" />
+            <div aria-hidden="true" className="loading-report-skeleton">
+              <div className="skeleton skeleton-line skeleton-line-wide" />
+              <div className="skeleton skeleton-line skeleton-line-medium" />
+              <div className="skeleton skeleton-report-table" />
             </div>
           </section>
         </div>

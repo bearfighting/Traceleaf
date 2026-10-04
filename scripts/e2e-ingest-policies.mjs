@@ -4,7 +4,7 @@ function sqlLiteral(value) {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
-export function buildE2EIngestPolicySeedSql(siteKeys) {
+export function buildE2EIngestPolicySeedSql(siteKeys, allowedOrigins = ["http://localhost:3000"]) {
   if (!siteKeys || typeof siteKeys !== "object" || Object.keys(siteKeys).length === 0) {
     throw new Error("At least one E2E Site Ingest Key is required.");
   }
@@ -19,7 +19,7 @@ export function buildE2EIngestPolicySeedSql(siteKeys) {
       version: 1,
       updated_at: updatedAt,
       enabled: true,
-      allowed_origins: ["http://localhost:3000"],
+      allowed_origins: allowedOrigins,
       ingest_keys: [
         {
           key_id: `ik_${digest.slice(0, 16)}`,
@@ -37,7 +37,7 @@ ON CONFLICT (site_id, environment) DO UPDATE SET version=EXCLUDED.version, updat
   return `BEGIN;\n${statements.join("\n")}\nCOMMIT;`;
 }
 
-export function seedE2EIngestPolicies(runCompose, siteKeys) {
+export function seedE2EIngestPolicies(runCompose, siteKeys, allowedOrigins) {
   runCompose([
     "exec",
     "-T",
@@ -50,6 +50,6 @@ export function seedE2EIngestPolicies(runCompose, siteKeys) {
     "-v",
     "ON_ERROR_STOP=1",
     "-c",
-    buildE2EIngestPolicySeedSql(siteKeys),
+    buildE2EIngestPolicySeedSql(siteKeys, allowedOrigins),
   ]);
 }

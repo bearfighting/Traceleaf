@@ -20,6 +20,7 @@ const composeFiles = ["-f", "compose.yaml", "-f", "compose.backend.yaml", "-f", 
 const project = `web-analytics-dashboard-e2e-${process.pid}`;
 const adminToken = randomBytes(32).toString("base64url");
 const dashboardUrl = `http://127.0.0.1:${process.env.DASHBOARD_PORT ?? "13000"}`;
+const playgroundUrl = `http://localhost:${process.env.PLAYGROUND_NEXT_PORT ?? "3000"}`;
 const errorDashboardPort = process.env.DASHBOARD_ERROR_E2E_PORT ?? "13001";
 const errorContainer = `${project}-dashboard-error`;
 const collectorUrl = `http://127.0.0.1:${process.env.E2E_COLLECTOR_PORT ?? "14001"}`;
@@ -222,7 +223,7 @@ async function assertDashboardShell(page) {
 
   await page.getByRole("link", { name: "Settings", exact: true }).click();
   await expect(page).toHaveURL(
-    /\/dashboard\/settings\/overview\?site_id=site_playground&environment=config-e2e&from=2026-09-20&to=2026-09-21&dimension=browser/,
+    /\/dashboard\/settings\/overview\?site_id=site_playground&environment=config-e2e&from=2026-09-20&to=2026-09-21/,
   );
   const desktopSettingsNavigation = page.getByRole("navigation", {
     name: "Settings navigation",
@@ -281,11 +282,11 @@ async function assertDashboardShell(page) {
   const analyticsLink = page.getByRole("link", { name: "Analytics", exact: true });
   await expect(analyticsLink).toHaveAttribute(
     "href",
-    /\/dashboard\?site_id=site_playground(?=.*environment=config-e2e)(?=.*from=2026-09-20)(?=.*to=2026-09-21)(?=.*dimension=browser)/,
+    /\/dashboard\?site_id=site_playground(?=.*environment=config-e2e)(?=.*from=2026-09-20)(?=.*to=2026-09-21)/,
   );
   await analyticsLink.click();
   await expect(page).toHaveURL(
-    /\/dashboard\?site_id=site_playground(?=.*environment=config-e2e)(?=.*from=2026-09-20)(?=.*to=2026-09-21)(?=.*dimension=browser)/,
+    /\/dashboard\?site_id=site_playground(?=.*environment=config-e2e)(?=.*from=2026-09-20)(?=.*to=2026-09-21)/,
   );
   const settingsLink = page.getByRole("link", { name: "Settings", exact: true });
   await expect(settingsLink).toHaveAttribute(
@@ -294,7 +295,7 @@ async function assertDashboardShell(page) {
   );
   await settingsLink.click();
   await expect(page).toHaveURL(
-    /\/dashboard\/settings\/overview\?site_id=site_playground&environment=config-e2e&from=2026-09-20&to=2026-09-21&dimension=browser/,
+    /\/dashboard\/settings\/overview\?site_id=site_playground&environment=config-e2e&from=2026-09-20&to=2026-09-21/,
   );
 
   await page.getByRole("link", { name: "Analytics", exact: true }).click();
@@ -495,7 +496,7 @@ async function postFixtureEvents(input) {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          origin: "http://localhost:3000",
+          origin: playgroundUrl,
           "x-ingest-key": keys[siteId],
           ...(event ? { "x-forwarded-for": input.geo_forwarded_for[event.event_id] } : {}),
         },
@@ -518,7 +519,7 @@ async function postDimensionFixtureEvents(input) {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        origin: "http://localhost:3000",
+        origin: playgroundUrl,
         "x-ingest-key": keys[siteId],
       },
       body: JSON.stringify({ schema_version: 1, events }),
@@ -784,7 +785,7 @@ async function assertBrowserWebVitalsCollection(browser) {
   });
 
   try {
-    await page.goto("http://localhost:3000", { waitUntil: "domcontentloaded" });
+    await page.goto(playgroundUrl, { waitUntil: "domcontentloaded" });
     const navigationLog = page.getByTestId("events-json");
     await navigationLog.waitFor();
     await page.waitForFunction(() => {
@@ -792,7 +793,7 @@ async function assertBrowserWebVitalsCollection(browser) {
       return value.includes("initial");
     });
     await page.waitForTimeout(1200);
-    await page.goto("http://localhost:3000/about", { waitUntil: "domcontentloaded" });
+    await page.goto(`${playgroundUrl}/about`, { waitUntil: "domcontentloaded" });
     assert(
       (await page.evaluate(() => localStorage.getItem("__e2e_web_vitals_keepalive"))) === "true",
       "The real Browser SDK did not issue a keepalive request when the document was hidden",
@@ -1478,13 +1479,22 @@ async function assertDashboardConfiguration(page) {
     .filter({ has: page.locator("code", { hasText: firstKeyId }) })
     .getByRole("button", { name: "Revoke" })
     .click();
-  await page.getByRole("button", { name: /Confirm revoke/ }).click();
+  await page
+    .getByRole("alertdialog")
+    .getByRole("button", { name: /^Revoke / })
+    .click();
   await expect(page.locator(".key-list li")).toHaveCount(2);
   await page.locator(".key-list li").first().getByRole("button", { name: "Revoke" }).click();
-  await page.getByRole("button", { name: /Confirm revoke/ }).click();
+  await page
+    .getByRole("alertdialog")
+    .getByRole("button", { name: /^Revoke / })
+    .click();
   await expect(page.locator(".key-list li")).toHaveCount(1);
   await page.locator(".key-list li").first().getByRole("button", { name: "Revoke" }).click();
-  await page.getByRole("button", { name: /Confirm revoke/ }).click();
+  await page
+    .getByRole("alertdialog")
+    .getByRole("button", { name: /^Revoke / })
+    .click();
   await page.getByText("No active ingest keys.").waitFor();
 }
 
@@ -1638,27 +1648,19 @@ async function assertDefinitionManagement(page) {
     .getByRole("alert")
     .getByRole("button", { name: "Reload latest definitions" })
     .waitFor();
-  await page.evaluate(() => {
-    window.confirm = (message) => {
-      document.body.dataset.definitionReloadConfirmation = message;
-      return false;
-    };
-  });
   await conflictEditor.getByRole("button", { name: "Reload latest definitions" }).click();
+  const discardDraftDialog = conflictEditor.getByRole("alertdialog");
+  await discardDraftDialog.waitFor();
   assert(
     (await conflictConversion.getByLabel("Name", { exact: true }).inputValue()) ===
       "Unsaved local draft",
-    "Declining conflict reload should preserve the local draft",
+    "Opening the conflict confirmation should preserve the local draft",
   );
   assert(
-    (await page.locator("body").getAttribute("data-definition-reload-confirmation"))?.includes(
-      "discard your unsaved changes",
-    ),
+    (await discardDraftDialog.innerText()).includes("discard your unsaved changes"),
     "Conflict reload did not explain that the local draft will be discarded",
   );
-  await page.evaluate(() => {
-    window.confirm = () => true;
-  });
+  await discardDraftDialog.getByRole("button", { name: "Cancel" }).click();
   let latestReload;
   const captureLatestReload = (response) => {
     if (
@@ -1669,6 +1671,10 @@ async function assertDefinitionManagement(page) {
   };
   page.on("response", captureLatestReload);
   await conflictEditor.getByRole("button", { name: "Reload latest definitions" }).click();
+  await conflictEditor
+    .getByRole("alertdialog")
+    .getByRole("button", { name: "Reload definitions" })
+    .click();
   await conflictEditor
     .getByRole("status")
     .filter({ hasText: "Loaded latest definitions" })
@@ -1932,7 +1938,7 @@ try {
   await runCompose(["up", "-d", "--build", "--wait", "postgres"]);
   runCompose(["run", "--rm", "--build", "db-migrate"]);
   seedE2ECapabilityConfigurations(runCompose);
-  seedE2EIngestPolicies(runCompose, keys);
+  seedE2EIngestPolicies(runCompose, keys, [playgroundUrl]);
   importDefinitionsIfEmpty();
   const composeOutput = runCompose(
     [
@@ -1962,7 +1968,7 @@ try {
   );
   process.stdout.write(composeOutput);
   await waitFor("Dashboard", `${dashboardUrl}/dashboard`);
-  await waitFor("Next.js browser playground", "http://localhost:3000");
+  await waitFor("Next.js browser playground", playgroundUrl);
   await assertDashboardRuntimeConfiguration();
   browser = await chromium.launch({ headless: true });
   await assertBrowserWebVitalsCollection(browser);

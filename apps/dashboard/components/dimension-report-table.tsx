@@ -17,7 +17,7 @@ interface DimensionReportTableProps {
 
 export function DimensionReportTable({ context, state }: DimensionReportTableProps) {
   return (
-    <section className="card scroll-mt-6" id="dimensions" aria-labelledby="dimension-heading">
+    <section className="card report-card" id="dimensions" aria-labelledby="dimension-heading">
       <h2 id="dimension-heading">Dimension Report</h2>
       {state.status === "error" ? (
         <ErrorState context={context} message={state.error.message} />

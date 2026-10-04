@@ -17,7 +17,7 @@ interface TopPagesTableProps {
 
 export function TopPagesTable({ context, state }: TopPagesTableProps) {
   return (
-    <section className="card scroll-mt-6" id="top-pages" aria-labelledby="top-pages-heading">
+    <section className="card report-card" id="top-pages" aria-labelledby="top-pages-heading">
       <h2 id="top-pages-heading">Top Pages</h2>
       {state.status === "error" ? (
         <ErrorState context={context} message={state.error.message} />

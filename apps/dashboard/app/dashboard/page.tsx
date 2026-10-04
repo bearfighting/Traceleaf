@@ -42,11 +42,11 @@ export async function DashboardRouteContent({
   const directory = await loadSiteDirectory();
   if (directory.kind !== "ready" || directory.sites.length === 0) {
     return (
-      <main className="dashboard-shell bg-canvas text-ink">
+      <main className="dashboard-shell">
         <DashboardHeader />
-        <div className="dashboard-container py-8">
-          <h1 className="mb-2 text-3xl font-bold tracking-tight">{reportInfo.title}</h1>
-          <p className="mb-6 text-sm leading-6 text-muted">{reportInfo.description}</p>
+        <div className="dashboard-content">
+          <h1 className="page-title-compact">{reportInfo.title}</h1>
+          <p className="page-description-compact">{reportInfo.description}</p>
           <SiteDirectoryState result={directory} />
         </div>
       </main>
@@ -84,11 +84,11 @@ export async function DashboardRouteContent({
   }
   if (selection.kind === "no_active_sites") {
     return (
-      <main className="dashboard-shell bg-canvas text-ink">
+      <main className="dashboard-shell">
         <DashboardHeader />
-        <div className="dashboard-container py-8">
-          <h1 className="mb-2 text-3xl font-bold tracking-tight">{reportInfo.title}</h1>
-          <p className="mb-6 text-sm leading-6 text-muted">{reportInfo.description}</p>
+        <div className="dashboard-content">
+          <h1 className="page-title-compact">{reportInfo.title}</h1>
+          <p className="page-description-compact">{reportInfo.description}</p>
           <SiteSelectionState selection={selection} sites={directory.sites} />
         </div>
       </main>
@@ -96,11 +96,11 @@ export async function DashboardRouteContent({
   }
   if (selection.kind === "no_sites") {
     return (
-      <main className="dashboard-shell bg-canvas text-ink">
+      <main className="dashboard-shell">
         <DashboardHeader />
-        <div className="dashboard-container py-8">
-          <h1 className="mb-2 text-3xl font-bold tracking-tight">{reportInfo.title}</h1>
-          <p className="mb-6 text-sm leading-6 text-muted">{reportInfo.description}</p>
+        <div className="dashboard-content">
+          <h1 className="page-title-compact">{reportInfo.title}</h1>
+          <p className="page-description-compact">{reportInfo.description}</p>
           <section className="card">
             <ErrorState message="The Site Registry returned no selectable Sites." />
           </section>

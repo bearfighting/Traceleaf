@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import * as UI from "./ui";
+
 export function EnvironmentSelector({
   ...props
 }: {
@@ -49,17 +51,19 @@ function EnvironmentSelectorForm({
   }
 
   return (
-    <form className="card mb-6 flex flex-wrap items-end gap-3" onSubmit={submit}>
+    <form className="card environment-selector-form" onSubmit={submit}>
       <label className="configuration-field">
         Environment name
-        <input
+        <UI.Input
           value={environment}
           onChange={(event) => setEnvironment(event.target.value)}
           required
         />
       </label>
-      <button type="submit">Load environment</button>
-      <p className="mb-0 w-full text-sm text-muted">
+      <UI.Button type="submit" className="button-fit">
+        Load environment
+      </UI.Button>
+      <p className="environment-selector-help">
         Enter an environment name to load or configure its ingest policy.
       </p>
     </form>

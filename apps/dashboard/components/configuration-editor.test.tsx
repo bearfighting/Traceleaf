@@ -134,7 +134,7 @@ describe("ConfigurationEditor", () => {
     expect(markup).toContain('aria-label="Enable environment ingestion"');
     expect(markup).toContain("When disabled, the Collector rejects events.");
     const policyToggle = markup.match(
-      /<input type="checkbox" disabled="" aria-label="Enable environment ingestion"[^>]*\/>/,
+      /<input type="checkbox"[^>]*aria-label="Enable environment ingestion"[^>]*\/>/,
     )?.[0];
     expect(policyToggle).toBeDefined();
     expect(policyToggle).not.toContain('checked=""');

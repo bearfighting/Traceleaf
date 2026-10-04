@@ -43,14 +43,14 @@ export default async function DefinitionsPage({
   const directory = await loadSiteDirectory();
   if (directory.kind !== "ready" || directory.sites.length === 0)
     return (
-      <main className="dashboard-shell bg-canvas text-ink">
+      <main className="dashboard-shell">
         <DashboardHeader
           settingsMode
           analyticsHref={dashboardRoute(context)}
           settingsHref={settingsRoute("definitions", context)}
         />
-        <div className="dashboard-container py-8">
-          <h1 className="mb-6 text-3xl font-bold tracking-tight">Definitions</h1>
+        <div className="dashboard-content">
+          <h1 className="page-title settings-task-title">Definitions</h1>
           <SiteDirectoryState result={directory} />
         </div>
       </main>
@@ -58,14 +58,14 @@ export default async function DefinitionsPage({
   const selection = selectDashboardSite(directory.sites, context.siteId);
   if (selection.kind !== "selected")
     return (
-      <main className="dashboard-shell bg-canvas text-ink">
+      <main className="dashboard-shell">
         <DashboardHeader
           settingsMode
           analyticsHref={dashboardRoute(context)}
           settingsHref={settingsRoute("definitions", context)}
         />
-        <div className="dashboard-container py-8">
-          <h1 className="mb-6 text-3xl font-bold tracking-tight">Definitions</h1>
+        <div className="dashboard-content">
+          <h1 className="page-title settings-task-title">Definitions</h1>
           <SiteSelectionState selection={selection} sites={directory.sites} />
         </div>
       </main>
@@ -92,12 +92,12 @@ export default async function DefinitionsPage({
       settingsMode
     >
       <SettingsNavigation site={selection.site} context={routeContext} section="definitions" />
-      <h1 className="mb-2 text-3xl font-bold tracking-tight">Definitions</h1>
-      <p className="mb-6 text-sm text-muted">
+      <h1 className="page-title-compact">Definitions</h1>
+      <p className="page-description-compact">
         {selection.site.display_name || siteId} · {siteId}
       </p>
-      <section className="card mb-6" aria-label="Definition revision history">
-        <h2 className="mt-0 text-lg font-semibold">Revision history</h2>
+      <section className="card" aria-label="Definition revision history">
+        <h2 className="section-title">Revision history</h2>
         {history.kind === "error" ? (
           <p role="alert">{history.message}</p>
         ) : history.revisions.length === 0 ? (
@@ -126,16 +126,16 @@ export default async function DefinitionsPage({
                 </li>
               ))}
             </ol>
-            <p className="mb-0 text-sm text-muted">
+            <p className="muted-copy">
               Select a stored revision in the analytics date and revision controls to view its
               available historical report.
             </p>
           </>
         )}
       </section>
-      <section className="card mb-6" aria-label="Definition change impact">
-        <h2 className="mt-0 text-lg font-semibold">When changes take effect</h2>
-        <p className="mb-0">
+      <section className="card" aria-label="Definition change impact">
+        <h2 className="section-title">When changes take effect</h2>
+        <p className="card-copy">
           Definition updates affect events processed from their effective time onward. Existing
           facts are not recalculated automatically. Historical recalculation must use the explicit
           operations workflow.

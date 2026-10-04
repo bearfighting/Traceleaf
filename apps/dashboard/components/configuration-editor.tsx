@@ -7,6 +7,7 @@ import capabilityManifest from "../../../protocol/capabilities/capabilities.json
 import { configurationRequestError } from "../lib/configuration-api/errors";
 import { CAPABILITY_LABELS } from "../lib/configuration-api/types";
 
+import * as UI from "./ui";
 import { Button } from "./ui";
 
 import type { ConfigurationLoadResult } from "../lib/configuration-api/server";
@@ -93,17 +94,17 @@ function InitializeCapabilities({ siteId }: { siteId: string }) {
 
   return (
     <section className="card" aria-label="Capability configuration setup" id="capabilities">
-      <h2 className="m-0 text-lg font-semibold">Capability configuration is missing</h2>
-      <p className="mb-0 mt-2 text-sm text-muted">
+      <h2 className="state-title">Capability configuration is missing</h2>
+      <p className="state-description">
         Initialize this Site with Page Views enabled and optional capabilities disabled. You can
         change capabilities after initialization.
       </p>
       {error && (
-        <p className="mb-0 mt-3 text-sm text-red-700" role="alert">
+        <p className="state-error" role="alert">
           {error}
         </p>
       )}
-      <Button className="mt-4" disabled={busy} onClick={() => void initialize()}>
+      <Button className="state-action" disabled={busy} onClick={() => void initialize()}>
         {busy ? "Initializing…" : "Initialize capabilities"}
       </Button>
     </section>
@@ -289,7 +290,7 @@ function Editor({
                             : ""}
                     </small>
                   </span>
-                  <input
+                  <UI.Checkbox
                     type="checkbox"
                     checked={value.enabled}
                     disabled={busy || !hydrated || id === "page_views" || unavailable}
@@ -304,9 +305,9 @@ function Editor({
             <strong>Consent required.</strong> No IP persistence or fingerprinting. These privacy
             constraints cannot be disabled.
           </p>
-          <button type="button" disabled={busy || !hydrated} onClick={saveCapabilities}>
+          <UI.Button type="button" disabled={busy || !hydrated} onClick={saveCapabilities}>
             Save capabilities
-          </button>
+          </UI.Button>
         </section>
       ) : null}
       {section === "environments" ? (
@@ -336,7 +337,7 @@ function Editor({
                   : "This sets the new policy's enabled flag; it does not open ingestion until an allowed Origin and active Ingest Key are configured."}
               </small>
             </span>
-            <input
+            <UI.Checkbox
               type="checkbox"
               checked={policyEnabled}
               disabled={busy || !hydrated}
@@ -350,7 +351,7 @@ function Editor({
           </label>
           <label className="configuration-field">
             Allowed Origins <small>One origin per line, such as https://www.example.com</small>
-            <textarea
+            <UI.Textarea
               rows={4}
               value={origins}
               disabled={busy || !hydrated}
@@ -359,7 +360,7 @@ function Editor({
           </label>
           <label className="configuration-field">
             Rate limit (events per minute)
-            <input
+            <UI.Input
               type="number"
               min={1}
               value={rateLimit}
@@ -367,9 +368,9 @@ function Editor({
               onChange={(event) => setRateLimit(Number(event.target.value))}
             />
           </label>
-          <button type="button" disabled={busy || !hydrated} onClick={savePolicy}>
+          <UI.Button type="button" disabled={busy || !hydrated} onClick={savePolicy}>
             {policy ? "Save access settings" : "Create environment policy"}
-          </button>
+          </UI.Button>
         </section>
       ) : null}
       {error && (
@@ -395,9 +396,9 @@ export function ConfigurationErrorFeedback({
     <p className="configuration-error" role="alert">
       {error}{" "}
       {error.includes("Reload") && (
-        <button type="button" onClick={onReload}>
+        <UI.Button type="button" onClick={onReload}>
           Reload latest configuration
-        </button>
+        </UI.Button>
       )}
     </p>
   );

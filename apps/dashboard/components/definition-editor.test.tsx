@@ -109,7 +109,7 @@ describe("DefinitionEditor", () => {
     );
 
     expect(markup).toContain('disabled="" value="purchase"');
-    expect(markup).toContain('type="checkbox" checked=""');
+    expect(markup).toMatch(/type="checkbox"[^>]*checked=""/);
     expect(markup).toContain("Stored revision: 2 · definitions-v2");
   });
 
@@ -226,18 +226,14 @@ describe("DefinitionEditor", () => {
     await flushReact();
     expect(host.querySelector('[role="alert"]')?.textContent).toContain("Revision conflict");
 
-    const confirm = vi
-      .spyOn(window, "confirm")
-      .mockReturnValueOnce(false)
-      .mockReturnValueOnce(true);
     act(() => button("Reload latest definitions").click());
-    expect(confirm).toHaveBeenCalledWith(
+    expect(host.querySelector('[role="alertdialog"]')?.textContent).toContain(
       "Reload the latest definitions and discard your unsaved changes?",
     );
     expect(labeledInput("Name").value).toBe("Local draft");
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    act(() => button("Reload latest definitions").click());
+    act(() => button("Reload definitions").click());
     await flushReact();
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(labeledInput("Name").value).toBe("Server latest");

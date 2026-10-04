@@ -2,23 +2,23 @@ import { DashboardLoadingHeader } from "../../../components/dashboard-loading-he
 
 export default function SettingsLoading() {
   return (
-    <main className="dashboard-shell bg-canvas text-ink">
+    <main className="dashboard-shell">
       <DashboardLoadingHeader settingsMode />
-      <div className="dashboard-container py-8">
-        <header className="mb-6">
+      <div className="dashboard-content">
+        <header className="loading-page-heading">
           <p className="eyebrow">Workspace</p>
-          <h1 className="m-0 text-3xl font-bold tracking-tight">Site settings</h1>
-          <p className="mt-2 text-sm text-muted">Loading configuration for the selected site.</p>
+          <h1 className="page-title">Site settings</h1>
+          <p className="page-description">Loading configuration for the selected site.</p>
         </header>
-        <div aria-hidden="true" className="mb-6 flex gap-3">
-          <div className="h-10 w-48 animate-pulse rounded-lg bg-slate-200/70" />
-          <div className="h-10 w-28 animate-pulse rounded-lg bg-slate-200/70" />
+        <div aria-hidden="true" className="loading-filter-bar">
+          <div className="skeleton skeleton-settings-select" />
+          <div className="skeleton skeleton-settings-action" />
         </div>
         <section aria-label="Loading site configuration" className="card">
-          <div className="grid gap-3">
-            <div className="h-5 w-48 animate-pulse rounded bg-slate-200/70" />
-            <div className="h-10 w-full animate-pulse rounded-lg bg-slate-200/70" />
-            <div className="h-10 w-2/3 animate-pulse rounded-lg bg-slate-200/70" />
+          <div className="loading-report-skeleton">
+            <div className="skeleton skeleton-section-title" />
+            <div className="skeleton skeleton-form-line" />
+            <div className="skeleton skeleton-form-line skeleton-form-line-short" />
           </div>
         </section>
       </div>

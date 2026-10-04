@@ -28,7 +28,7 @@ export function ConversionFunnelTables({
       {showConversions && conversions && (
         <>
           <section
-            className="card scroll-mt-6"
+            className="card report-card"
             id="conversions"
             aria-labelledby="conversions-heading"
           >
@@ -86,7 +86,7 @@ export function ConversionFunnelTables({
       )}
       {showFunnels && funnels && (
         <>
-          <section className="card scroll-mt-6" id="funnels" aria-labelledby="funnels-heading">
+          <section className="card report-card" id="funnels" aria-labelledby="funnels-heading">
             <h2 id="funnels-heading">Funnels</h2>
             {funnels.status === "success" && (
               <p>Definition revision: {funnels.data.definition_version}</p>
