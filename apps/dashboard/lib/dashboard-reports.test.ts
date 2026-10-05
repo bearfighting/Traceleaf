@@ -4,9 +4,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AnalyticsApiClientError } from "./analytics-api/errors";
 import {
-  loadDashboardLegacyReport,
-  loadDashboardLegacyReports,
-  loadDashboardPhase6Report,
+  loadTrafficAndOutcomeReport,
+  loadTrafficAndOutcomeReports,
+  loadAudienceDimensionReport,
   loadDashboardReports,
 } from "./dashboard-reports";
 
@@ -155,7 +155,7 @@ describe("loadDashboardReports", () => {
   it("loads only the endpoints required by the selected Legacy report", async () => {
     const client = createClient();
 
-    const result = await loadDashboardLegacyReport(context, "countries", client);
+    const result = await loadTrafficAndOutcomeReport(context, "countries", client);
 
     expect(client.geoCountries).toHaveBeenCalledOnce();
     expect(client.timeline).not.toHaveBeenCalled();
@@ -171,14 +171,14 @@ describe("loadDashboardReports", () => {
       code: "analytics_not_enabled",
       status: 404,
     });
-    const disabled = await loadDashboardLegacyReport(
+    const disabled = await loadTrafficAndOutcomeReport(
       context,
       "countries",
       createClient({ geoCountries: vi.fn().mockRejectedValue(disabledError) }),
     );
     expect(disabled.geoCountries).toEqual({ status: "disabled", error: disabledError });
 
-    const noOptionalEndpoint = await loadDashboardLegacyReport(
+    const noOptionalEndpoint = await loadTrafficAndOutcomeReport(
       context,
       "web-vitals",
       createClient({ webVitals: undefined }),
@@ -186,7 +186,7 @@ describe("loadDashboardReports", () => {
     expect(noOptionalEndpoint.webVitals?.status).toBe("unavailable");
 
     const networkError = new AnalyticsApiClientError("Request failed", { kind: "network" });
-    const failed = await loadDashboardLegacyReport(
+    const failed = await loadTrafficAndOutcomeReport(
       context,
       "countries",
       createClient({ geoCountries: vi.fn().mockRejectedValue(networkError) }),
@@ -207,9 +207,9 @@ describe("loadDashboardReports", () => {
         )
         .mockResolvedValueOnce(new Response("{}", { status: 503 })),
     );
-    const missing = await loadDashboardLegacyReport(context, "conversions", createClient());
+    const missing = await loadTrafficAndOutcomeReport(context, "conversions", createClient());
     expect(missing.conversions).toEqual({ status: "missing_definitions" });
-    const failed = await loadDashboardLegacyReport(context, "funnels", createClient());
+    const failed = await loadTrafficAndOutcomeReport(context, "funnels", createClient());
     expect(failed.funnels).toMatchObject({ status: "error", error: { kind: "response" } });
   });
 
@@ -229,7 +229,7 @@ describe("loadDashboardReports", () => {
       status: 400,
     });
 
-    const result = await loadDashboardLegacyReport(
+    const result = await loadTrafficAndOutcomeReport(
       context,
       "conversions",
       createClient({ conversions: vi.fn().mockRejectedValue(missingVersion) }),
@@ -256,7 +256,7 @@ describe("loadDashboardReports", () => {
       status: 400,
     });
 
-    const legacy = await loadDashboardLegacyReports(context, {
+    const trafficAndOutcome = await loadTrafficAndOutcomeReports(context, {
       client: createClient({
         conversions: vi.fn().mockRejectedValue(invalidVersion),
         funnels: vi.fn().mockRejectedValue(invalidVersion),
@@ -269,15 +269,15 @@ describe("loadDashboardReports", () => {
       }),
     });
 
-    expect(legacy.conversions).toEqual({ status: "missing_definitions" });
-    expect(legacy.funnels).toEqual({ status: "missing_definitions" });
+    expect(trafficAndOutcome.conversions).toEqual({ status: "missing_definitions" });
+    expect(trafficAndOutcome.funnels).toEqual({ status: "missing_definitions" });
     expect(allReports.conversions).toEqual({ status: "missing_definitions" });
     expect(allReports.funnels).toEqual({ status: "missing_definitions" });
   });
 
-  it("queries only the selected Phase 6 report endpoint", async () => {
+  it("queries only the selected audience or dimension report endpoint", async () => {
     const dimensionsClient = createClient();
-    const dimensions = await loadDashboardPhase6Report(context, "dimensions", {
+    const dimensions = await loadAudienceDimensionReport(context, "dimensions", {
       client: dimensionsClient,
     });
 
@@ -287,7 +287,7 @@ describe("loadDashboardReports", () => {
     expect(dimensionsClient.sessions).not.toHaveBeenCalled();
 
     const sessionsClient = createClient();
-    const sessions = await loadDashboardPhase6Report(context, "sessions", {
+    const sessions = await loadAudienceDimensionReport(context, "sessions", {
       client: sessionsClient,
     });
 

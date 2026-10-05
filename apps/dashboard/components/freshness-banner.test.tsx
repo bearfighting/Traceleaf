@@ -72,11 +72,11 @@ describe("FreshnessBanner", () => {
       />,
     );
 
-    expect(markup).toContain("No Phase 6 data is available");
+    expect(markup).toContain("No analytics data is available");
     expect(markup).not.toContain("Data as of");
   });
 
-  it("uses the highest severity across successful Phase 6 reports", () => {
+  it("uses the highest severity across successful reports", () => {
     const markup = renderToStaticMarkup(
       <FreshnessBanner
         context={context}

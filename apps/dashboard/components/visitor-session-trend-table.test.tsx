@@ -7,7 +7,7 @@ import { VisitorSessionTrendTable } from "./visitor-session-trend-table";
 const context = { siteId: "site_playground", dateRange: { from: "2026-09-20", to: "2026-09-21" } };
 
 describe("VisitorSessionTrendTable", () => {
-  it("renders API daily order and all Phase 6 metrics", () => {
+  it("renders API daily order and all audience metrics", () => {
     const markup = renderToStaticMarkup(
       <VisitorSessionTrendTable
         context={context}
@@ -46,7 +46,7 @@ describe("VisitorSessionTrendTable", () => {
     expect(markup).toContain("/dashboard/settings/capabilities?site_id=site_playground");
   });
 
-  it("renders a Phase 6 empty state", () => {
+  it("renders an empty state", () => {
     const markup = renderToStaticMarkup(
       <VisitorSessionTrendTable
         context={context}
@@ -68,6 +68,6 @@ describe("VisitorSessionTrendTable", () => {
       />,
     );
 
-    expect(markup).toContain("No Phase 6 analytics data is available");
+    expect(markup).toContain("No analytics data is available");
   });
 });

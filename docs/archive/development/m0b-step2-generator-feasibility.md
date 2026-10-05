@@ -26,8 +26,8 @@ cargo install cargo-typify --version 0.8.0 --locked --root /tmp/m0b-typify
 执行与检查命令：
 
 ```sh
-node scripts/m0b-generation-trial.mjs --toolkit-root /tmp/m0b-schema-transformation-toolkit --json2ts-root experiments/m0b/ts-generator --typify-bin /tmp/m0b-typify/bin/cargo-typify --output-dir artifacts/m0b-generator-trial/repro-a --snapshot
-node scripts/m0b-generation-trial.mjs --toolkit-root /tmp/m0b-schema-transformation-toolkit --json2ts-root experiments/m0b/ts-generator --typify-bin /tmp/m0b-typify/bin/cargo-typify --output-dir artifacts/m0b-generator-trial/repro-b --check
+node scripts/compare-contract-type-generators.mjs --toolkit-root /tmp/m0b-schema-transformation-toolkit --json2ts-root experiments/m0b/ts-generator --typify-bin /tmp/m0b-typify/bin/cargo-typify --output-dir artifacts/m0b-generator-trial/repro-a --snapshot
+node scripts/compare-contract-type-generators.mjs --toolkit-root /tmp/m0b-schema-transformation-toolkit --json2ts-root experiments/m0b/ts-generator --typify-bin /tmp/m0b-typify/bin/cargo-typify --output-dir artifacts/m0b-generator-trial/repro-b --check
 ```
 
 `--output-dir` 必须为空。脚本生成原始输入的诊断、成功产物、`results.json`，保存在被 Git 忽略的 `artifacts/m0b-generator-trial/`；`--snapshot` 将成功产物复制到[评估样本](../../../experiments/m0b/generated/results.json)。生成器各自完成代码格式化，脚本没有手工后处理。更新样本时显式使用 `--snapshot`，正常检查使用 `--check`。

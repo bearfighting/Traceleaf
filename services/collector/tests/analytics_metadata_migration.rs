@@ -37,13 +37,13 @@ async fn cleanup(pool: &PgPool) {
         sqlx::query(sqlx::AssertSqlSafe(format!("DELETE FROM {table}")))
             .execute(pool)
             .await
-            .expect("phase 6 metadata cleanup should succeed");
+            .expect("analytics metadata cleanup should succeed");
     }
 }
 
 #[tokio::test]
 #[ignore = "requires PostgreSQL; run pnpm test:integration"]
-async fn phase6_metadata_migration_is_additive_and_supports_rollback() {
+async fn analytics_metadata_migration_is_additive_and_supports_rollback() {
     let pool = pool().await;
     cleanup(&pool).await;
     sqlx::query(
@@ -53,7 +53,7 @@ async fn phase6_metadata_migration_is_additive_and_supports_rollback() {
     .await
     .expect("Site Registry fixture should be present");
 
-    let phase6_indexes = sqlx::query_scalar::<_, String>(
+    let analytics_indexes = sqlx::query_scalar::<_, String>(
         "SELECT indexname
          FROM pg_indexes
          WHERE schemaname = current_schema()
@@ -71,9 +71,9 @@ async fn phase6_metadata_migration_is_additive_and_supports_rollback() {
     )
     .fetch_all(&pool)
     .await
-    .expect("phase 6 query indexes should be inspectable");
+    .expect("analytics query indexes should be inspectable");
     assert_eq!(
-        phase6_indexes,
+        analytics_indexes,
         vec![
             "dimension_daily_generation_lookup_idx",
             "dimension_event_facts_generation_dimension_value_idx",
