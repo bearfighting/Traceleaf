@@ -26,7 +26,7 @@
 
 - 事件样本：Event Batch V1，含三类事件与 Browser Context；见 [逐例基线](m0b-step1-sample-baseline.md)。
 - 配置样本：Stored Environment Policy V1；见 [逐例基线](m0b-step1-sample-baseline.md)。
-- 基线命令：`node scripts/m0b-schema-baseline.mjs`、`pnpm protocol:validate`、`cargo test -p collector canonical_ -- --nocapture`、`cargo test -p collector runtime_policy::tests -- --nocapture`、`cargo test -p collector canonical_policy_fixtures_match_runtime_parser -- --nocapture`；结果与限制见逐例基线。
+- 基线命令：`node scripts/check-contract-fixture-schema-baseline.mjs`、`pnpm protocol:validate`、`cargo test -p collector canonical_ -- --nocapture`、`cargo test -p collector runtime_policy::tests -- --nocapture`、`cargo test -p collector canonical_policy_fixtures_match_runtime_parser -- --nocapture`；结果与限制见逐例基线。
 - Fixture 覆盖缺口：未知字段、日期/标识符格式、边界值、更多动态 JSON 限制和 Web Vital 时间关系；详见逐例基线覆盖表。
 
 ### 2. 验证生成流程是否可脚本化
@@ -41,7 +41,7 @@
 **证据 / 备注**
 
 - 候选及固定版本：Toolkit commit `825f4398e125f586354a18ba575d4d37edc5c745`、json-schema-to-typescript `16.0.0`、cargo-typify `0.8.0`；锁定方式、许可与工具链见[第二步结果报告](m0b-step2-generator-feasibility.md)。
-- 生成 / 检查命令：[试验脚本](../../../scripts/m0b-generation-trial.mjs) 的 `--snapshot` / `--check`；精确命令、原始失败和输入处理见第二步结果报告。
+- 生成 / 检查命令：[试验脚本](../../../scripts/compare-contract-type-generators.mjs) 的 `--snapshot` / `--check`；精确命令、原始失败和输入处理见第二步结果报告。
 - 可重复性结果：两个干净目录的结果清单和四份成功产物逐字节一致；`--check` 正常通过，故意改动临时样本时退出 1；`pnpm protocol:validate` 退出 0。
 - 人工介入或不支持特性：无生成后人工修补。事件 Rust 因外部 `$ref`、保留约束后的 `if/then/else` 未生成；Toolkit 配置 TS 有损，typify 配置 Rust 的 `schema_version` 类型变宽。四条路径的限定结论见第二步结果报告；Toolkit 的详细问题见[专项报告](m0b-toolkit-findings.md)。
 

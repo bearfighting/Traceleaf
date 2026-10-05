@@ -15,7 +15,7 @@
 
 ## 判定方法与命令
 
-- `node scripts/m0b-schema-baseline.mjs`：用 Ajv Draft 2020-12 与 `ajv-formats` 得出**纯 Schema** 判定。顶层有 `type` 的 fixture 对三种事件 Schema 做 `oneOf` 等价判定；其余事件 fixture 进入 batch Schema。Policy fixture 进入存储策略 Schema。此脚本不执行语义规则。
+- `node scripts/check-contract-fixture-schema-baseline.mjs`：用 Ajv Draft 2020-12 与 `ajv-formats` 得出**纯 Schema** 判定。顶层有 `type` 的 fixture 对三种事件 Schema 做 `oneOf` 等价判定；其余事件 fixture 进入 batch Schema。Policy fixture 进入存储策略 Schema。此脚本不执行语义规则。
 - `pnpm protocol:validate`：现有 `scripts/validate-protocol.mjs` 与 `scripts/validate-configuration-contract.mjs` 对相应 fixtures 的**最终预期判定**均通过；两者在 Schema 外再检查部分语义规则。2026-09-29 运行成功。
 - `cargo test -p collector canonical_ -- --nocapture`：Collector 对 11 个有效和 17 个无效事件 fixtures，以及 2 个有效和 8 个无效策略 fixtures 逐例断言；3 个测试通过。2026-09-29 运行成功。
 - `cargo test -p collector runtime_policy::tests -- --nocapture`：5 个测试通过，包括全部策略 fixtures、`empty-ingest-keys.json` 的运行时状态检查及数据库行身份不匹配案例。

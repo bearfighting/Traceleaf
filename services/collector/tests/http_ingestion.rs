@@ -25,7 +25,7 @@ where
     S: EventSink + 'static,
 {
     let config_path =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/collector.pr5.toml");
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/collector-origin-policy.toml");
     let config = CollectorConfig::load_from_path(&config_path).expect("test config should load");
     router(
         Validator::new().expect("schemas should compile"),

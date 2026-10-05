@@ -1,7 +1,7 @@
 import React from "react";
 
 import { loadDashboardOverview } from "../lib/dashboard-overview";
-import { loadDashboardLegacyReport } from "../lib/dashboard-reports";
+import { loadTrafficAndOutcomeReport } from "../lib/dashboard-reports";
 
 import { ConversionFunnelTables } from "./conversion-funnel-tables";
 import { EventReportTable } from "./event-report-table";
@@ -15,19 +15,19 @@ import { WebVitalsTable } from "./web-vitals-table";
 import type { AnalyticsApiClient } from "../lib/analytics-api/client";
 import type { DashboardOverviewContext } from "../lib/dashboard-overview";
 
-interface LegacyDashboardSectionsProps {
+interface TrafficAndOutcomeReportSectionsProps {
   context: DashboardOverviewContext;
   client: AnalyticsApiClient;
   report: string;
   environment?: string;
 }
 
-export async function LegacyDashboardSections({
+export async function TrafficAndOutcomeReportSections({
   context,
   client,
   report,
   environment,
-}: LegacyDashboardSectionsProps) {
+}: TrafficAndOutcomeReportSectionsProps) {
   if (report === "overview") {
     const overview = await loadDashboardOverview(context, { client });
     const params = new URLSearchParams({
@@ -99,7 +99,7 @@ export async function LegacyDashboardSections({
     return null;
   }
 
-  const reports = await loadDashboardLegacyReport(context, report, client);
+  const reports = await loadTrafficAndOutcomeReport(context, report, client);
 
   return (
     <>

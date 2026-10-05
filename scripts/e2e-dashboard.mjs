@@ -33,7 +33,7 @@ const fixturesDirectory = path.join(
   "current",
   "fixtures",
 );
-const phase6FixturesDirectory = path.join(root, "tests", "fixtures", "dashboard");
+const audienceDimensionFixturesDirectory = path.join(root, "tests", "fixtures", "dashboard");
 const keys = {
   site_playground: "e2e-test-key",
   site_alpha: "e2e-test-key-alpha",
@@ -59,8 +59,8 @@ const composeBaseArgs = [
 
 const fixture = async (name) =>
   JSON.parse(await readFile(path.join(fixturesDirectory, `${name}.json`), "utf8"));
-const phase6Fixture = async (name) =>
-  JSON.parse(await readFile(path.join(phase6FixturesDirectory, `${name}.json`), "utf8"));
+const audienceDimensionFixture = async (name) =>
+  JSON.parse(await readFile(path.join(audienceDimensionFixturesDirectory, `${name}.json`), "utf8"));
 
 function runCompose(args, options = {}) {
   try {
@@ -375,7 +375,7 @@ async function resetDatabase() {
   ]);
 }
 
-async function enablePhase6(siteId) {
+async function enableAudienceDimensionReports(siteId) {
   runCompose([
     "exec",
     "-T",
@@ -390,10 +390,10 @@ async function enablePhase6(siteId) {
     "-c",
     `INSERT INTO analytics_feature_flags (site_id, analytics_enabled) VALUES ('${siteId}', TRUE) ON CONFLICT (site_id) DO UPDATE SET analytics_enabled = TRUE`,
   ]);
-  await setPhase6Enabled(siteId, true);
+  await setAudienceDimensionReportsEnabled(siteId, true);
 }
 
-async function setPhase6Enabled(siteId, enabled) {
+async function setAudienceDimensionReportsEnabled(siteId, enabled) {
   const enabledSql = enabled ? "TRUE" : "FALSE";
   const version = Number(
     runCompose(
@@ -651,9 +651,9 @@ async function prepareFixture(data) {
   runProcessorOnce();
 }
 
-async function preparePhase6Fixture(data) {
+async function prepareAudienceDimensionFixture(data) {
   await resetDatabase();
-  await enablePhase6("site_playground");
+  await enableAudienceDimensionReports("site_playground");
   await postDimensionFixtureEvents(data.input);
   runProcessorOnce();
   runProcessorBackfill("2026-09-20", "2026-09-21");
@@ -973,7 +973,7 @@ async function assertCustomEvents(page) {
 }
 
 async function assertBackfilledConversionFunnels(page) {
-  const data = await phase6Fixture("dashboard-dimensions");
+  const data = await audienceDimensionFixture("dashboard-dimensions");
   const visitorId = "550e8400-e29b-41d4-a716-446655440010";
   data.input.events.push(
     {
@@ -1008,10 +1008,10 @@ async function assertBackfilledConversionFunnels(page) {
     },
   );
 
-  // Process custom events before Sessions exist, then verify a direct Phase 6
+  // Process custom events before Sessions exist, then verify a direct audience-report
   // backfill relinks the derived Conversion and Funnel facts.
   await prepareFixture(data);
-  await enablePhase6("site_playground");
+  await enableAudienceDimensionReports("site_playground");
   runProcessorBackfill("2026-09-20", "2026-09-21");
   runProcessorRebuildConversionFunnels("site_playground", importedDefinitionVersion);
   await page.goto(rangeUrl("site_playground", "2026-09-20", "2026-09-21", "conversions"));
@@ -1212,9 +1212,9 @@ async function assertCustomDateRange(page) {
   await expectMetric(page, "Selected range Page Views", rangeOverview.page_views);
 }
 
-async function assertPhase6Dashboard(page) {
-  const data = await phase6Fixture("dashboard-dimensions");
-  await preparePhase6Fixture(data);
+async function assertAudienceDimensionDashboard(page) {
+  const data = await audienceDimensionFixture("dashboard-dimensions");
+  await prepareAudienceDimensionFixture(data);
   await page.goto(rangeUrl("site_playground", "2026-09-20", "2026-09-21"));
   await expectMetric(page, "Unique Visitors", data.expected.visitors.unique_visitors);
   await expectMetric(page, "Sessions", data.expected.visitors.sessions);
@@ -1235,27 +1235,25 @@ async function assertPhase6Dashboard(page) {
   await expectReportRows(page, "Dimension Report", ["en-CA 3 1 2", "en-US 2 1 1"]);
 }
 
-async function assertPhase6Disabled(page) {
+async function assertAudienceDimensionReportsDisabled(page) {
   const data = await fixture("single-page-view");
   await resetDatabase();
-  await setPhase6Enabled("site_playground", false);
+  await setAudienceDimensionReportsEnabled("site_playground", false);
   await postFixtureEvents(data.input);
   runProcessorOnce();
   await page.goto(rangeUrl("site_playground", "2026-09-18", "2026-09-18", "visitors"));
   assert(
-    (await page.getByText("No Phase 6 analytics data is available for this selection.").count()) ===
-      1,
-    "Expected empty visitor data while Phase 6 capabilities are disabled",
+    (await page.getByText("No analytics data is available for this selection.").count()) === 1,
+    "Expected empty visitor data while audience reporting capabilities are disabled",
   );
 }
 
-async function assertPhase6Empty(page) {
-  const data = await phase6Fixture("dashboard-dimensions");
-  await preparePhase6Fixture(data);
+async function assertAudienceDimensionDashboardEmpty(page) {
+  const data = await audienceDimensionFixture("dashboard-dimensions");
+  await prepareAudienceDimensionFixture(data);
   await page.goto(rangeUrl("site_playground", "2026-09-01", "2026-09-01", "visitors"));
   assert(
-    (await page.getByText("No Phase 6 analytics data is available for this selection.").count()) ===
-      1,
+    (await page.getByText("No analytics data is available for this selection.").count()) === 1,
     "Expected empty state for Visitors",
   );
 }
@@ -2004,12 +2002,12 @@ try {
   console.log("PASS empty-date-range dashboard");
   await assertCustomDateRange(page);
   console.log("PASS custom-date-range dashboard");
-  await assertPhase6Disabled(page);
-  console.log("PASS phase6-disabled dashboard");
-  await assertPhase6Dashboard(page);
-  console.log("PASS phase6 dashboard");
-  await assertPhase6Empty(page);
-  console.log("PASS phase6-empty dashboard");
+  await assertAudienceDimensionReportsDisabled(page);
+  console.log("PASS audience-dimension-reports-disabled dashboard");
+  await assertAudienceDimensionDashboard(page);
+  console.log("PASS audience-dimension dashboard");
+  await assertAudienceDimensionDashboardEmpty(page);
+  console.log("PASS audience-dimension-empty dashboard");
   await browserContext.tracing.stop();
   browserTracingActive = false;
   await assertDashboardConfiguration(page);

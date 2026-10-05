@@ -16,7 +16,7 @@ use crate::analytics::{
     validation,
 };
 
-async fn phase6_transaction<'a>(
+async fn read_only_report_transaction<'a>(
     state: &'a AnalyticsState,
     _site_id: &str,
 ) -> Result<sqlx::Transaction<'a, Postgres>, HandlerError> {
@@ -48,7 +48,7 @@ pub(crate) async fn visitors(
     Path((site_id, from, to)): Path<(String, String, String)>,
 ) -> Result<Response, HandlerError> {
     let range = validation::parse_range(&from, &to)?;
-    let mut transaction = phase6_transaction(&state, &site_id).await?;
+    let mut transaction = read_only_report_transaction(&state, &site_id).await?;
     let Some(generation) = queries::active_generation(&mut transaction, &site_id)
         .await
         .map_err(ApiError::database)?
@@ -72,7 +72,7 @@ pub(crate) async fn visitors(
         })
         .into_response());
     };
-    let (page_views, unique_visitors, sessions) = queries::phase6_visitor_counts(
+    let (page_views, unique_visitors, sessions) = queries::visitor_session_counts(
         &mut transaction,
         &site_id,
         &generation.generation_id,
@@ -145,7 +145,7 @@ pub(crate) async fn dimensions(
     Path((site_id, from, to, dimension)): Path<(String, String, String, String)>,
     RawQuery(raw_query): RawQuery,
 ) -> Result<Response, HandlerError> {
-    let mut transaction = phase6_transaction(&state, &site_id).await?;
+    let mut transaction = read_only_report_transaction(&state, &site_id).await?;
     let range = match validation::parse_range(&from, &to) {
         Ok(range) => range,
         Err(error) => {

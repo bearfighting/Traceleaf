@@ -46,15 +46,15 @@ pub(crate) fn router(state: AnalyticsState) -> Router {
         )
         .route(
             "/v1/sites/{site_id}/reports/{from}/{to}/visitors",
-            get(handlers::phase6::visitors),
+            get(handlers::audience_dimension_reports::visitors),
         )
         .route(
             "/v1/sites/{site_id}/reports/{from}/{to}/sessions",
-            get(handlers::phase6::sessions),
+            get(handlers::audience_dimension_reports::sessions),
         )
         .route(
             "/v1/sites/{site_id}/reports/{from}/{to}/dimensions/{dimension}",
-            get(handlers::phase6::dimensions),
+            get(handlers::audience_dimension_reports::dimensions),
         )
         .route_layer(middleware::from_fn_with_state(
             state.clone(),

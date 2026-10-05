@@ -64,7 +64,7 @@ This checklist turns the M2 roadmap item into reviewable implementation slices. 
 ### M2.4 — Add explicit constraints and shared fixture parity
 
 - [x] Document per-contract constraints and consumer/type boundaries, including revisions without a stored Schema, in [M2.4 parity assessment](m2.4-configuration-parity.md).
-- [x] Add a repeatable Schema fixture runner: `node scripts/m2-configuration-parity.mjs`; it distinguishes Schema-valid/service-invalid semantic fixtures and strict date-time candidates.
+- [x] Add a repeatable Schema fixture runner: `node scripts/check-configuration-contract-parity.mjs`; it distinguishes Schema-valid/service-invalid semantic fixtures and strict date-time candidates.
 - [x] Exercise stored fixtures through Rust parsing and explicit rules, and all management update fixtures through production Schema and service rules; see the M2.4 parity assessment for the per-fixture outcome matrix.
 - [x] Extend `node scripts/audit-policy-datetimes.mjs` to inspect both stored policy and capability tables in read-only transactions; fixture mode covers the capability date-time candidate. Executed both result paths against disposable PostgreSQL 18.6 tables; see the parity report.
 - [x] Run the preflight against the only current environment (local development); both tables passed with no remediation. Future deployments with existing data must pass before rollout.
@@ -76,7 +76,7 @@ This checklist turns the M2 roadmap item into reviewable implementation slices. 
 
 **Exit criteria:** fixture outcomes match or have documented exceptions; unknown-field/version behavior is explicit; current-environment policy and capability preflight passed before strict format assertions were enabled. Current status: complete for the current local-development environment.
 
-**Evidence:** [M2.4 parity assessment](m2.4-configuration-parity.md), [ADR-017](../../decisions/ADR-017-policy-date-time-compatibility.md), [ADR-018](../../decisions/ADR-018-capability-date-time-compatibility.md), `node scripts/m2-configuration-parity.mjs`. The local-development audit passed on 2026-09-30 (1 policy document, 7 capability documents, 0 invalid fields); future environments with existing data require a pre-rollout audit. Generated TypeScript probes prove static assignability only.
+**Evidence:** [M2.4 parity assessment](m2.4-configuration-parity.md), [ADR-017](../../decisions/ADR-017-policy-date-time-compatibility.md), [ADR-018](../../decisions/ADR-018-capability-date-time-compatibility.md), `node scripts/check-configuration-contract-parity.mjs`. The local-development audit passed on 2026-09-30 (1 policy document, 7 capability documents, 0 invalid fields); future environments with existing data require a pre-rollout audit. Generated TypeScript probes prove static assignability only.
 
 ### M2.5 — Establish static runtime views and capability registry
 

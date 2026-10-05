@@ -28,7 +28,7 @@ export function DimensionReportTable({ context, state }: DimensionReportTablePro
       ) : state.data.items.length === 0 ? (
         <EmptyState
           context={context}
-          message="No Phase 6 analytics data is available for this selection."
+          message="No analytics data is available for this selection."
         />
       ) : (
         <Table className="data-table">

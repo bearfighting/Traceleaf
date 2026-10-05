@@ -31,7 +31,7 @@ describe("DimensionReportTable", () => {
     expect(markup).toContain("5");
   });
 
-  it("renders a Phase 6 empty state", () => {
+  it("renders an empty state", () => {
     const markup = renderToStaticMarkup(
       <DimensionReportTable
         context={context}
@@ -51,6 +51,6 @@ describe("DimensionReportTable", () => {
       />,
     );
 
-    expect(markup).toContain("No Phase 6 analytics data is available");
+    expect(markup).toContain("No analytics data is available");
   });
 });

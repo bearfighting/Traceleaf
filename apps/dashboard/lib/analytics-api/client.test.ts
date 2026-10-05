@@ -218,7 +218,7 @@ describe("Analytics API queries", () => {
     ]);
   });
 
-  it("builds Phase 6 report URLs and validates freshness metadata", async () => {
+  it("builds audience report URLs and validates freshness metadata", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(jsonResponse(visitorSession))
@@ -280,7 +280,7 @@ describe("Analytics API errors and response validation", () => {
     await expectHttpError(client.overview("site_playground"), 500, "analytics_api_error");
   });
 
-  it("maps disabled Phase 6 responses separately", async () => {
+  it("maps disabled audience report responses separately", async () => {
     const { client } = clientFor(
       jsonResponse({ error: { code: "analytics_not_enabled", message: "disabled" } }, 404),
     );
@@ -374,7 +374,7 @@ describe("Analytics API errors and response validation", () => {
     ).rejects.toBeInstanceOf(AnalyticsApiClientError);
   });
 
-  it("rejects Phase 6 responses for a different request scope", async () => {
+  it("rejects audience report responses for a different request scope", async () => {
     const { client } = clientFor(
       jsonResponse({ ...visitorSession, site_id: "another-site", dimension: undefined }),
     );

@@ -4,11 +4,11 @@ import { createAnalyticsApiClient } from "../lib/analytics-api/client";
 import { getAnalyticsApiUrl } from "../lib/analytics-api/config";
 import { AnalyticsApiClientError } from "../lib/analytics-api/errors";
 
-import { LegacyDashboardSections } from "./legacy-dashboard-sections";
-import { Phase6DashboardSections } from "./phase6-dashboard-sections";
-import { Phase6LoadingState } from "./phase6-loading-state";
+import { AudienceDimensionReportSections } from "./audience-dimension-report-sections";
+import { ReportLoadingState } from "./report-loading-state";
 import { ErrorState } from "./states/error-state";
 import { LoadingState } from "./states/loading-state";
+import { TrafficAndOutcomeReportSections } from "./traffic-and-outcome-report-sections";
 
 import type { AnalyticsApiClient } from "../lib/analytics-api/client";
 import type { AnalyticsDimension } from "../lib/analytics-api/types";
@@ -76,7 +76,7 @@ export function DashboardSections({
           ) : null
         }
       >
-        <LegacyDashboardSections
+        <TrafficAndOutcomeReportSections
           context={context}
           client={client}
           report={report}
@@ -86,7 +86,7 @@ export function DashboardSections({
       <Suspense
         fallback={
           ["overview", "visitors", "sessions", "dimensions"].includes(report) ? (
-            <Phase6LoadingState
+            <ReportLoadingState
               heading={
                 report === "overview"
                   ? "Audience summary"
@@ -100,7 +100,7 @@ export function DashboardSections({
           ) : null
         }
       >
-        <Phase6DashboardSections context={context} client={client} report={report} />
+        <AudienceDimensionReportSections context={context} client={client} report={report} />
       </Suspense>
     </>
   );

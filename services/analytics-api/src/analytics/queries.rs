@@ -207,7 +207,7 @@ pub(crate) async fn active_generation(
     })
 }
 
-pub(crate) async fn phase6_visitor_counts(
+pub(crate) async fn visitor_session_counts(
     transaction: &mut Transaction<'_, Postgres>,
     site_id: &str,
     generation_id: &str,

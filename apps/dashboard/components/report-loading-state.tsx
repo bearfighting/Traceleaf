@@ -1,10 +1,10 @@
 import React from "react";
 
-export function Phase6LoadingState({ heading }: { heading: string }) {
+export function ReportLoadingState({ heading }: { heading: string }) {
   return (
     <section className="card" aria-labelledby={`${heading}-loading-heading`}>
       <h2 id={`${heading}-loading-heading`}>{heading}</h2>
-      <p role="status">Loading Phase 6 analytics...</p>
+      <p role="status">Loading analytics data...</p>
     </section>
   );
 }

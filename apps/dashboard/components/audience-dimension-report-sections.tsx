@@ -1,6 +1,6 @@
 import React from "react";
 
-import { loadDashboardPhase6Report } from "../lib/dashboard-reports";
+import { loadAudienceDimensionReport } from "../lib/dashboard-reports";
 
 import { DimensionReportTable } from "./dimension-report-table";
 import { FreshnessBanner } from "./freshness-banner";
@@ -13,17 +13,17 @@ import { VisitorSessionTrendTable } from "./visitor-session-trend-table";
 import type { AnalyticsApiClient } from "../lib/analytics-api/client";
 import type { DashboardOverviewContext } from "../lib/dashboard-overview";
 
-interface Phase6DashboardSectionsProps {
+interface AudienceDimensionReportSectionsProps {
   context: DashboardOverviewContext;
   client: AnalyticsApiClient;
   report: string;
 }
 
-export async function Phase6DashboardSections({
+export async function AudienceDimensionReportSections({
   context,
   client,
   report,
-}: Phase6DashboardSectionsProps) {
+}: AudienceDimensionReportSectionsProps) {
   if (
     report !== "overview" &&
     report !== "visitors" &&
@@ -33,7 +33,7 @@ export async function Phase6DashboardSections({
     return null;
   }
 
-  const result = await loadDashboardPhase6Report(context, report, { client });
+  const result = await loadAudienceDimensionReport(context, report, { client });
 
   if (result.kind === "audience" && report === "overview")
     return (

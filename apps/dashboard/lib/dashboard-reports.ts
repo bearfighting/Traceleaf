@@ -39,7 +39,7 @@ export interface DashboardReportsState {
   dimension: DashboardReportState<DimensionResponse>;
 }
 
-export interface DashboardLegacyReportsState {
+export interface DashboardTrafficAndOutcomeReportsState {
   events: DashboardReportState<EventsResponse>;
   geoCountries: DashboardReportState<GeoCountryResponse>;
   webVitals: DashboardReportState<WebVitalsResponse>;
@@ -49,21 +49,21 @@ export interface DashboardLegacyReportsState {
   pages: DashboardReportState<PagesResponse>;
 }
 
-export interface DashboardPhase6ReportsState {
+export interface DashboardAudienceDimensionReportsState {
   visitors: DashboardReportState<VisitorSessionResponse>;
   dimension: DashboardReportState<DimensionResponse>;
 }
 
-export type DashboardPhase6ReportName = "overview" | "visitors" | "sessions" | "dimensions";
+export type AudienceDimensionReportName = "overview" | "visitors" | "sessions" | "dimensions";
 
-export type DashboardPhase6ReportResult =
+export type AudienceDimensionReportResult =
   | { kind: "audience"; state: DashboardReportState<VisitorSessionResponse> }
   | { kind: "dimension"; state: DashboardReportState<DimensionResponse> };
 
-export async function loadDashboardLegacyReports(
+export async function loadTrafficAndOutcomeReports(
   context: DashboardOverviewContext,
   dependencies: DashboardApiDependencies = {},
-): Promise<DashboardLegacyReportsState> {
+): Promise<DashboardTrafficAndOutcomeReportsState> {
   let client: AnalyticsApiClient;
 
   try {
@@ -100,11 +100,11 @@ export async function loadDashboardLegacyReports(
   return { timeline, pages, events, geoCountries, webVitals, conversions, funnels };
 }
 
-export async function loadDashboardPhase6Reports(
+export async function loadAudienceDimensionReports(
   context: DashboardOverviewContext,
   dependencies: DashboardApiDependencies = {},
   dimension: AnalyticsDimension = context.dimension ?? "browser",
-): Promise<DashboardPhase6ReportsState> {
+): Promise<DashboardAudienceDimensionReportsState> {
   let client: AnalyticsApiClient;
 
   try {
@@ -119,10 +119,10 @@ export async function loadDashboardPhase6Reports(
   }
 
   const [visitors, dimensionReport] = await Promise.all([
-    settlePhase6(() =>
+    settleReportRequest(() =>
       client.visitors(context.siteId, context.dateRange.from, context.dateRange.to),
     ),
-    settlePhase6(() =>
+    settleReportRequest(() =>
       client.dimension(context.siteId, context.dateRange.from, context.dateRange.to, dimension),
     ),
   ]);
@@ -130,12 +130,12 @@ export async function loadDashboardPhase6Reports(
   return { visitors, dimension: dimensionReport };
 }
 
-export async function loadDashboardPhase6Report(
+export async function loadAudienceDimensionReport(
   context: DashboardOverviewContext,
-  report: DashboardPhase6ReportName,
+  report: AudienceDimensionReportName,
   dependencies: DashboardApiDependencies = {},
   dimension: AnalyticsDimension = context.dimension ?? "browser",
-): Promise<DashboardPhase6ReportResult> {
+): Promise<AudienceDimensionReportResult> {
   let client: AnalyticsApiClient;
   try {
     client = resolveClient(dependencies);
@@ -150,7 +150,7 @@ export async function loadDashboardPhase6Report(
   if (report === "dimensions") {
     return {
       kind: "dimension",
-      state: await settlePhase6(() =>
+      state: await settleReportRequest(() =>
         client.dimension(context.siteId, context.dateRange.from, context.dateRange.to, dimension),
       ),
     };
@@ -160,17 +160,17 @@ export async function loadDashboardPhase6Report(
 
   return {
     kind: "audience",
-    state: await settlePhase6(() =>
+    state: await settleReportRequest(() =>
       query(context.siteId, context.dateRange.from, context.dateRange.to),
     ),
   };
 }
 
-export async function loadDashboardLegacyReport(
+export async function loadTrafficAndOutcomeReport(
   context: DashboardOverviewContext,
   report: "pages" | "custom-events" | "countries" | "web-vitals" | "conversions" | "funnels",
   client: AnalyticsApiClient,
-): Promise<Partial<DashboardLegacyReportsState>> {
+): Promise<Partial<DashboardTrafficAndOutcomeReportsState>> {
   switch (report) {
     case "pages": {
       const [timeline, pages] = await Promise.all([
@@ -250,10 +250,10 @@ export async function loadDashboardReports(
     settle(() => loadWebVitals(client, context)),
     settleDefinitionReport(() => loadConversions(client, context), context),
     settleDefinitionReport(() => loadFunnels(client, context), context),
-    settlePhase6(() =>
+    settleReportRequest(() =>
       client.visitors(context.siteId, context.dateRange.from, context.dateRange.to),
     ),
-    settlePhase6(() =>
+    settleReportRequest(() =>
       client.dimension(context.siteId, context.dateRange.from, context.dateRange.to, dimension),
     ),
   ]);
@@ -372,7 +372,7 @@ async function settleDefinitionReport<T>(
   return history.revisions.length === 0 ? { status: "missing_definitions" } : state;
 }
 
-async function settlePhase6<T>(request: () => Promise<T>): Promise<DashboardReportState<T>> {
+async function settleReportRequest<T>(request: () => Promise<T>): Promise<DashboardReportState<T>> {
   try {
     return { status: "success", data: await request() };
   } catch (cause) {

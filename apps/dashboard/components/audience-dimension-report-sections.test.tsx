@@ -4,9 +4,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { loadReport } = vi.hoisted(() => ({ loadReport: vi.fn() }));
 
-vi.mock("../lib/dashboard-reports", () => ({ loadDashboardPhase6Report: loadReport }));
+vi.mock("../lib/dashboard-reports", () => ({ loadAudienceDimensionReport: loadReport }));
 
-import { Phase6DashboardSections } from "./phase6-dashboard-sections";
+import { AudienceDimensionReportSections } from "./audience-dimension-report-sections";
 
 import type { AnalyticsApiClient } from "../lib/analytics-api/client";
 
@@ -15,7 +15,7 @@ const context = {
   dateRange: { from: "2026-09-18", to: "2026-09-18" },
 };
 
-describe("Phase6DashboardSections", () => {
+describe("AudienceDimensionReportSections", () => {
   beforeEach(() => loadReport.mockReset());
 
   it("shows an audience query error in the Overview summary", async () => {
@@ -24,7 +24,7 @@ describe("Phase6DashboardSections", () => {
       state: { status: "error", error: { message: "Visitor query failed" } },
     });
 
-    const element = await Phase6DashboardSections({
+    const element = await AudienceDimensionReportSections({
       context,
       client: {} as AnalyticsApiClient,
       report: "overview",
@@ -41,7 +41,7 @@ describe("Phase6DashboardSections", () => {
       state: { status: "disabled", error: { message: "disabled" } },
     });
 
-    const element = await Phase6DashboardSections({
+    const element = await AudienceDimensionReportSections({
       context,
       client: {} as AnalyticsApiClient,
       report: "overview",
@@ -72,7 +72,7 @@ describe("Phase6DashboardSections", () => {
       },
     });
 
-    const element = await Phase6DashboardSections({
+    const element = await AudienceDimensionReportSections({
       context,
       client: {} as AnalyticsApiClient,
       report: "overview",
@@ -101,7 +101,7 @@ describe("Phase6DashboardSections", () => {
       },
     });
 
-    const element = await Phase6DashboardSections({
+    const element = await AudienceDimensionReportSections({
       context,
       client: {} as AnalyticsApiClient,
       report: "dimensions",

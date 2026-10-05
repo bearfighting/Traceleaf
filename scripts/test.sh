@@ -9,9 +9,9 @@ cargo test --workspace
 pnpm protocol:validate
 node experiments/m0b/parity/run.mjs
 pnpm capabilities:validate
-node scripts/m2-configuration-parity.mjs
+node scripts/check-configuration-contract-parity.mjs
 node scripts/audit-policy-datetimes.mjs --fixtures
-node scripts/generate-m2-configuration-types.mjs --check
+node scripts/generate-configuration-contract-types.mjs --check
 pnpm analytics:contract:validate
 pnpm analytics:definitions:validate
 pnpm http:validate

@@ -24,7 +24,7 @@ export function FreshnessBanner({ visitorState, dimensionState }: FreshnessBanne
     responses.some((state) => state.freshness_status === status),
   ) as VisitorSessionResponse["freshness_status"] | undefined;
   if (!dataAsOf) {
-    return <p className="freshness-banner">No Phase 6 data is available for this selection.</p>;
+    return <p className="freshness-banner">No analytics data is available for this selection.</p>;
   }
 
   if (!freshnessStatus) return null;
