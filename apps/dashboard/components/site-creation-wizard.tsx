@@ -1,339 +1,45 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
 
+import { useSiteCreationFlow } from "./site-creation-wizard/use-site-creation-flow";
 import * as UI from "./ui";
 import { Button, Input } from "./ui";
 
-type Capability = { id: string; status: string; depends_on: string[] };
-type Values = { name: string; websiteUrl: string; environment: string; origins: string[] };
-type Created = {
-  site: { site_id: string };
-  initial_environment: string;
-  ingest_key: { key: string; key_id: string };
-};
-
-function replacementAttemptStorageKey(siteId: string, environment: string): string {
-  return `site-onboarding:${siteId}:${environment}:replacement-key-outcome-unknown`;
-}
-
-function updateReplacementAttemptMarker(key: string, value: "unknown" | null): boolean {
-  try {
-    if (value) window.localStorage.setItem(key, value);
-    else window.localStorage.removeItem(key);
-
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function deriveOrigin(value: string): string | null {
-  try {
-    const parsed = new URL(value);
-    if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password)
-      return null;
-
-    return parsed.origin;
-  } catch {
-    return null;
-  }
-}
-
-export function closeCapabilityDependencies(ids: string[], manifest: Capability[]): string[] {
-  const byId = new Map(manifest.map((item) => [item.id, item]));
-  const enabled = new Set(["page_views", ...ids]);
-  const include = (id: string) => {
-    const capability = byId.get(id);
-    if (!capability) return;
-    enabled.add(id);
-    capability.depends_on.forEach(include);
-  };
-  [...enabled].forEach(include);
-
-  return [...enabled].filter((id) => byId.get(id)?.status === "implemented");
-}
-
-export function siteCreateFieldName(path: string): string {
-  const segments = path
-    .replace(/^\/+/, "")
-    .split(/[/.]/)
-    .filter(Boolean)
-    .map((segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~"));
-  const field = ["display_name", "website_url", "allowed_origins"].find((candidate) =>
-    segments.includes(candidate),
-  );
-  const leaf = field ?? [...segments].reverse().find((segment) => !/^\d+$/.test(segment));
-
-  switch (leaf) {
-    case "display_name":
-      return "name";
-    case "website_url":
-      return "websiteUrl";
-    case "allowed_origins":
-      return "origins";
-    default:
-      return leaf || "form";
-  }
-}
+import type { Capability } from "./site-creation-wizard/site-creation-domain";
 
 export function SiteCreationWizard({ manifest }: { manifest: Capability[] }) {
-  const searchParams = useSearchParams();
-  const restoredSiteId = searchParams.get("site_id");
-  const restoredEnvironment = searchParams.get("environment");
-  const restored = Boolean(restoredSiteId && restoredEnvironment);
-  const [step, setStep] = useState(restored ? 4 : 0);
-  const [values, setValues] = useState<Values>({
-    name: "",
-    websiteUrl: "",
-    environment: "production",
-    origins: [],
-  });
-  const [originInput, setOriginInput] = useState("");
-  const [selected, setSelected] = useState<string[]>(["page_views"]);
-  const [error, setError] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [created, setCreated] = useState<Created | null>(null);
-  const [creating, setCreating] = useState(false);
-  const createInFlight = useRef(false);
-  const [replayedSiteId, setReplayedSiteId] = useState("");
-  const [idempotency, setIdempotency] = useState<{ payload: string; key: string } | null>(null);
-  const [replacementKey, setReplacementKey] = useState("");
-  const [replacementError, setReplacementError] = useState("");
-  const [replacementPending, setReplacementPending] = useState(false);
-  const [replacementNeedsReview, setReplacementNeedsReview] = useState(false);
-  const [replacementStatusLoaded, setReplacementStatusLoaded] = useState(false);
-  const websiteOrigin = deriveOrigin(values.websiteUrl);
-  const allowedOrigins = [
-    ...new Set([...values.origins, ...(websiteOrigin ? [websiteOrigin] : [])]),
-  ];
-  const resultSiteId = created?.site.site_id || replayedSiteId || restoredSiteId || "";
-  const resultEnvironment =
-    created?.initial_environment || restoredEnvironment || values.environment;
-  const replacementAttemptKey = resultSiteId
-    ? replacementAttemptStorageKey(resultSiteId, resultEnvironment)
-    : "";
-  const enabledCapabilities = useMemo(
-    () => closeCapabilityDependencies(selected, manifest),
-    [selected, manifest],
-  );
-
-  // Check the marker immediately so an ambiguous key request cannot briefly expose a retry action.
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    if (!replacementAttemptKey) {
-      setReplacementStatusLoaded(true);
-
-      return;
-    }
-    try {
-      setReplacementNeedsReview(window.localStorage.getItem(replacementAttemptKey) === "unknown");
-    } catch {
-      setReplacementNeedsReview(false);
-    } finally {
-      setReplacementStatusLoaded(true);
-    }
-  }, [replacementAttemptKey]);
-  /* eslint-enable react-hooks/set-state-in-effect */
-
-  function update<K extends keyof Values>(key: K, value: Values[K]) {
-    setValues((current) => ({ ...current, [key]: value }));
-    setFieldErrors((current) => ({ ...current, [key]: "" }));
-  }
-
-  function updateWebsiteUrl(websiteUrl: string) {
-    const nextOrigin = deriveOrigin(websiteUrl);
-    setValues((current) => ({ ...current, websiteUrl }));
-    setFieldErrors((current) => ({
-      ...current,
-      websiteUrl: "",
-      ...(nextOrigin ? { origins: "" } : {}),
-    }));
-  }
-
-  function addOrigin() {
-    const origin = deriveOrigin(originInput.trim());
-    if (!origin) {
-      setFieldErrors((current) => ({ ...current, origins: "Enter a valid http or https Origin." }));
-
-      return;
-    }
-    update("origins", [...new Set([...values.origins, origin])]);
-    setOriginInput("");
-  }
-
-  function validate(stepToValidate: number) {
-    const next: Record<string, string> = {};
-    if (stepToValidate === 0) {
-      if (!values.name.trim()) next.name = "Enter a Site name.";
-      if (!websiteOrigin) next.websiteUrl = "Enter a valid http or https website URL.";
-    }
-    if (stepToValidate === 1) {
-      if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(values.environment))
-        next.environment = "Use 1–64 letters, numbers, _ or -, starting with a letter or number.";
-      if (!websiteOrigin || !allowedOrigins.includes(websiteOrigin))
-        next.origins = "Allowed Origins must include the website URL Origin.";
-    }
-    setFieldErrors(next);
-
-    return Object.keys(next).length === 0;
-  }
-
-  async function submit() {
-    if (createInFlight.current) return;
-    createInFlight.current = true;
-    setCreating(true);
-    const payload = {
-      display_name: values.name.trim(),
-      website_url: values.websiteUrl.trim(),
-      environment: values.environment,
-      capabilities: Object.fromEntries(
-        manifest.map((item) => [item.id, enabledCapabilities.includes(item.id)]),
-      ),
-      allowed_origins: allowedOrigins,
-    };
-    const serialized = JSON.stringify(payload);
-    const key = idempotency?.payload === serialized ? idempotency.key : crypto.randomUUID();
-    setIdempotency({ payload: serialized, key });
-    setError("");
-    setFieldErrors({});
-    setCreated(null);
-    setReplayedSiteId("");
-    try {
-      const response = await fetch("/api/admin/sites", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Idempotency-Key": key },
-        body: serialized,
-        cache: "no-store",
-      });
-      const body = await response.json();
-      if (!response.ok) {
-        const apiError = body?.error;
-        const details = apiError?.details;
-        if (Array.isArray(details)) {
-          const mapped: Record<string, string> = {};
-          for (const detail of details) {
-            if (typeof detail?.path === "string" && typeof detail?.message === "string") {
-              mapped[siteCreateFieldName(detail.path)] = detail.message;
-            }
-          }
-          setFieldErrors(mapped);
-        }
-        setError(
-          typeof apiError?.message === "string"
-            ? apiError.message
-            : "Site creation failed. Check the details and try again.",
-        );
-
-        return;
-      }
-      if (response.status === 200) {
-        setReplayedSiteId(body.site.site_id);
-        window.history.replaceState(
-          null,
-          "",
-          `/dashboard/sites/new?site_id=${encodeURIComponent(body.site.site_id)}&environment=${encodeURIComponent(values.environment)}`,
-        );
-        setStep(4);
-
-        return;
-      }
-      setCreated(body as Created);
-      window.history.replaceState(
-        null,
-        "",
-        `/dashboard/sites/new?site_id=${encodeURIComponent(body.site.site_id)}&environment=${encodeURIComponent(values.environment)}`,
-      );
-      setStep(4);
-    } catch {
-      setError(
-        "The result could not be confirmed. Retry manually to check the same request safely.",
-      );
-    } finally {
-      createInFlight.current = false;
-      setCreating(false);
-    }
-  }
-
-  async function issueReplacement() {
-    if (!replacementStatusLoaded || replacementPending || replacementKey || replacementNeedsReview)
-      return;
-
-    const siteId = resultSiteId;
-    const environment = resultEnvironment;
-    if (!siteId) {
-      setReplacementError("Site identity is missing. Open the Site from Settings and try again.");
-
-      return;
-    }
-
-    setReplacementPending(true);
-    setReplacementError("");
-    let keyRequestStarted = false;
-    let definitelyRejected = false;
-    try {
-      const base = `/api/admin/sites/${encodeURIComponent(siteId)}/environments/${encodeURIComponent(environment)}/ingest-policy`;
-      const policyResponse = await fetch(base, { cache: "no-store" });
-      if (policyResponse.status === 404) {
-        throw new Error(
-          "No environment policy exists. Configure the environment explicitly in Settings before issuing a replacement key.",
-        );
-      }
-      if (!policyResponse.ok) {
-        const policyError = (await policyResponse.json()) as { error?: { message?: string } };
-
-        throw new Error(policyError.error?.message || "Could not load environment policy.");
-      }
-      const etag = policyResponse.headers.get("ETag");
-      if (!etag) throw new Error("Environment policy is missing its version tag.");
-
-      if (!updateReplacementAttemptMarker(replacementAttemptKey, "unknown")) {
-        throw new Error(
-          "This browser cannot save the temporary key-request status. Enable site storage before issuing a replacement key.",
-        );
-      }
-      keyRequestStarted = true;
-      setReplacementNeedsReview(true);
-      const keyResponse = await fetch(
-        `/api/admin/sites/${encodeURIComponent(siteId)}/environments/${encodeURIComponent(environment)}/ingest-keys`,
-        {
-          method: "POST",
-          headers: { "If-Match": etag },
-          cache: "no-store",
-        },
-      );
-      if (!keyResponse.ok && keyResponse.status < 500) {
-        definitelyRejected = true;
-        setReplacementNeedsReview(false);
-        updateReplacementAttemptMarker(replacementAttemptKey, null);
-      }
-      const result = (await keyResponse.json()) as { key?: string; error?: { message?: string } };
-      if (!keyResponse.ok)
-        throw new Error(result?.error?.message || "Could not issue a replacement key.");
-      if (!result.key) throw new Error("The replacement key response was invalid.");
-      keyRequestStarted = false;
-      setReplacementNeedsReview(false);
-      updateReplacementAttemptMarker(replacementAttemptKey, null);
-      setReplacementKey(result.key);
-    } catch (cause) {
-      if (keyRequestStarted && !definitelyRejected) {
-        setReplacementNeedsReview(true);
-        updateReplacementAttemptMarker(replacementAttemptKey, "unknown");
-        setReplacementError(
-          "The server may have issued a key, but its secret was not received. Check the environment's key list in Settings before allowing another attempt.",
-        );
-      } else {
-        setReplacementError(
-          cause instanceof Error ? cause.message : "Could not issue a replacement key.",
-        );
-      }
-    } finally {
-      setReplacementPending(false);
-    }
-  }
-
+  const {
+    step,
+    setStep,
+    values,
+    originInput,
+    setOriginInput,
+    setSelected,
+    error,
+    fieldErrors,
+    created,
+    creating,
+    replayedSiteId,
+    replacementKey,
+    replacementError,
+    replacementPending,
+    replacementNeedsReview,
+    replacementStatusLoaded,
+    websiteOrigin,
+    allowedOrigins,
+    resultSiteId,
+    resultEnvironment,
+    restored,
+    enabledCapabilities,
+    update,
+    updateWebsiteUrl,
+    addOrigin,
+    validate,
+    submit,
+    issueReplacement,
+    acknowledgeReplacementReview,
+  } = useSiteCreationFlow(manifest);
   if (step === 4) {
     const siteId = resultSiteId;
     const env = resultEnvironment;
@@ -419,9 +125,7 @@ export function SiteCreationWizard({ manifest }: { manifest: Capability[] }) {
               variant="secondary"
               className="onboarding-warning-action"
               onClick={() => {
-                updateReplacementAttemptMarker(replacementAttemptKey, null);
-                setReplacementNeedsReview(false);
-                setReplacementError("");
+                acknowledgeReplacementReview();
               }}
             >
               I reviewed the key list

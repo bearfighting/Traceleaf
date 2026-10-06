@@ -2,6 +2,52 @@
 
 本设计对应[代码重构 Checklist 1.4](./code-refactoring-checklist.md)，选择 Dashboard 创建站点向导作为首个多文件重构试点。工作包 1.4 只确认范围和目标边界，不搬移生产实现。
 
+## 工作包 2.1 静态复核记录（2026-10-06）
+
+本节依据当前源码、测试和 package scripts 静态核对；没有运行产品测试或 E2E，因此不代表运行时验证。
+
+- 页面入口确为 `app/dashboard/sites/new/page.tsx`：服务端页面读取 capability manifest 并传给 `SiteCreationWizard({ manifest })`。向导本身通过 `useSearchParams()` 读取 `site_id`、`environment`，恢复时直接进入结果步骤；新建时从步骤 0 开始，步骤顺序为站点详情、环境与 Origins、Capabilities、Review，结果步骤编号为 4。
+- `site-creation-wizard.tsx` 目前同时拥有表单/步骤/错误/请求状态、capability 派生、create payload 和 Idempotency-Key、浏览器 fetch、`history.replaceState`、replacement-key policy/ETag 请求、`localStorage` review 标记及所有视图。Origin 解析、能力依赖闭包和 API path 字段映射是同文件导出的纯 helper；测试目前仍从组件模块导入它们。
+- 创建请求发往 Dashboard `POST /api/admin/sites`，包含 JSON body、`Content-Type`、`Idempotency-Key` 和 `cache: no-store`。相同序列化 payload 复用 state 中的 key；payload 改变时生成新 key；`createInFlight` ref 在单组件实例内拦截并发提交。201 响应保存 key 到页面 state 并写入身份 query；200 响应只保存 site ID 为 replay 并写入 query。网络或 JSON 解析异常保留 idempotency state 以供再次提交。上述重试及并发细节只有实现依据，现有 UI 测试没有对应断言。
+- replacement 流程先 GET policy，读取 `ETag`，成功写入 unknown marker 后才 POST ingest-keys 并发送 `If-Match`。storage 写入失败会在 POST 前退出；状态恢复时 marker 读取失败则按“无需 review”处理。key POST 的非 5xx 错误先视为明确拒绝并清除 marker；网络错误、5xx、成功状态的无效 JSON/缺 key 会保留 review。用户点击“已检查”会清 marker 并解锁重试。对 storage 不可用和 marker 读取异常等策略目前只有源码依据，没有向导测试保护。
+- 三个相关 Dashboard routes 均调用 `proxyConfigurationRequest`，不调用 server-only `lib/site-management/client.ts`。proxy 注入服务端 admin bearer token，转发 content-type 及 `If-Match`、`If-None-Match`、`Idempotency-Key`，按方法对写请求校验 same-origin；响应保留状态码、content-type、ETag，并加 `Cache-Control: no-store`。已有 `lib/configuration-api/proxy.test.ts` 覆盖创建请求的 idempotency header、代理路径和其他 proxy 边界；route 文件没有各自独立测试。
+- server-only site-management client 是后端服务访问边界，向上游注入 bearer token/Accept、无缓存请求，创建时转发 Idempotency-Key 并区分 201 首建和不含秘密的 200 replay。`client.test.ts` 有创建 header、replay metadata-only、首建 key 格式校验等断言。向导浏览器代码不导入该 client。
+- helper 测试只有 Origin scheme/URL 示例、能力依赖闭包和三种 JSON Pointer path 映射。UI 测试保护 Origin 更新/保留、422 字段错误与表单值、201 key 仅结果页展示、200 replay 不显示 key、query 恢复不自动请求、replacement 成功后禁用、policy 404 不创建环境，以及 network ambiguous 后持久化 review。测试没有明确保护 step 字段校验完整规则、replay query 的 URL 编码、policy ETag 到 key POST 的调用顺序/头值、storage 写入失败、replacement 4xx/malformed/5xx、create 幂等重试与并发双击。
+
+### 复核后的保护缺口与待验证项
+
+已有实现行为与下面的目标边界大体一致；实现切片前需按缺口表补测试。特别是“malformed 响应需 review”需按来源区分：replacement POST 的成功状态 malformed 响应保留 review；明确 4xx 即使响应体 malformed 也已按明确拒绝清 marker。该 4xx 语义应由测试锁定，不应笼统要求所有 malformed 响应都 review。
+
+- **已由测试保护：** helper 的代表性规则；UI 中列明的表单错误、创建/replay、恢复和 replacement 生命周期场景；proxy 与 server client 的部分请求头、状态码和响应约束。
+- **有代码依据但缺少向导测试保护：** 相同 payload 重试复用 key、payload 改动更新 key、并发提交只发一个请求；replacement policy ETag 顺序、storage 失败不 POST、明确 4xx 可复试、成功状态 malformed/5xx 进入 review、URL 身份编码与 storage 读取失败策略。
+- **仍待运行时验证：** 实际浏览器导航/刷新后的 URL 与历史行为、Compose 后端对 200/201 和 ETag 的端到端配合、真实 storage 策略及 onboarding 用户链路。静态审查不替代 Dashboard 测试或 `pnpm e2e:site-onboarding`。
+
+Dashboard package scripts 确认存在 `test`、`typecheck`、`lint`；根 package scripts 确认存在 `e2e:site-onboarding`。试点设计所列定向 Vitest 命令使用 Dashboard 的 `test` 脚本并匹配两个 wizard 测试文件。按 2.1 计划，本次未运行这些命令。
+
+## 工作包 2.2 纯 domain 抽离（2026-10-06）
+
+- 新增 `components/site-creation-wizard/site-creation-domain.ts`，集中纯 Origin 解析、allowed Origins 派生、能力依赖闭包、step 校验、payload 构造和 API path 字段映射；不依赖 React、浏览器 I/O 或副作用。
+- 向导继续持有请求和状态，只调用 domain 函数；保留原 API endpoint、headers、序列化 payload 字段顺序和值，以及已有字段错误文案。
+- 原 helper 测试迁至 `site-creation-wizard/site-creation-domain.test.ts`，保留原断言，并覆盖校验文案、Origins 去重/顺序、trim 和 manifest capability 顺序。
+- 验证：`pnpm --filter @web-analytics/dashboard test -- components/site-creation-wizard` 通过（Vitest 43 个测试文件、219 个测试）；Dashboard `typecheck` 通过。E2E 未运行，流程保护仍由工作包 2.4 处理。
+
+## 工作包 2.3 集中 API I/O 与流程状态（2026-10-06）
+
+- 新增 `components/site-creation-wizard/site-creation-api.ts`，集中创建请求与 201 created/200 replay 解释、字段错误映射、policy/ETag 查询和 replacement-key 请求；保留现有 URL、headers、`no-store` 缓存策略及用户可见错误文案。
+- 新增 `use-site-creation-flow.ts`，迁入表单、步骤、校验、pending/error、创建/replay、幂等键、replacement key 与 review 状态。`useSearchParams`、`history.replaceState` 和 `localStorage` 均由流程 hook 协调；`SiteCreationWizard({ manifest })` 入口及 JSX 结构/文案保持不变。
+- 新增 API 测试，覆盖 create/replay 状态区分与请求契约、字段路径映射、policy ETag 传递及 replacement 请求 URL/header。API 模块无 React、Next 或 server-only client 依赖；既有 UI 生命周期测试继续通过。
+- 验证：`pnpm --filter @web-analytics/dashboard test -- components/site-creation-wizard` 通过（Vitest 44 个测试文件、222 个测试）；`pnpm --filter @web-analytics/dashboard typecheck` 通过；相关文件 Prettier 检查通过；`git diff --check` 通过。
+- 未运行 E2E、完整 lint 或 Dashboard 全量测试。相同 payload 重试、payload 修改、快速重复提交、storage 不可用及 replacement 4xx/malformed/5xx 专项保护仍归工作包 2.4；真实 Compose/browser 链路仍待 E2E 验证。
+
+## 工作包 2.4 补齐流程保护（2026-10-06）
+
+- 在现有向导 UI 测试中补齐创建请求保护：网络失败后相同 payload 的重试复用 `Idempotency-Key` 和请求 body；返回失败后修改 Website URL 会改变 body 并生成新 key；请求 pending 时连续点击只产生一个 POST。
+- 补齐恢复与 replacement 生命周期保护：编码后的 `site_id` / `environment` 从 query 恢复到结果页且加载时不 fetch；localStorage `setItem` 抛错时仅请求 policy，不发送 ingest-key POST；malformed 4xx 清除 unknown 标记并可再次尝试；成功状态 malformed、缺少 key、malformed 5xx 及既有网络失败用例保留 unknown 标记并禁用再次签发。
+- 响应分类沿用现有实现，未发现需要修正的 API 响应分类缺陷。随后 review 发现同一组件切换恢复身份时可能短暂沿用旧身份的 loaded/review 状态；现将 loaded 状态关联到具体 storage marker key，并增加身份切换 UI 覆盖。未更改页面入口、API 契约、API routes 或用户可见行为。未拆分 Presenter/步骤视图。
+- 验证：Dashboard 定向测试通过（44 个测试文件、231 个测试）；Dashboard `typecheck` 和 `lint` 通过；相关文件及本记录/Checklist 的 Prettier 检查通过，`git diff --check` 通过。
+- `pnpm e2e:site-onboarding` 通过：包含 Page View 计数、Dashboard 管理凭据缺失/无效及 Site Management API 不可用状态、空 Dashboard onboarding、一次性 key、Browser SDK ingest、runtime application、processing、Analytics API 和 Settings evidence。Compose 服务及测试数据已由 runner 清理。
+- 最初 Dashboard `lint` 报出 26 条 import 分组/顺序及语句间空行问题；应用 ESLint 自动修复后发现 hook effect 中同步更新状态的规则提示，并移除了入口组件未使用的 `selected` 解构。保留有效身份下先读取 marker 再开放操作的行为，以局部说明抑制必要的同步状态规则提示，Dashboard `lint` 通过。
+
 ## 选择依据
 
 创建流程从 `/dashboard/sites/new` 页面进入，当前 `SiteCreationWizard` 集中持有向导状态、异步请求、纯规则和全部视图；其 API route、服务端 `site-management` client、纯 helper 测试及 UI 生命周期测试已形成可追踪的垂直切片。一次重构可以验证状态编排、纯逻辑、I/O 与步骤/结果展示的分工，并以现有行为测试作为迁移基准。
@@ -73,14 +119,14 @@ apps/dashboard/components/
 
 ## 现有覆盖与缺口
 
-| 目标职责/行为                                                                     | 现有覆盖                                                                           | 迁移时要求                                                                                                                                                                                                 |
-| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| URL Origin 解析、能力依赖闭包、API path 到字段映射                                | `site-creation-wizard.test.ts` 三组纯 helper 测试                                  | 随函数迁移，保留既有例子并补齐边界时不改变语义。                                                                                                                                                           |
-| 表单交互、Origins 和创建校验/失败                                                 | `site-creation-wizard.ui.test.tsx` 覆盖 Origin 列表、服务端字段错误等              | 保持在拆分后的流程/步骤测试中。                                                                                                                                                                            |
-| 首次创建和 200 幂等 replay 不暴露原始 key                                         | UI 测试包含 replay metadata-only 断言                                              | 保持 201/replay 状态区分及不可恢复文案。                                                                                                                                                                   |
-| 替换 key 显式触发、成功后禁用、模糊结果阻止重试并记住 review                      | UI 测试含恢复、成功、ambiguous response/review 场景                                | 保留 localStorage 标记、ETag 顺序、明确拒绝和模糊错误分支。                                                                                                                                                |
-| 同 payload 重试复用 Idempotency-Key；payload 变化使用新 key；并发双击仅发一个请求 | 实现有 `idempotency` state 和 `createInFlight` ref；现有 UI 测试未专门断言这些边界 | **缺少保护：** 增加测试，模拟请求超时/网络异常后以相同表单重试，断言 POST body 与 Idempotency-Key 相同；改变 payload 后断言 key 更新；快速重复提交断言仅一次 POST。重点确认 catch/finally 后重试语义稳定。 |
-| 恢复身份 query 参数、storage 不可用、替换请求明确 4xx 与 malformed response       | 现有 UI 测试覆盖部分恢复和模糊结果；其余路径未见明确断言                           | 实现切片前依据当前测试逐项核对，至少保护存储失败时不发 key 请求、明确 4xx 可复试、malformed/5xx 仍需 review。                                                                                              |
+| 目标职责/行为                                                                     | 现有覆盖                                                                                               | 迁移时要求                                                                                                                                                                                                 |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| URL Origin 解析、能力依赖闭包、API path 到字段映射                                | `site-creation-wizard.test.ts` 三组纯 helper 测试                                                      | 随函数迁移，保留既有例子并补齐边界时不改变语义。                                                                                                                                                           |
+| 表单交互、Origins 和创建校验/失败                                                 | `site-creation-wizard.ui.test.tsx` 覆盖 Origin 列表、服务端字段错误等                                  | 保持在拆分后的流程/步骤测试中。                                                                                                                                                                            |
+| 首次创建和 200 幂等 replay 不暴露原始 key                                         | UI 测试包含 replay metadata-only 断言                                                                  | 保持 201/replay 状态区分及不可恢复文案。                                                                                                                                                                   |
+| 替换 key 显式触发、成功后禁用、模糊结果阻止重试并记住 review                      | UI 测试含恢复、成功、ambiguous response/review 场景                                                    | 保留 localStorage 标记、ETag 顺序、明确拒绝和模糊错误分支。                                                                                                                                                |
+| 同 payload 重试复用 Idempotency-Key；payload 变化使用新 key；并发双击仅发一个请求 | 实现有 `idempotency` state 和 `createInFlight` ref；现有 UI 测试未专门断言这些边界                     | **缺少保护：** 增加测试，模拟请求超时/网络异常后以相同表单重试，断言 POST body 与 Idempotency-Key 相同；改变 payload 后断言 key 更新；快速重复提交断言仅一次 POST。重点确认 catch/finally 后重试语义稳定。 |
+| 恢复身份 query 参数、storage 不可用、替换请求明确 4xx 与 malformed response       | UI 测试覆盖 query 恢复不自动请求和 network ambiguous/review；未覆盖 storage 失败、4xx 或 malformed/5xx | 实现切片前保护 storage 写失败时不发 key 请求、明确 4xx（包括 malformed 4xx body）可复试、成功状态 malformed/5xx 及 network failure 保留 review；policy ETag 顺序也需断言。                                 |
 
 ## 验收与验证
 

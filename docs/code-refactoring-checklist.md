@@ -63,10 +63,40 @@
 
 ### 工作包 2：Dashboard 创建站点流程
 
-- [ ] 按批准的切片范围一起拆分流程状态/异步操作、纯逻辑和 presenter/步骤视图。
-- [ ] 保持页面入口、API 行为、流程状态迁移、可访问性和错误反馈。
-- [ ] 更新/补充流程行为测试和纯逻辑测试。
-- [ ] 运行 dashboard 定向检查和选定回归检查。
+**范围与设计依据：** 按[创建站点试点设计](./code-refactoring-site-creation-pilot.md)实施完整创建及结果恢复生命周期；保留 `SiteCreationWizard({ manifest })` 页面入口。API routes、服务端 `site-management` client、数据库和后端行为不在重构范围内。
+
+**实施步骤与独立审查/回退边界：**
+
+- [x] **2.1 实施前复核：** 已静态核对向导、页面入口、admin routes/proxy 与 server-only client、helper/UI/client/proxy 测试及 Dashboard scripts；调用路径、边界、断言缺口、malformed replacement 响应语义和待运行时验证项已记入[试点设计复核记录](./code-refactoring-site-creation-pilot.md#工作包-21-静态复核记录-2026-10-06)。未改生产代码或测试，未运行产品测试。
+- [x] **2.2 抽离纯 domain：** 已将 Origin 解析、allowed origins 派生、能力依赖闭包、步骤校验、payload 构造及 API 错误 path 映射迁入 `components/site-creation-wizard/site-creation-domain.ts`；helper 测试迁至 domain 测试并补充校验、payload 顺序与去重断言。Dashboard 定向测试和 typecheck 通过，详见[2.2 实施记录](./code-refactoring-site-creation-pilot.md#工作包-22-纯-domain-抽离-2026-10-06)。
+- [x] **2.3 集中 API I/O 与流程状态：** 已新增 `site-creation-api.ts` 集中 create、policy、replacement-key 请求和 HTTP 响应解释；`use-site-creation-flow.ts` 持有表单/步骤/请求/结果/幂等/review 状态并协调 URL 与 storage 副作用。API 模块不依赖 React 或 server-only client；新增 API 解释测试。定向测试、typecheck 和格式检查通过，详见[2.3 实施记录](./code-refactoring-site-creation-pilot.md#工作包-23-集中-api-io-与流程状态-2026-10-06)。幂等边缘流程保护留在 2.4。
+- [x] **2.4 补齐流程保护：** 向导 UI 测试已覆盖相同 payload 网络失败重试复用 Idempotency-Key、payload 改变时生成新 key、pending 时重复提交只发一个 POST；覆盖 query 身份恢复不自动请求、storage 写入失败不 POST、malformed 4xx 清 unknown 并允许再次尝试，以及成功状态 malformed/缺 key、5xx 和网络失败保留 review 并阻止重试。请求次数、body、headers、storage marker 和按钮状态均有断言；review 后另修复了 storage 状态按恢复身份隔离的边界。API contract/routes 与用户可见行为不变，见[2.4 实施记录](./code-refactoring-site-creation-pilot.md#工作包-24-补齐流程保护-2026-10-06)。
+- [ ] **2.5 拆分 Presenter 与步骤/结果视图：** wizard 保留稳定入口和装配；步骤与结果视图仅通过 props 接收展示数据和动作，不直接 fetch、不读取 URL/storage、不生成幂等键。逐段替换视图并保留语义化结构、键盘/屏幕阅读器行为、视觉 class 和文案；此边界可独立审查或回退。
+- [ ] **2.6 关闭切片：** 检查最终依赖方向、导出面、文件命名、测试归属和失败诊断；清理搬移后重复实现/无用 helper。记录所有未解决差异与验证限制，完成条件满足后再关闭本工作包。
+
+**必须保持的不变量：**
+
+- [ ] 页面入口与 `POST /api/admin/sites` 契约、payload、Idempotency-Key、201 首次创建与 200 replay 解释不变。
+- [ ] 步骤顺序、字段/Origin/能力校验、字段错误映射、错误文案、视觉及可访问性不变。
+- [ ] 首次创建的一次性 key 只在响应页面内存展示；刷新和 replay 不恢复原始 key；replacement key 仍须用户显式触发。
+- [ ] Replacement 前先读取 policy/ETag；成功只在当前页面显示秘密；明确拒绝可重试；模糊结果保留 unknown 标记、禁止再次签发并要求到 Settings 人工核对。
+- [ ] 不重构 API routes、服务端 `lib/site-management/client.ts`、持久化或后端；不引入通用表单框架或新的服务端抽象。
+
+**测试映射与新增保护：**
+
+- [ ] 保留并迁移 `site-creation-wizard.test.ts` 中 Origin、能力依赖闭包和 API path 映射纯函数覆盖。
+- [ ] 保留 `site-creation-wizard.ui.test.tsx` 的表单/Origin/字段错误、创建/replay、key 恢复成功及模糊结果/review 行为覆盖。
+- [x] 新增或补齐 2.4 列出的幂等重试、payload 更新、重复提交、恢复 query、storage 失败、明确 4xx、malformed/5xx 场景；断言请求次数、请求体/headers 和 review 状态，不仅断言提示文案。
+- [ ] 确认页面入口及 `lib/site-management/client.test.ts` 的相关覆盖仍适用；若切片边界没有触及它们，不做无关改动。
+
+**实施验证命令：**
+
+- [ ] 每个子边界运行向导定向测试：`pnpm --filter @web-analytics/dashboard test -- components/site-creation-wizard`。
+- [ ] 完成实现后运行 `pnpm --filter @web-analytics/dashboard typecheck`、`pnpm --filter @web-analytics/dashboard lint` 和 `pnpm --filter @web-analytics/dashboard test`。
+- [ ] 运行真实用户链路 `pnpm e2e:site-onboarding`；需要 Compose、admin 凭据和 Chromium。无法运行时记录具体缺失条件及替代证据，不标记为已验证。
+- [ ] 根据变更面运行合并前 `pnpm check`、`pnpm test`，必要时 `pnpm build`；不以单测通过替代 E2E 声明。
+
+**工作包 2 完成条件：** 目标模块依赖单向、原组件成为稳定薄入口；所有不变量和保护测试满足；定向/回归检查结果及未运行项有记录；页面到创建、replay 和 replacement-key recovery 的用户路径验证完成或明确标记受环境限制。每个子边界都能独立审查和回退，最终变更未混入产品行为改变。
 
 ### 工作包 3：Dashboard 定义、配置和密钥管理
 
