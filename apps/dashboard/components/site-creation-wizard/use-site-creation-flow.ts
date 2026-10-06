@@ -59,10 +59,15 @@ export function useSiteCreationFlow(manifest: Capability[]) {
   const createInFlight = useRef(false);
   const [replayedSiteId, setReplayedSiteId] = useState("");
   const [idempotency, setIdempotency] = useState<{ payload: string; key: string } | null>(null);
-  const [replacementKey, setReplacementKey] = useState("");
-  const [replacementError, setReplacementError] = useState("");
-  const [replacementPending, setReplacementPending] = useState(false);
-  const [replacementNeedsReview, setReplacementNeedsReview] = useState(false);
+  const [replacementKeys, setReplacementKeys] = useState<Record<string, string>>({});
+  const [replacementErrors, setReplacementErrors] = useState<Record<string, string>>({});
+  const [pendingReplacementKeys, setPendingReplacementKeys] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const replacementInFlight = useRef(new Set<string>());
+  const [replacementReviewByAttempt, setReplacementReviewByAttempt] = useState<
+    Record<string, boolean>
+  >({});
   const [replacementStatusKey, setReplacementStatusKey] = useState("");
   const websiteOrigin = deriveOrigin(values.websiteUrl);
   const allowedOrigins = deriveAllowedOrigins(values.origins, values.websiteUrl);
@@ -72,6 +77,10 @@ export function useSiteCreationFlow(manifest: Capability[]) {
   const replacementAttemptKey = resultSiteId
     ? replacementAttemptStorageKey(resultSiteId, resultEnvironment)
     : "";
+  const replacementKey = replacementKeys[replacementAttemptKey] ?? "";
+  const replacementError = replacementErrors[replacementAttemptKey] ?? "";
+  const replacementPending = pendingReplacementKeys.has(replacementAttemptKey);
+  const replacementNeedsReview = replacementReviewByAttempt[replacementAttemptKey] ?? false;
   const replacementStatusLoaded =
     !replacementAttemptKey || replacementStatusKey === replacementAttemptKey;
   const enabledCapabilities = useMemo(
@@ -83,11 +92,17 @@ export function useSiteCreationFlow(manifest: Capability[]) {
   useEffect(() => {
     if (!replacementAttemptKey) return;
     try {
-      // Read the marker before enabling the retry action to prevent an unsafe flash.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setReplacementNeedsReview(window.localStorage.getItem(replacementAttemptKey) === "unknown");
+      // Associate the stored decision with this identity before enabling its retry action.
+      const needsReview = window.localStorage.getItem(replacementAttemptKey) === "unknown";
+      setReplacementReviewByAttempt((current) => ({
+        ...current,
+        [replacementAttemptKey]: needsReview,
+      }));
     } catch {
-      setReplacementNeedsReview(false);
+      setReplacementReviewByAttempt((current) => ({
+        ...current,
+        [replacementAttemptKey]: false,
+      }));
     } finally {
       setReplacementStatusKey(replacementAttemptKey);
     }
@@ -174,63 +189,96 @@ export function useSiteCreationFlow(manifest: Capability[]) {
   }
 
   async function issueReplacement() {
-    if (!replacementStatusLoaded || replacementPending || replacementKey || replacementNeedsReview)
+    const attemptKey = replacementAttemptKey;
+    if (
+      !replacementStatusLoaded ||
+      replacementPending ||
+      replacementInFlight.current.has(attemptKey) ||
+      replacementKey ||
+      replacementNeedsReview
+    )
       return;
     const siteId = resultSiteId;
     const environment = resultEnvironment;
     if (!siteId) {
-      setReplacementError("Site identity is missing. Open the Site from Settings and try again.");
+      setReplacementErrors((current) => ({
+        ...current,
+        [attemptKey]: "Site identity is missing. Open the Site from Settings and try again.",
+      }));
 
       return;
     }
-    setReplacementPending(true);
-    setReplacementError("");
+    replacementInFlight.current.add(attemptKey);
+    setPendingReplacementKeys((current) => new Set(current).add(attemptKey));
+    setReplacementErrors((current) => ({ ...current, [attemptKey]: "" }));
     let keyRequestStarted = false;
     let definitelyRejected = false;
     try {
       const etag = await loadIngestPolicy(siteId, environment);
-      if (!updateReplacementAttemptMarker(replacementAttemptKey, "unknown"))
+      if (!updateReplacementAttemptMarker(attemptKey, "unknown"))
         throw new Error(
           "This browser cannot save the temporary key-request status. Enable site storage before issuing a replacement key.",
         );
       keyRequestStarted = true;
-      setReplacementNeedsReview(true);
+      setReplacementReviewByAttempt((current) => ({ ...current, [attemptKey]: true }));
       try {
         const key = await issueReplacementKey(siteId, environment, etag);
         keyRequestStarted = false;
-        setReplacementNeedsReview(false);
-        updateReplacementAttemptMarker(replacementAttemptKey, null);
-        setReplacementKey(key);
+        setReplacementReviewByAttempt((current) => ({ ...current, [attemptKey]: false }));
+        updateReplacementAttemptMarker(attemptKey, null);
+        setReplacementKeys((current) => ({ ...current, [attemptKey]: key }));
       } catch (cause) {
         if (cause instanceof ReplacementKeyRequestError && cause.definitelyRejected) {
           definitelyRejected = true;
-          setReplacementNeedsReview(false);
-          updateReplacementAttemptMarker(replacementAttemptKey, null);
+          setReplacementReviewByAttempt((current) => ({ ...current, [attemptKey]: false }));
+          updateReplacementAttemptMarker(attemptKey, null);
         }
 
         throw cause;
       }
     } catch (cause) {
       if (keyRequestStarted && !definitelyRejected) {
-        setReplacementNeedsReview(true);
-        updateReplacementAttemptMarker(replacementAttemptKey, "unknown");
-        setReplacementError(
-          "The server may have issued a key, but its secret was not received. Check the environment's key list in Settings before allowing another attempt.",
-        );
+        setReplacementReviewByAttempt((current) => ({ ...current, [attemptKey]: true }));
+        updateReplacementAttemptMarker(attemptKey, "unknown");
+        setReplacementErrors((current) => ({
+          ...current,
+          [attemptKey]:
+            "The server may have issued a key, but its secret was not received. Check the environment's key list in Settings before allowing another attempt.",
+        }));
       } else {
-        setReplacementError(
-          cause instanceof Error ? cause.message : "Could not issue a replacement key.",
-        );
+        setReplacementErrors((current) => ({
+          ...current,
+          [attemptKey]:
+            cause instanceof Error ? cause.message : "Could not issue a replacement key.",
+        }));
       }
     } finally {
-      setReplacementPending(false);
+      replacementInFlight.current.delete(attemptKey);
+      setPendingReplacementKeys((current) => {
+        const next = new Set(current);
+        next.delete(attemptKey);
+
+        return next;
+      });
     }
   }
 
   function acknowledgeReplacementReview() {
-    updateReplacementAttemptMarker(replacementAttemptKey, null);
-    setReplacementNeedsReview(false);
-    setReplacementError("");
+    if (!replacementAttemptKey || !replacementStatusLoaded || !replacementNeedsReview) return;
+    if (!updateReplacementAttemptMarker(replacementAttemptKey, null)) {
+      setReplacementErrors((current) => ({
+        ...current,
+        [replacementAttemptKey]:
+          "Could not save the review status in this browser. Enable site storage before allowing another attempt.",
+      }));
+
+      return;
+    }
+    setReplacementReviewByAttempt((current) => ({
+      ...current,
+      [replacementAttemptKey]: false,
+    }));
+    setReplacementErrors((current) => ({ ...current, [replacementAttemptKey]: "" }));
   }
 
   return {

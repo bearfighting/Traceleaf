@@ -133,6 +133,8 @@ describe("SiteCreationWizard result lifecycle", () => {
   });
 
   it("shows a first-create key only in the result view and keeps it out of the URL", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
@@ -166,6 +168,8 @@ describe("SiteCreationWizard result lifecycle", () => {
     expect(settingsLink?.textContent).toContain("View connection status in Settings");
     expect(settingsLink?.getAttribute("target")).toBe("_blank");
     expect(settingsLink?.getAttribute("rel")).toBe("noopener noreferrer");
+    clickButton("Copy");
+    expect(writeText).toHaveBeenCalledWith("A".repeat(43));
   });
 
   it("treats a 200 idempotent replay as metadata only and does not show a credential", async () => {
@@ -305,6 +309,145 @@ describe("SiteCreationWizard result lifecycle", () => {
         "site-onboarding:site_second:preview:replacement-key-outcome-unknown",
       ),
     ).toBe("unknown");
+  });
+
+  it("keeps replacement review required when storage cannot clear the marker", () => {
+    routerState.query = "site_id=site_example&environment=production";
+    window.localStorage.setItem(
+      "site-onboarding:site_example:production:replacement-key-outcome-unknown",
+      "unknown",
+    );
+    vi.spyOn(Storage.prototype, "removeItem").mockImplementation(() => {
+      throw new Error("Storage disabled");
+    });
+    renderWizard();
+
+    clickButton("I reviewed the key list");
+
+    const retryButton = [...(container?.querySelectorAll("button") ?? [])].find((button) =>
+      button.textContent?.includes("Review key status in Settings"),
+    );
+    expect(retryButton?.disabled).toBe(true);
+    expect(container?.textContent).toContain("Could not save the review status");
+    expect(
+      window.localStorage.getItem(
+        "site-onboarding:site_example:production:replacement-key-outcome-unknown",
+      ),
+    ).toBe("unknown");
+  });
+
+  it("keeps a pending replacement key with the identity that requested it", async () => {
+    routerState.query = "site_id=site_first&environment=production";
+    let resolveKeyRequest!: (response: Response) => void;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({}, { status: 200, headers: { ETag: '"4"' } }))
+      .mockImplementationOnce(
+        () => new Promise<Response>((resolve) => (resolveKeyRequest = resolve)),
+      )
+      .mockResolvedValueOnce(Response.json({}, { status: 200, headers: { ETag: '"8"' } }))
+      .mockResolvedValueOnce(Response.json({ key: "E".repeat(43) }, { status: 201 }));
+    vi.stubGlobal("fetch", fetchMock);
+    renderWizard();
+
+    await act(async () => {
+      clickButton("Create replacement key");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const reviewButton = [...(container?.querySelectorAll("button") ?? [])].find((button) =>
+      button.textContent?.includes("I reviewed the key list"),
+    );
+    expect(reviewButton?.disabled).toBe(true);
+    expect(
+      window.localStorage.getItem(
+        "site-onboarding:site_first:production:replacement-key-outcome-unknown",
+      ),
+    ).toBe("unknown");
+
+    routerState.query = "site_id=site_second&environment=preview";
+    act(() => root?.render(<SiteCreationWizard manifest={manifest} />));
+    const secondIdentityButton = [...(container?.querySelectorAll("button") ?? [])].find((button) =>
+      button.textContent?.includes("Create replacement key"),
+    );
+    expect(secondIdentityButton?.disabled).toBe(false);
+    expect(container?.textContent).toContain("site_second");
+
+    await act(async () => {
+      clickButton("Create replacement key");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(container?.textContent).toContain("E".repeat(43));
+
+    resolveKeyRequest(Response.json({ key: "D".repeat(43) }, { status: 201 }));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(container?.textContent).toContain("site_second");
+    expect(container?.textContent).toContain("E".repeat(43));
+    expect(container?.textContent).not.toContain("D".repeat(43));
+
+    routerState.query = "site_id=site_first&environment=production";
+    act(() => root?.render(<SiteCreationWizard manifest={manifest} />));
+    expect(container?.textContent).toContain("D".repeat(43));
+    expect(container?.textContent).not.toContain("E".repeat(43));
+    expect(container?.textContent).toContain("Replacement key issued");
+    expect(
+      window.localStorage.getItem(
+        "site-onboarding:site_first:production:replacement-key-outcome-unknown",
+      ),
+    ).toBeNull();
+  });
+
+  it("keeps an ambiguous review marker with the identity that issued the request", async () => {
+    routerState.query = "site_id=site_first&environment=production";
+    let rejectKeyRequest!: (cause: Error) => void;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({}, { status: 200, headers: { ETag: '"4"' } }))
+      .mockImplementationOnce(
+        () => new Promise<Response>((_resolve, reject) => (rejectKeyRequest = reject)),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    renderWizard();
+
+    await act(async () => {
+      clickButton("Create replacement key");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    routerState.query = "site_id=site_second&environment=preview";
+    act(() => root?.render(<SiteCreationWizard manifest={manifest} />));
+    expect(container?.textContent).not.toContain("server may have issued a key");
+
+    rejectKeyRequest(new Error("Connection reset"));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const secondIdentityButton = [...(container?.querySelectorAll("button") ?? [])].find((button) =>
+      button.textContent?.includes("Create replacement key"),
+    );
+    expect(secondIdentityButton?.disabled).toBe(false);
+    expect(container?.textContent).not.toContain("server may have issued a key");
+    expect(container?.textContent).not.toContain("I reviewed the key list");
+    expect(
+      window.localStorage.getItem(
+        "site-onboarding:site_first:production:replacement-key-outcome-unknown",
+      ),
+    ).toBe("unknown");
+    expect(
+      window.localStorage.getItem(
+        "site-onboarding:site_second:preview:replacement-key-outcome-unknown",
+      ),
+    ).toBeNull();
   });
 
   it("disables replacement issuance after a key is created", async () => {

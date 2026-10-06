@@ -48,6 +48,24 @@ Dashboard package scripts 确认存在 `test`、`typecheck`、`lint`；根 packa
 - `pnpm e2e:site-onboarding` 通过：包含 Page View 计数、Dashboard 管理凭据缺失/无效及 Site Management API 不可用状态、空 Dashboard onboarding、一次性 key、Browser SDK ingest、runtime application、processing、Analytics API 和 Settings evidence。Compose 服务及测试数据已由 runner 清理。
 - 最初 Dashboard `lint` 报出 26 条 import 分组/顺序及语句间空行问题；应用 ESLint 自动修复后发现 hook effect 中同步更新状态的规则提示，并移除了入口组件未使用的 `selected` 解构。保留有效身份下先读取 marker 再开放操作的行为，以局部说明抑制必要的同步状态规则提示，Dashboard `lint` 通过。
 
+## 工作包 2.5 拆分 Presenter 与步骤/结果视图（2026-10-06）
+
+- `site-creation-wizard.tsx` 收敛为稳定入口和装配层：调用 `useSiteCreationFlow(manifest)`，并把状态与动作通过 props 传给 `SiteCreationSteps` 或 `SiteCreationResultView`。
+- 新增 `site-creation-steps.tsx` 承载四步表单/复核视图；新增 `site-creation-result.tsx` 承载创建、replay、刷新恢复和 replacement review 结果视图。视图只消费受控 props、发出回调，不直接访问 fetch、search params、history 或 localStorage，也不创建幂等键。
+- 保持原 DOM 层级、语义元素、`aria-label` / `aria-current` / `role` / 按钮禁用状态、CSS class、链接属性与用户文案；未改页面入口、flow、API contract/routes 或数据行为。
+- 后续全面 review 又发现恢复身份切换期间的异步状态串用风险。replacement key、错误、review decision 和 pending 状态现按 storage marker key 分别保存在内存状态中；旧身份请求完成只更新旧身份的结果，不能覆盖当前身份状态。新增两个 UI 测试，覆盖旧身份请求成功/模糊失败时切换身份，以及两个身份请求并行完成后的密钥归属。
+- 验证：向导定向测试通过（44 个测试文件、233 个测试）；Dashboard typecheck、lint、相关文件 Prettier 检查及 `git diff --check` 通过。E2E 未因纯视图迁移重跑；工作包 2.4 的 onboarding E2E 已通过。
+
+## 工作包 2.6 切片收尾（2026-10-06）
+
+- 最终依赖方向为页面 → 稳定向导入口 → flow hook → domain/API；向导入口只装配 hook 与 Presenter。Presenter 只接收 props 并发出回调，domain 不含 I/O，API 模块不依赖 React 或 server-only client。模块没有 barrel 导出；内部具名导出只供 wizard 装配、hook/API 间调用和测试使用，没有扩大 Dashboard 公共入口。
+- 页面 `app/dashboard/sites/new/page.tsx` 保持原有页面布局和 `DashboardHeader`，并加载 capability manifest 后调用 `SiteCreationWizard({ manifest })`。routes、服务端 site-management client、持久化和后端未改。helper 已迁至 domain 模块，未发现搬移后重复实现或无用 helper；测试按纯 domain、API 和用户可见 flow 分别归属。
+- 最终 review 修复了三处恢复安全边界：异步 replacement 状态按 site/environment storage key 隔离；replacement 请求 pending 时不能确认 review；`localStorage.removeItem` 失败时保留 review 锁并显示错误。新增 UI 覆盖身份切换、并发请求归属、pending 确认和 storage 清除失败。
+- 不变量复核：创建 payload/Idempotency-Key 与 201/200 解释、表单步骤和校验、key 只在页面内存展示、replacement 显式触发与错误分类均由现有及新增测试保护；E2E 用户链路检查通过。未改变 API 契约或正常用户路径；按范围修正了两个失败边界的行为：请求 pending 时不能确认未知结果，storage 无法清除 review 标记时不能解锁重试并会显示错误。未发现其他行为差异。
+- 验证：Dashboard 定向测试及全量测试均通过（44 个测试文件、234 项）；Dashboard typecheck、lint、相关文件 Prettier 和 `git diff --check` 通过；`pnpm e2e:site-onboarding` 通过，覆盖真实 onboarding 及 ingest/processing/settings 链路。
+- 未运行根级 `pnpm check` / `pnpm test` 和全 workspace build：本切片仅修改 Dashboard 向导及文档，Dashboard 全量检查和 onboarding E2E 已覆盖变更面；根级脚本还会运行 Rust workspace 与其他 package 的检查。E2E 本次使用 Docker 构建/启动所需服务，runner 完成后清理测试服务与数据。
+- 收尾结论：依赖边界、稳定入口、流程不变量、测试归属和验证记录均满足工作包 2 完成条件；工作包 2 关闭。
+
 ## 选择依据
 
 创建流程从 `/dashboard/sites/new` 页面进入，当前 `SiteCreationWizard` 集中持有向导状态、异步请求、纯规则和全部视图；其 API route、服务端 `site-management` client、纯 helper 测试及 UI 生命周期测试已形成可追踪的垂直切片。一次重构可以验证状态编排、纯逻辑、I/O 与步骤/结果展示的分工，并以现有行为测试作为迁移基准。
