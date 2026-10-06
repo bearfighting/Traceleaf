@@ -24,7 +24,14 @@ pnpm docker:dev --router react --with-backend
 
 The wrapper accepts only `next`, `react` and `tanstack`. `--with-backend`
 enables the `backend`, `storage` and `processing` profiles in addition to the
-selected playground profile. Ports can be overridden with
+selected playground profile. Rust services run in containers by default. For
+the container-backed PostgreSQL workflow with Rust services running on the
+host, use `pnpm docker:processing --rust-runtime native` or
+`pnpm dev:up --rust-runtime native`. Native mode requires the locked Rust
+toolchain and the operator-supplied GeoIP database at
+`./data/GeoLite2-Country.mmdb`; it reuses the repository's `target/debug`
+artifacts. Use `--rust-runtime container` to select the default explicitly.
+Ports can be overridden with
 `PLAYGROUND_NEXT_PORT`, `PLAYGROUND_REACT_PORT` and
 `PLAYGROUND_TANSTACK_PORT`.
 
@@ -124,4 +131,14 @@ cargo run -p collector -- key generate --site site_example --environment product
 
 Add the output to the matching `ingest_keys` entry and configure the Website Origin in `allowed_origins` before sending local events. CORS preflight returns `204`; rate-limited requests return `429` with `Retry-After: 60`.
 
-The Compose setup mounts the source directory and keeps dependency/build directories in named volumes. The Collector image caches Cargo registry dependencies during image build and keeps `/workspace/target` in a named volume for incremental compilation. The Router playground image builds the workspace packages before starting the Playground, including the selected adapter facade, `analytics-browser`, transport, and shared playground support. Changes to Playground source hot reload; after changing package source, restart the container so the package can be rebuilt. PostgreSQL, BeaconTransport, retries, and durable storage are intentionally not part of this integration PR.
+The Rust services share `docker/rust-workspace.Dockerfile`: Cargo manifests and
+the lockfile are prepared in one dependency layer, Compose selects a service
+development target, and release targets copy binaries from the locked Rust
+builder into a small runtime image. The Compose setup mounts source and keeps
+`/workspace/target` in named volumes for incremental container compilation.
+The Router playground image builds the workspace packages before starting the
+Playground, including the selected adapter facade, `analytics-browser`,
+transport, and shared playground support. Changes to Playground source hot
+reload; after changing package source, restart the container so the package can
+be rebuilt. E2E continues to use the isolated container runtime regardless of
+the development Rust runtime setting.

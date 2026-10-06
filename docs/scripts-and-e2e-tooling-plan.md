@@ -1,14 +1,14 @@
 # Scripts 与 E2E 工具整理方案
 
-> 状态：待实施。本文记录开发命令、数据库工具、容器构建和 E2E 测试的目标与验收步骤。本文中的目录和运行模式是当前方案，允许根据试验结果调整；每个阶段开始前先验证可行性，收益不足或复杂度不合适时更新本文再继续。当前功能冻结期间只做方案设计；开始实施前须确认发布冻结已解除或该工程整理已获维护者排期。
+> 状态：职责迁移、Docker/Rust runtime 整理、E2E helper 与 runner、全量 CI 分组均已实施。本地 8 个 E2E suites 通过；GitHub nightly/tag 的关键路径对比等待后续 workflow 记录。
 
 ## 初衷
 
-`scripts/` 最初主要承载本地开发启动和统一检查入口。现在它同时包含开发环境编排、数据库迁移测试、契约生成与校验、E2E 场景、E2E 环境准备、seed 辅助代码和这些脚本自己的单测。脚本名称虽有分类，但实现和依赖仍集中在同一层级，查找职责、复用公共逻辑和选择性运行测试都变得困难。
+原先根目录 `scripts/` 混放了不同职责的实现和大量薄转发入口。职责迁移后，命令实现按 `tooling/{ci,contracts,db,dev}`、`db/` 和 `tests/e2e/` 分类，`package.json` 直接调用实现文件，不再保留重复 wrapper。E2E 使用一个参数化 runner 调度各 suite；suite 的领域断言仍留在独立场景文件中。
 
 E2E 目前按功能拆成多个独立命令和 CI job。多个测试脚本各自组装 Compose 参数、启动服务、执行迁移、准备数据并在结束时删除 Compose project 和 PostgreSQL volume。Docker 编译缓存可以复用，但容器和数据库仍重复初始化。部分较大的 E2E 脚本还同时负责环境生命周期、seed、多个产品流程和浏览器断言。
 
-数据库内容也分散在根目录 `migrations/`、`scripts/test-migrations.sh`、开发 seed 脚本和 E2E seed/helper 中。E2E 环境变量、端口、密钥、Compose profile 和测试参数由多个脚本分别管理。类似的 Compose 执行、就绪等待、错误诊断和清理代码重复出现。
+数据库迁移、迁移测试、开发 seed 和 E2E helper 已按职责归入 `db/` 与 `tests/e2e/`。E2E 环境变量、端口、密钥、Compose profile 和测试参数仍由各 suite 管理；统一 runner 与环境生命周期属于后续步骤。
 
 容器构建也有类似的重复：Collector、Analytics API 和 Processor 的开发 Dockerfile 都复制整个 Rust workspace 的 Cargo manifest、创建占位源码并执行 `cargo fetch`；数据库迁移 Dockerfile 又维护一份近似流程。开发 Compose 在测试时经常调用 `up --build`，不同 E2E 脚本还各自触发环境构建。Dashboard Dockerfile 当前是面向开发的单阶段镜像，安装 workspace 依赖后由 Compose 挂载源码运行。
 
@@ -17,7 +17,7 @@ E2E 目前按功能拆成多个独立命令和 CI job。多个测试脚本各自
 ## 优化目标
 
 - 让目录和命令直接表达职责：数据库、开发环境、契约工具和测试代码各有明确归属。
-- 保持现有 `pnpm dev`、`pnpm test`、`pnpm e2e:*` 等常用入口兼容，由薄入口转发到新的实现位置。
+- 保持 `pnpm dev`、`pnpm test`、`pnpm e2e:*` 等常用入口稳定；package scripts 直接调用按职责归档的实现，避免重复转发层。
 - E2E 环境由统一生命周期管理；普通 E2E 套件可以复用已经运行的服务，只按需重置数据库和加载场景数据。
 - 按 API、Dashboard 页面、Onboarding、Router 等测试面选择性运行；CI 仍有明确的全量回归入口。
 - 将开发 seed、E2E 场景数据和生产数据库迁移严格区分，不把开发数据写入正式环境。
@@ -37,36 +37,31 @@ db/
 
 tests/
   e2e/
-    runner.mjs                # 选择 suite，协调环境生命周期和结果汇总
     suites/
-      api/                    # Analytics API、Configuration、Site Management
-      dashboard/               # Analytics 页面、Settings、定义管理
-      onboarding/              # 空 Registry 到首次 Page View
-      router/                  # Router adapter 与 Compose 场景
+      e2e-analytics.mjs
+      e2e-configuration.mjs
+      e2e-dashboard.mjs
+      e2e-site-management.mjs
+      e2e-site-onboarding.mjs
+      e2e-router-*.mjs
+      dashboard/fixtures/      # Dashboard suite 专属 fixtures
     support/
-      compose.mjs              # Compose project、服务健康检查、诊断和生命周期
-      environment.mjs          # E2E 环境变量、端口及随机凭据
-      database.mjs             # 数据库 reset、migration 状态和 seed 调度
-      browser.mjs              # Playwright browser/context 生命周期
-      fixtures/                # 各 suite 的输入和期望结果
-  unit/                       # 若非 package 私有测试，放跨 package 的工具测试
+      e2e-compose.mjs
+      e2e-cache.mjs
+      e2e-capabilities.mjs
 
 tooling/
   dev/                        # 本地开发启动、Compose profile 和开发 seed
   contracts/                  # 协议/配置校验、类型生成、parity 检查
   ci/                         # check、build、format 等统一流程编排
 
-scripts/
-  dev.sh                      # 保持常用命令兼容的薄入口
-  test.sh
-  build.sh
-  format.sh
-
 docker/
   rust-workspace.Dockerfile   # 公共依赖层与各 Rust 服务/dev/release targets
   dashboard.Dockerfile        # Node 依赖、开发和可选生产 targets
   dev-seed.Dockerfile         # 独立、显式调用的开发 seed 工具
 ```
+
+当前命令入口：`package.json` 保留稳定的 `pnpm` 命令名，并直接调用 `tooling/`、`db/` 或 `tests/e2e/` 中的实现。E2E CLI 位于 `tests/e2e/runner/cli.mjs`；suite 快捷命令复用该 runner。
 
 目录是职责建议，不要求每个目录都必须存在独立 wrapper。package 内部专用的单测继续靠近 package；只有被多个测试套件共享的工具或集成流程才移到顶层 `tests/`。
 
@@ -76,7 +71,7 @@ docker/
 
 Migration 是共享且有序的 schema 历史，不按 development、E2E、production 复制。不同环境的差别由连接目标、配置和 seed 决定。开发 seed 必须显式触发；E2E seed 只写入隔离测试数据库。
 
-当前迁移由 `tools/db-migrator` 通过 `sqlx::migrate!("../../migrations")` 编译嵌入，Dockerfile、build script、迁移测试和文档也依赖根目录路径。移动目录时必须一次性更新这些引用并验证产物包含完整 migration 集合。已应用 migration 的编号、描述和 SQL 内容保持不变，以保留数据库中记录的 migration 身份；SQLx checksum 校验基于内容，不能通过改名或改路径绕过校验。
+当前迁移由 `tools/db-migrator` 通过 `sqlx::migrate!("../../db/migrations")` 编译嵌入。已应用 migration 的编号、描述和 SQL 内容保持不变，以保留数据库中记录的 migration 身份；SQLx checksum 校验基于内容，不能通过改名或改路径绕过校验。
 
 ### E2E 环境复用与数据隔离
 
@@ -113,7 +108,7 @@ Rust workspace 的开发镜像继续以仓库根目录作为 build context，因
 
 ### 本机编译产物与容器内编译
 
-当前 Collector、Processor、Analytics API 的 Compose command 使用 `cargo run`；`/workspace/target` 和 `/usr/local/cargo` 分别由 named volume 提供。Cargo 会按依赖和源码 fingerprint 做增量构建，源码未变化时不会完整重编译，但每次容器启动仍会调用 Cargo 检查目标；该 target cache 也不是仓库工作区的 `target/`。`scripts/build.sh` 已在本机运行 `cargo build --workspace`，因此本地 `target/debug/` 可能已有可复用的开发可执行文件。
+当前 Collector、Processor、Analytics API 的 Compose command 使用 `cargo run`；`/workspace/target` 和 `/usr/local/cargo` 分别由 named volume 提供。Cargo 会按依赖和源码 fingerprint 做增量构建，源码未变化时不会完整重编译，但每次容器启动仍会调用 Cargo 检查目标；该 target cache 也不是仓库工作区的 `target/`。`tooling/ci/build.sh` 已在本机运行 `cargo build --workspace`，因此本地 `target/debug/` 可能已有可复用的开发可执行文件。
 
 建议提供两个明确的 Rust 开发运行模式，而不是让本机产物混入发布镜像：
 
@@ -147,7 +142,7 @@ Native 模式只能在宿主机和目标 runtime 兼容时运行（OS、CPU 架�
 - 建立 `db/`、`tests/e2e/`、`tooling/` 目录并按职责迁移实现。
 - 更新 `tools/db-migrator` 的嵌入路径、build script、Dockerfile、migration tests、Compose 文件、格式检查清单和文档。
 - E2E fixtures 与各自 suite 放在测试目录；正式协议 fixtures 仍留在 `protocol/`。
-- 根 `scripts/` 暂时保留兼容 wrapper，package.json 和 CI 命令不必同一提交全部重写。
+- 过渡期间保留了 wrapper；后续清理时将 `package.json`、CI 和 package 子命令切到实现路径，再删除薄转发文件。
 
 **验收：** `pnpm check`、migration 单测和 migration 集成测试通过；开发启动、显式 seed、现有 E2E 命令与 CI 引用仍可运行。
 
@@ -164,13 +159,19 @@ Native 模式只能在宿主机和目标 runtime 兼容时运行（OS、CPU 架�
 
 如果 Native 模式需要大量平台专用配置，或实测启动/构建收益不明显，可先保留 Container 模式并优化持久 Cargo target/Cargo registry 与 BuildKit cache；如果跨 CI BuildKit 缓存维护成本超过收益，可仅保留本地缓存。调整方案时同步更新本文中的目标与验收条件。
 
-### 4. 抽取 E2E 环境和数据 helper
+### 4. 抽取 E2E 环境和数据 helper（已实施）
 
 - 统一 Compose project 配置、环境变量解析、健康检查、诊断、缓存准备和清理。
 - 统一数据库 reset 的安全边界；区分全量 reset、业务数据 reset 和迁移专用空库，不再由各套件内联任意 TRUNCATE 列表。
 - 合并重复 seed 逻辑，但保留不同 suite 所需的明确数据语义。
 
+当前 `tests/e2e/support/e2e-compose.mjs` 集中校验 PID-scoped E2E project、Compose 执行、HTTP readiness、端口解析和 Compose 诊断采集；migration、诊断和清理操作要求带有原 project 身份的 runner。缓存准备/owner 初始化保留在 `e2e-cache.mjs`，Capability 与 Ingest Policy seed 保留在领域 helper 中。`e2e-database.mjs` 提供具名的 `analytics` 与 `dashboard` business-data reset 范围，只能通过与传入 project 完全匹配的 E2E runner 执行；两组表清单与原 suite 的 TRUNCATE 语句一致。Migration、onboarding 和 development-startup 继续使用各自的隔离空库流程。
+
+Analytics 和 Dashboard 已使用共享 reset helper；有通用 HTTP 服务就绪检查的 suite 已改用共享 helper，suite 特有的 runtime convergence 检查仍保留在本地。统一启动/复用生命周期、suite flags 与跨 suite 运行仍属于第 5 步。
+
 **验收：** 多个 suite 使用同一 support 模块；reset 只能作用于专用 E2E 数据库；新旧 E2E 断言结果一致。
+
+本次验证：reset/project/port helper 单测 6 项通过，`pnpm check`、`pnpm test`、`pnpm format:check` 通过；Analytics E2E 的 10 个 fixtures 和完整 Dashboard E2E workflow 通过。两个 E2E project 均在退出时删除各自的 PostgreSQL volume。
 
 ### 5. 实现可复用的 E2E 生命周期和 suite flags
 
@@ -190,9 +191,15 @@ Native 模式只能在宿主机和目标 runtime 兼容时运行（OS、CPU 架�
 
 **验收：** 本地文档命令可直接执行；CI 全量 E2E 通过；不存在旧脚本路径引用或重复环境生命周期实现；记录优化前后耗时。
 
+命令入口整理也已完成：根目录的纯转发 `.mjs`/`.sh` 文件已删除；包命令和 CI 直接调用 `tooling/`、`db/`、`tests/e2e/` 下的实现。原 `scripts/e2e.mjs` runner 移至 `tests/e2e/runner/cli.mjs`，八个 `pnpm e2e:<suite>` 快捷入口继续有效，场景断言保持分离。唯一本身含有校验逻辑的 fixture baseline 工具移入 `tooling/contracts/`。历史归档文档中的旧命令记录保留为当时的执行记录。
+
+全量 CI 已将 analytics、configuration、site-management 排入一个串行 shared API job；共享 Compose 环境只启动并迁移一次，每个 suite 开始前做 full business-data reset。Dashboard、development startup、router adapters 和 router compose 仍独立；router 两项暂不合并，因为可访问的历史 Actions 数据没有 job 级耗时，无法验证至少 10% 的关键路径收益。Site onboarding 已作为独立全量 job 加入，安装 Chromium、上传计时及失败诊断，并在 `always()` 执行 E2E 清理。所有 E2E job 使用相同 measurement wrapper。
+
+2026-10-06 在本地按 CI 分组运行的 8 个 E2E suites 全部通过，包括 shared API job 的连续 reset 运行、Dashboard、Development Startup、两个 Router suites 和 Site Onboarding。运行过程中发现并修正 Onboarding CI project 名缺少 `-e2e-` 的问题。测试并未通过 measurement wrapper 记录可靠的 job 用时，也不等同于 GitHub nightly/tag 全量 workflow。最近十次可见 CI workflow 总耗时中位数为 8:49.5；这批数据没有 job 级时长且并非已确认的全量运行样本，故不能声称合并已达到关键路径缩短验收。全量 CI workflow 实跑及同触发条件前后用时对比仍待下一次 nightly/tag run。细节见 [`scripts-and-e2e-inventory.md`](scripts-and-e2e-inventory.md)。
+
 ## 完成定义
 
-- 脚本目录按职责组织，`scripts/` 主要承担稳定入口和必要的流程 wrapper。
+- 工具实现按职责放在 `tooling/`、`db/` 和 `tests/e2e/`；`package.json` 提供清楚稳定的命令名，不重复维护薄 wrapper。
 - Migration、开发 seed、E2E seed 与 E2E fixtures 有清晰边界。
 - Rust workspace 依赖层不在每个服务 Dockerfile 中重复定义；开发、release、migration 和 seed 镜像职责分明。
 - 本机 Rust debug binary 只用于开发；生产 release binary 始终从受控 builder stage 生成并进入独立 runtime image。

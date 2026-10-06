@@ -1,0 +1,90 @@
+import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
+const cacheInputs = [
+  "Cargo.toml",
+  "Cargo.lock",
+  "crates/configuration-runtime/Cargo.toml",
+  "services/collector/Cargo.toml",
+  "services/processor/Cargo.toml",
+  "services/analytics-api/Cargo.toml",
+  "tools/db-migrator/Cargo.toml",
+  "rust-toolchain.toml",
+  "package.json",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
+  "compose.e2e.yaml",
+  "compose.yaml",
+  "compose.backend.yaml",
+  "compose.dev.yaml",
+  "docker/rust-workspace.Dockerfile",
+  "docker/dashboard.Dockerfile",
+  "docker/dev-seed.Dockerfile",
+  "db/seeds/development/dev-seed.mjs",
+  "tooling/contracts/capability-seed.mjs",
+];
+
+export function prepareE2ECaches(root, scope) {
+  const hash = createHash("sha256").update(path.resolve(root));
+  for (const relativePath of cacheInputs) {
+    hash.update(relativePath);
+    hash.update(readFileSync(path.join(root, relativePath)));
+  }
+  const prefix = `web-analytics-e2e-${hash.digest("hex").slice(0, 12)}`;
+  process.env.E2E_CACHE_PREFIX = prefix;
+  process.env.E2E_CACHE_SCOPE = scope;
+
+  for (const suffix of [
+    "collector_target",
+    "processor_target",
+    "analytics_api_target",
+    "cargo_home",
+    "root_node_modules",
+    "dashboard_node_modules",
+    `${scope}_dashboard_next`,
+  ]) {
+    execFileSync("docker", ["volume", "create", `${prefix}_${suffix}`], {
+      cwd: root,
+      stdio: "ignore",
+    });
+  }
+
+  // Initialize the shared Cargo volume once before Compose mounts it into multiple Rust services.
+  // Docker otherwise races while copying the Rust image symlinks into the new volume.
+  execFileSync(
+    "docker",
+    [
+      "run",
+      "--rm",
+      "--volume",
+      `${prefix}_cargo_home:/usr/local/cargo`,
+      "rust:1.98.1-bookworm",
+      "true",
+    ],
+    { cwd: root, stdio: "ignore" },
+  );
+
+  initializeNodeOwnedVolume(root, `${prefix}_${scope}_dashboard_next`);
+  return prefix;
+}
+
+export function initializeNodeOwnedVolume(root, volume) {
+  // Dashboard images run as node, but a pre-created named volume starts with
+  // a root-owned directory and hides the image's writable .next path.
+  execFileSync(
+    "docker",
+    [
+      "run",
+      "--rm",
+      "--volume",
+      `${volume}:/cache`,
+      "node:26.10.0-bookworm-slim",
+      "chown",
+      "1000:1000",
+      "/cache",
+    ],
+    { cwd: root, stdio: "ignore" },
+  );
+}

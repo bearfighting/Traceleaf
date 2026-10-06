@@ -1,9 +1,16 @@
 node_modules
+**/node_modules
+.pnpm-store
+/.pnpm-store/
 .next
+**/.next
 out
 **/dist
 coverage
 target
+artifacts
+experiments
+.VSCodeCounter
 .git
 .env
 data/

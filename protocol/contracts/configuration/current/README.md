@@ -11,7 +11,7 @@ This directory defines the Phase 8 protected configuration and versioned site de
 - openapi.json freezes the protected admin API routes and wire behavior,
   including `POST` with `If-None-Match: *` to create a new policy or initial definition set, and `PUT` with `If-Match` to append an immutable definition revision.
 - Site Management routes, request schemas, retry fixtures and their additive PostgreSQL contract are frozen in `openapi.json`, `site-create-request.schema.json`, `site-metadata-update.schema.json`, `site-management-audit-event.schema.json`, and `site-management-persistence.md`.
-- fixtures/, api-mutation-cases.json and scripts/validate-configuration-contract.mjs verify schema,
+- fixtures/, api-mutation-cases.json and tooling/contracts/validate-configuration-contract.mjs verify schema,
   migration defaults, dependencies, scope, auth, version conflicts, key
   display and audit redaction.
 

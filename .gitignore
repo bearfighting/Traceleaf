@@ -4,6 +4,7 @@ node_modules/
 out/
 coverage/
 artifacts/
+.cache/e2e/
 dist/
 target/
 *.tsbuildinfo

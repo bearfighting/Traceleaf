@@ -64,7 +64,8 @@ services:
     profiles: ["backend"]
     build:
       context: .
-      dockerfile: docker/collector.Dockerfile
+      dockerfile: docker/rust-workspace.Dockerfile
+      target: collector-dev
     environment:
       RUST_LOG: collector=info
       DATABASE_URL: ${COLLECTOR_DATABASE_URL:-postgres://analytics:analytics@postgres:5432/analytics}
@@ -98,7 +99,8 @@ services:
     profiles: ["storage"]
     build:
       context: .
-      dockerfile: docker/db-migrator.Dockerfile
+      dockerfile: docker/rust-workspace.Dockerfile
+      target: db-migrator-release
     environment:
       DATABASE_URL: ${COLLECTOR_DATABASE_URL:-postgres://analytics:analytics@postgres:5432/analytics}
       RUST_LOG: db_migrator=info
@@ -110,7 +112,8 @@ services:
     profiles: ["storage"]
     build:
       context: .
-      dockerfile: docker/db-migrator.Dockerfile
+      dockerfile: docker/rust-workspace.Dockerfile
+      target: db-migrator-release
     environment:
       DATABASE_URL: ${COLLECTOR_DATABASE_URL:-postgres://analytics:analytics@postgres:5432/analytics}
       RUST_LOG: db_migrator=info
@@ -128,7 +131,8 @@ services:
     profiles: ["processing"]
     build:
       context: .
-      dockerfile: docker/processor.Dockerfile
+      dockerfile: docker/rust-workspace.Dockerfile
+      target: processor-dev
     environment:
       DATABASE_URL: ${COLLECTOR_DATABASE_URL:-postgres://analytics:analytics@postgres:5432/analytics}
       PROCESSOR_POLL_INTERVAL_MS: ${PROCESSOR_POLL_INTERVAL_MS:-1000}
@@ -146,7 +150,8 @@ services:
     profiles: ["processing"]
     build:
       context: .
-      dockerfile: docker/analytics-api.Dockerfile
+      dockerfile: docker/rust-workspace.Dockerfile
+      target: analytics-api-dev
     environment:
       DATABASE_URL: ${COLLECTOR_DATABASE_URL:-postgres://analytics:analytics@postgres:5432/analytics}
       CONFIG_ADMIN_TOKENS: ${CONFIG_ADMIN_TOKENS:-}
@@ -196,6 +201,8 @@ services:
       - root_node_modules:/workspace/node_modules
       - dashboard_node_modules:/workspace/apps/dashboard/node_modules
       - dashboard_next:/workspace/apps/dashboard/.next
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 volumes:
   root_node_modules:

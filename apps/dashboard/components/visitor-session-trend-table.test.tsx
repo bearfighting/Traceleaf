@@ -70,4 +70,65 @@ describe("VisitorSessionTrendTable", () => {
 
     expect(markup).toContain("No analytics data is available");
   });
+
+  it("renders an empty Visitors report when only page views exist", () => {
+    const state = {
+      status: "success" as const,
+      data: {
+        site_id: context.siteId,
+        from: context.dateRange.from,
+        to: context.dateRange.to,
+        page_views: 1,
+        unique_visitors: 0,
+        sessions: 0,
+        items: [{ day: "2026-09-20", page_views: 1, unique_visitors: 0, sessions: 0 }],
+        data_as_of: "2026-09-21T12:00:00Z",
+        freshness_status: "current" as const,
+        aggregation_version: 1,
+      },
+    };
+    const markup = renderToStaticMarkup(
+      <VisitorSessionTrendTable context={context} focus="visitors" state={state} />,
+    );
+    const overviewMarkup = renderToStaticMarkup(
+      <VisitorSessionTrendTable context={context} state={state} />,
+    );
+
+    expect(markup).toContain("No analytics data is available");
+    expect(markup).not.toContain("2026-09-20");
+    expect(overviewMarkup).toContain("2026-09-20");
+  });
+
+  it("omits page-view-only days from focused audience reports", () => {
+    const state = {
+      status: "success" as const,
+      data: {
+        site_id: context.siteId,
+        from: context.dateRange.from,
+        to: context.dateRange.to,
+        page_views: 2,
+        unique_visitors: 1,
+        sessions: 1,
+        items: [
+          { day: "2026-09-20", page_views: 1, unique_visitors: 0, sessions: 0 },
+          { day: "2026-09-21", page_views: 1, unique_visitors: 1, sessions: 1 },
+        ],
+        data_as_of: "2026-09-21T12:00:00Z",
+        freshness_status: "current" as const,
+        aggregation_version: 1,
+      },
+    };
+
+    const visitorsMarkup = renderToStaticMarkup(
+      <VisitorSessionTrendTable context={context} focus="visitors" state={state} />,
+    );
+    const sessionsMarkup = renderToStaticMarkup(
+      <VisitorSessionTrendTable context={context} focus="sessions" state={state} />,
+    );
+
+    expect(visitorsMarkup).toContain("2026-09-21");
+    expect(visitorsMarkup).not.toContain("2026-09-20");
+    expect(sessionsMarkup).toContain("2026-09-21");
+    expect(sessionsMarkup).not.toContain("2026-09-20");
+  });
 });

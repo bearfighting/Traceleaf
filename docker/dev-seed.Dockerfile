@@ -7,7 +7,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 COPY protocol/capabilities/capabilities.json protocol/capabilities/capabilities.json
-COPY scripts/capability-seed.mjs scripts/capability-seed.mjs
-COPY scripts/dev-seed.mjs scripts/dev-seed.mjs
+COPY tooling/contracts/capability-seed.mjs tooling/contracts/capability-seed.mjs
+COPY db/seeds/development/dev-seed.mjs db/seeds/development/dev-seed.mjs
 
-CMD ["node", "scripts/dev-seed.mjs"]
+CMD ["node", "db/seeds/development/dev-seed.mjs"]
