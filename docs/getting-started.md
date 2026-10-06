@@ -159,6 +159,18 @@ pnpm playwright:install
 pnpm e2e:dashboard
 ```
 
+统一 runner 支持选择 suite、组合选择和保留共享环境：
+
+```bash
+pnpm e2e --suite analytics --suite dashboard
+pnpm e2e --suite api
+pnpm e2e --all
+pnpm e2e --suite configuration --keep-environment
+pnpm e2e:down
+```
+
+普通 suites 串行复用同一 PostgreSQL，并在每个 suite 前清空 E2E 业务数据、重建公共 Site/capability/policy baseline；migration ledger 与 Docker 构建缓存保留。`pnpm e2e:up` 可预先启动并保留共享数据库，之后运行 suite 会复用它，直到 `pnpm e2e:down`。未显式启动环境时，runner 会在运行结束后清理自己创建的 Compose project；`--keep-environment` 可留下环境以便排障。环境 project、指纹和随机凭据保存在权限为 `0600` 的 `.cache/e2e/environment.json`。Onboarding、Development Startup 和 Router suites 继续使用各自隔离的生命周期。
+
 完整验收空数据库到首个 Page View 的 Dashboard onboarding（需要 Docker 和本机 Chromium）：
 
 ```bash
@@ -173,7 +185,7 @@ pnpm e2e:site-onboarding
 pnpm e2e:configuration
 ```
 
-失败诊断保存在 `artifacts/configuration-e2e/`。`pnpm e2e:analytics`、`pnpm e2e:dashboard` 和 `pnpm e2e:configuration` 会清理各自的 Compose 项目和测试数据卷，同时保留按 workspace、依赖锁定内容和 E2E 套件隔离命名的 Docker 编译缓存卷；这样后续运行可以复用 Cargo target、Cargo registry、Node modules 和 Next.js 构建缓存。PostgreSQL 测试数据仍每次重建；Dashboard API-error 测试使用的临时 `.next` 卷会在测试结束后删除。缓存卷可用 `docker volume ls --filter name=web-analytics-e2e-` 查看；不再需要时按列出的具体卷名删除，避免清除其他项目的数据。Configuration E2E 默认使用 Dashboard `13100`、Collector `14101`、Analytics API `14102` 和 PostgreSQL `15433` 端口，可分别通过 `DASHBOARD_PORT`、`E2E_COLLECTOR_PORT`、`E2E_ANALYTICS_API_PORT`、`E2E_POSTGRES_PORT` 覆盖。
+失败诊断保存在 `artifacts/configuration-e2e/`。共享服务使用 E2E 专属随机端口；Onboarding 和其他隔离 suite 仍支持各自的端口环境变量。E2E Docker 编译缓存与 Compose project 分离，因此环境清理不会删除 Cargo target、Cargo registry、Node modules 和 Next.js 构建缓存。缓存卷可用 `docker volume ls --filter name=web-analytics-e2e-` 查看；不再需要时按列出的具体卷名删除，避免清除其他项目的数据。Dashboard API-error 测试使用的临时 `.next` 卷会在测试结束后删除。
 
 ## Check
 

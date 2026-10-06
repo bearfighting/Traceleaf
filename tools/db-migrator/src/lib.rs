@@ -9,12 +9,12 @@ pub async fn run_from_environment() -> Result<()> {
 }
 
 pub async fn run(database_url: &str) -> Result<()> {
-    let migrator = sqlx::migrate!("../../migrations");
+    let migrator = sqlx::migrate!("../../db/migrations");
     run_with_migrator(database_url, &migrator).await
 }
 
 pub async fn run_until(database_url: &str, target_version: i64) -> Result<()> {
-    let full_migrator = sqlx::migrate!("../../migrations");
+    let full_migrator = sqlx::migrate!("../../db/migrations");
     anyhow::ensure!(
         full_migrator.version_exists(target_version),
         "target migration version does not match any known migration"

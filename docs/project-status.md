@@ -23,6 +23,7 @@
 
 ## 上线后计划
 
+- 功能冻结解除后，按 [Scripts 与 E2E 工具整理方案](scripts-and-e2e-tooling-plan.md) 归并脚本职责、数据库内容、E2E suite 与环境生命周期，并优化容器构建缓存；在实施前记录耗时基线。
 - 根据真实数据量制定 raw events、context、facts 与 aggregates 的保留和删除策略。
 - 观察 Geo country 覆盖率，并演练正式 MMDB 的更新与回滚。
 - 根据实际构建与 CI 数据评估缓存优化。

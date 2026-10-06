@@ -1,0 +1,57 @@
+fixture	expected	schema	typescript_static	rust_static	typify_serde	collector_current	ts_serialized_schema	rust_serialized_schema
+events/valid/custom-event-nested-properties.json	true	true	true	true		true	true	true
+events/valid/custom-event.json	true	true	true	true		true	true	true
+events/valid/event-batch-exactly-100.json	true	true	true	true		true	true	true
+events/valid/event-batch-mixed-types.json	true	true	true	true		true	true	true
+events/valid/event-batch-with-visitor.json	true	true	true	true		true	true	true
+events/valid/event-batch-with-web-vitals.json	true	true	true	true		true	true	true
+events/valid/event-batch.json	true	true	true	true		true	true	true
+events/valid/page-view-with-context.json	true	true	true	true		true	true	true
+events/valid/page-view-with-unknown-fields.json	true	true	true	true		true	true	true
+events/valid/page-view-without-identity.json	true	true	true	true		true	true	true
+events/valid/page-view.json	true	true	true	true		true	true	true
+events/valid/web-vital-event.json	true	true	true	true		true	true	true
+events/invalid/batch-invalid-event.json	false	false	false	false		false		null
+events/invalid/context-dimension-over-maximum.json	false	false	false	false		false		null
+events/invalid/context-field-too-long.json	false	false	false	false		false		null
+events/invalid/context-unknown-field.json	false	false	false	false		false		null
+events/invalid/context-version-without-context.json	false	false	false	false		false		null
+events/invalid/custom-event-forbidden-field.json	false	false	false	false		false		null
+events/invalid/custom-event-invalid-name.json	false	false	false	false		false		null
+events/invalid/custom-event-prohibited-key.json	false	true	false	false		false		null
+events/invalid/custom-event-too-deep.json	false	true	false	false		false		null
+events/invalid/custom-properties-array-over-maximum.json	false	true	false	false		false		null
+events/invalid/custom-properties-not-object.json	false	false	false	false		false		null
+events/invalid/custom-properties-over-key-count.json	false	true	false	false		false		null
+events/invalid/custom-properties-over-serialized-size.json	false	true	false	false		false		null
+events/invalid/custom-properties-string-over-maximum.json	false	true	false	false		false		null
+events/invalid/empty-batch.json	false	false	false	false		false		null
+events/invalid/invalid-event-id-format.json	false	false	false	false		false		null
+events/invalid/invalid-event-type.json	false	false	false	false		false		null
+events/invalid/invalid-occurred-at.json	false	false	false	false		false		null
+events/invalid/invalid-visitor-id.json	false	false	false	false		false		null
+events/invalid/missing-event-id.json	false	false	false	false		false		null
+events/invalid/mixed-site-web-vital-batch.json	false	true	false	false		false		null
+events/invalid/oversized-batch.json	false	false	false	false		false		null
+events/invalid/unsupported-schema-version.json	false	false	false	false		false		null
+events/invalid/web-vital-inconsistent-rating.json	false	true	false	false		false		null
+events/invalid/web-vital-out-of-range.json	false	false	false	false		false		null
+events/invalid/web-vital-page-view-after-report.json	false	true	false	false		false		null
+events/invalid/web-vital-unknown-field.json	false	false	false	false		false		null
+environment-policy/valid/empty-ingest-keys.json	true	true	true	true	true	true	true	true
+environment-policy/valid/production.json	true	true	true	true	true	true	true	true
+environment-policy/invalid/duplicate-origins.json	false	false	false	false	true	false		null
+environment-policy/invalid/empty-origins.json	false	false	false	false	true	false		null
+environment-policy/invalid/empty-site-id.json	false	false	false	false	false	false		null
+environment-policy/invalid/fragment-origin.json	false	false	false	false	false	false		null
+environment-policy/invalid/invalid-key-created-at-date-time.json	false	false	false	false	false	false		null
+environment-policy/invalid/invalid-updated-at-date-time.json	false	false	false	false	false	false		null
+environment-policy/invalid/ipv4-shorthand.json	false	false	false	false	false	false		null
+environment-policy/invalid/leading-zero-port.json	false	false	false	false	false	false		null
+environment-policy/invalid/missing-environment.json	false	false	false	false	false	false		null
+environment-policy/invalid/path-origin.json	false	false	false	false	false	false		null
+environment-policy/invalid/query-origin.json	false	false	false	false	false	false		null
+environment-policy/invalid/unicode-origin.json	false	false	false	false	false	false		null
+environment-policy/invalid/unknown-root-field.json	false	false	false	false	false	false		null
+environment-policy/invalid/unknown-stored-key-field.json	false	false	false	false	false	false		null
+environment-policy/invalid/unsupported-schema-version.json	false	false	false	false	true	false		null

@@ -17,6 +17,16 @@ interface VisitorSessionTrendTableProps {
 }
 
 export function VisitorSessionTrendTable({ context, state, focus }: VisitorSessionTrendTableProps) {
+  const visibleItems =
+    state.status === "success"
+      ? state.data.items.filter((item) => {
+          if (focus === "visitors") return item.unique_visitors > 0;
+          if (focus === "sessions") return item.sessions > 0;
+
+          return item.page_views > 0 || item.unique_visitors > 0 || item.sessions > 0;
+        })
+      : [];
+
   return (
     <section
       className="card report-card"
@@ -36,7 +46,7 @@ export function VisitorSessionTrendTable({ context, state, focus }: VisitorSessi
         <DisabledState context={context} label="Audience" />
       ) : state.status === "unavailable" ? (
         <UnavailableState context={context} label="Audience" />
-      ) : state.data.items.length === 0 ? (
+      ) : visibleItems.length === 0 ? (
         <EmptyState
           context={context}
           message="No analytics data is available for this selection."
@@ -53,7 +63,7 @@ export function VisitorSessionTrendTable({ context, state, focus }: VisitorSessi
             </tr>
           </thead>
           <tbody>
-            {state.data.items.map((item) => (
+            {visibleItems.map((item) => (
               <tr key={item.day}>
                 <td>{item.day}</td>
                 {focus === undefined && <td>{item.page_views}</td>}
