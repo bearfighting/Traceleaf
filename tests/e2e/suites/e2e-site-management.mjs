@@ -155,7 +155,8 @@ async function main() {
     "-p",
     "processor",
     "--",
-    "--once",
+    "once",
+    "process",
   ]);
   const reportUrl = `${apiUrl}/v1/sites/${siteId}/reports/${day}/${day}/pages`;
   const reportResponse = await fetch(reportUrl);

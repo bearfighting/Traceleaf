@@ -247,7 +247,8 @@ async function main() {
       "-p",
       "processor",
       "--",
-      "--once",
+      "once",
+      "process",
     ]);
 
     const day = new Date().toISOString().slice(0, 10);

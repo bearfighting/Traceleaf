@@ -34,7 +34,7 @@ HEALTHCHECK --interval=2s --timeout=2s --start-period=180s --retries=15 \
 CMD ["cargo", "run", "-p", "collector", "--", "serve", "--host", "0.0.0.0", "--port", "4001"]
 
 FROM rust-development AS processor-dev
-CMD ["cargo", "run", "-p", "processor", "--", "--poll-interval-ms", "1000"]
+CMD ["cargo", "run", "-p", "processor", "--", "service", "run"]
 
 FROM rust-development AS analytics-api-dev
 EXPOSE 4002
@@ -65,7 +65,7 @@ CMD ["serve", "--host", "0.0.0.0", "--port", "4001"]
 FROM rust-runtime AS processor-release
 COPY --from=rust-release-builder /release/processor /usr/local/bin/processor
 ENTRYPOINT ["/usr/local/bin/processor"]
-CMD ["--poll-interval-ms", "1000"]
+CMD ["service", "run"]
 
 FROM rust-runtime AS analytics-api-release
 COPY --from=rust-release-builder /release/analytics-api /usr/local/bin/analytics-api
