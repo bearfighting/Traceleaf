@@ -1,4 +1,4 @@
-import { SettingsTaskPage } from "../../../../components/settings-task-page";
+import { SettingsTaskPage } from "../../../../components/settings/settings-task-page";
 
 export const dynamic = "force-dynamic";
 

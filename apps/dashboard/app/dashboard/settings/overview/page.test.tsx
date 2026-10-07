@@ -3,22 +3,22 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
-vi.mock("../../../../lib/site-management/client", () => ({
+vi.mock("../../../../lib/sites/site-management/client", () => ({
   loadSiteDirectory: vi.fn(),
 }));
-vi.mock("../../../../lib/configuration-api/server", () => ({
+vi.mock("../../../../lib/settings/configuration-api/server", () => ({
   getConfigurationEnvironment: vi.fn(() => "production"),
   loadSiteConfiguration: vi.fn(),
 }));
-vi.mock("../../../../lib/analytics-api/client", () => ({
+vi.mock("../../../../lib/analytics/analytics-api/client", () => ({
   createAnalyticsApiClient: vi.fn(() => ({
     overview: vi.fn().mockResolvedValue({ page_views: 0 }),
   })),
 }));
-vi.mock("../../../../lib/analytics-api/config", () => ({
+vi.mock("../../../../lib/analytics/analytics-api/config", () => ({
   getAnalyticsApiUrl: vi.fn(() => "http://analytics.test"),
 }));
-vi.mock("../../../../components/dashboard-shell", () => ({
+vi.mock("../../../../components/shared/dashboard-shell", () => ({
   DashboardHeader: ({
     analyticsHref,
     settingsHref,
@@ -33,17 +33,17 @@ vi.mock("../../../../components/dashboard-shell", () => ({
   ),
   DashboardShell: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
-vi.mock("../../../../components/site-connection-status", () => ({
+vi.mock("../../../../components/sites/site-connection-status", () => ({
   SiteConnectionStatus: () => <div>Connection summary</div>,
 }));
-vi.mock("../../../../components/configuration-editor", () => ({
+vi.mock("../../../../components/settings/configuration-editor", () => ({
   ConfigurationEditor: () => <div>Configuration controls</div>,
 }));
-import { loadSiteConfiguration } from "../../../../lib/configuration-api/server";
+import { loadSiteConfiguration } from "../../../../lib/settings/configuration-api/server";
 import {
   loadSiteDirectory,
   type SiteDirectoryResult,
-} from "../../../../lib/site-management/client";
+} from "../../../../lib/sites/site-management/client";
 
 import SettingsPage from "./page";
 

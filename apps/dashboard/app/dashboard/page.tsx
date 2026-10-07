@@ -1,19 +1,22 @@
 import React from "react";
 
-import { DashboardSections } from "../../components/dashboard-sections";
-import { DashboardHeader, DashboardShell } from "../../components/dashboard-shell";
-import { SiteDirectoryState, SiteSelectionState } from "../../components/site-directory-state";
-import { ErrorState } from "../../components/states/error-state";
+import { DashboardSections } from "../../components/shared/dashboard-sections";
+import { DashboardHeader, DashboardShell } from "../../components/shared/dashboard-shell";
+import { ErrorState } from "../../components/shared/states/error-state";
+import {
+  SiteDirectoryState,
+  SiteSelectionState,
+} from "../../components/sites/site-directory-state";
 import { selectDashboardSite, siteOptions } from "../../config/sites";
-import { getAnalyticsReportCopy } from "../../lib/analytics-report-copy";
-import { loadDefinitionRevisions } from "../../lib/dashboard-page-data";
+import { getAnalyticsReportCopy } from "../../lib/analytics/analytics-report-copy";
+import { loadDefinitionRevisions } from "../../lib/analytics/dashboard-page-data";
 import {
   defaultDashboardDateRange,
   parseDashboardQuery,
   type DashboardDateRange,
   type DashboardSearchParams,
 } from "../../lib/query-params";
-import { loadSiteDirectory } from "../../lib/site-management/client";
+import { loadSiteDirectory } from "../../lib/sites/site-management/client";
 
 import type { Metadata } from "next";
 

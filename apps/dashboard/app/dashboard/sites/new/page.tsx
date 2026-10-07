@@ -1,6 +1,6 @@
 import capabilitiesManifest from "../../../../../../protocol/capabilities/capabilities.json";
-import { DashboardHeader } from "../../../../components/dashboard-shell";
-import { SiteCreationWizard } from "../../../../components/site-creation-wizard";
+import { DashboardHeader } from "../../../../components/shared/dashboard-shell";
+import { SiteCreationWizard } from "../../../../components/sites/site-creation-wizard";
 
 export const dynamic = "force-dynamic";
 

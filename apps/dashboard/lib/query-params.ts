@@ -1,4 +1,4 @@
-import { ANALYTICS_DIMENSIONS, type AnalyticsDimension } from "./analytics-api/types";
+import { ANALYTICS_DIMENSIONS, type AnalyticsDimension } from "./analytics/analytics-api/types";
 
 export interface DashboardDateRange {
   from: string;
