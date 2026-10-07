@@ -1,6 +1,11 @@
 mod capabilities;
+mod definition_revisions;
 pub mod definitions;
 mod error;
+mod event_facts;
+mod event_processing;
+mod explicit_rebuilds;
+mod generation_rebuild;
 mod models;
 mod normalizer;
 mod parser;

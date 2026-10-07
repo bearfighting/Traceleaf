@@ -166,33 +166,33 @@
 ### 工作包 5：Rust Processor 流水线
 
 - [x] **5.1 实施前复核与拆分设计（2026-10-06）：** 已静态盘点普通 event、definitions、explicit fact rebuild、generation rebuild/rollback、rebuild queue 的入口/依赖、事务与锁边界；整理 16 个 PostgreSQL processor cases 和 canonical fixture 的行为映射，确定建议模块树、私有边界及验证命令。实施前逐操作 transaction inventory 和待运行时保护项见[Rust Processor 流水线试点记录](./code-refactoring-rust-processor-pilot.md)。本步骤未改生产实现，未运行测试。
-- [ ] **5.2 事件处理与事实写入拆分：** 整理 `process_one` / `process_all_once`、事件解析/转换编排、定义 revision 选择、capability/activation gate、session/dimension/derived-fact 写入之间的依赖；保留每个 raw event 与事实/水位标记的事务和幂等顺序。已有 `parser.rs`、`normalizer.rs`、`sessionizer.rs` 保持为底层纯职责，不反向依赖 `Processor` 或 `PgPool`。
-- [ ] **5.3 Generation rebuild / rollback 拆分：** 整理 enqueue/queue claim、site advisory lock、generation build/activate/retire、watermark、失败记录、暂停/重试与 rollback 的实现和测试；逐 SQL 操作标出事务边界及对 Analytics API 可见的原子切换点。保留完整站点 generation、旧 generation 保留/回滚和队列完成状态语义。
-- [ ] **5.4 Explicit rebuild 与 definitions 生命周期拆分：** 按 conversion/funnel、custom event、Geo、Web Vitals rebuild 以及 definitions import/version selection 的真实职责整理代码；保持 definition revision 锁、watermark 清除/推进、activation/capability gate 和显式 backfill 范围不变。避免建立通用重建框架。
-- [ ] **5.5 Processor PostgreSQL 测试按行为域重组：** 将 `tests/processor.rs` 的场景归入事件处理、显式 rebuild/definitions、generation/queue/rollback 等测试模块；共享 setup、site/capability seed、raw event fixture 和 cleanup 保留清晰的 test support 接口。`cargo test -p processor --test processor` target 名称及 ignored 串行执行方式保持不变；canonical fixture suite 保持独立。
-- [ ] **5.6 整体验收与关闭：** 复核依赖方向、Processor crate 公共导出、错误诊断和测试归属；运行 Processor lib/定向测试、完整 PostgreSQL integration、workspace `pnpm check` / `pnpm test` / `pnpm build`，并运行 `pnpm e2e:analytics` 验证报表 workflow。记录环境限制和未覆盖行为；通过后再关闭工作包 5。
+- [x] **5.2 事件处理与事实写入拆分：** `event_processing.rs` 负责单事件事务编排、capability snapshot、按 `received_at` 加载 definitions revision、facts 调用与 commit；`event_facts.rs` 收拢 Page View、Custom Event / Conversion / Funnel、Web Vital facts 及关联 watermark 写入。事件 facts 函数只接收显式 transaction；`process_all_once` 顺序仍为 raw events 后 rebuild queue。加固失败回滚用例，使 Page View 聚合已写入后在 rebuild enqueue 约束处失败，并断言聚合、队列和 `processed_at` 全部回滚。行为映射、文件边界、命令及数据库执行限制见 [5.2 实施记录](./code-refactoring-rust-processor-pilot.md#工作包-52-事件处理与事实写入拆分-2026-10-07)。
+- [x] **5.3 Generation rebuild / rollback 拆分（2026-10-07）：** 新增 `generation_rebuild.rs` 收拢 enqueue/queue claim、generation build/activate/retire、watermark/rollup/fact helpers、失败记录与 rollback；queue claim transaction 和 generation transaction 仍分离，site advisory lock、generation 状态切换及 queue completion 仍处原事务位置。新增 PostgreSQL 回归用例，直接覆盖新 generation 已写入 normalized context 后、visitor fact 写入失败时的事务回滚：旧 generation 仍 active，事务外记录 failed generation，失败 generation 无残留构建事实。此前 `cargo test -p processor --lib` 8 项、Processor PostgreSQL suite 16 项与 canonical fixtures 1 项在隔离 E2E PostgreSQL 通过；本次新增的第 17 个 PostgreSQL case 因本环境未配置 `DATABASE_URL` 未能执行。完整 `pnpm test:integration` 未运行成功：此前 pnpm 在启动 integration script 前报 `unable to open database file`。静态事务/SQL 顺序及未运行项见 [5.3 实施记录](./code-refactoring-rust-processor-pilot.md#工作包-53-generation-rebuild--rollback-拆分-2026-10-07)。
+- [x] **5.4 Explicit rebuild 与 definitions 生命周期拆分（2026-10-07）：** 新增 `explicit_rebuilds.rs` 收拢 conversion/funnel、custom event、Geo、Web Vitals rebuild 与指定 definitions version 的 rebuild 编排；`definition_revisions.rs` 收拢 import-if-empty 和按 `received_at` 读取 revision。保留 `Processor` 公共方法、SQL 与事务顺序、site advisory lock、watermark 清除/推进、capability gate 和 explicit backfill 范围。补充 PostgreSQL 用例直接验证 custom event facts rebuild、指定版本下 conversion/funnel facts rebuild 和 Web Vitals 最新 report sequence/watermark；lib tests 8 项通过，18 项 PostgreSQL target 编译通过。因缺少 `DATABASE_URL`，PostgreSQL 用例及 `pnpm test:integration` 尚未执行。细节见 [5.4 实施记录](./code-refactoring-rust-processor-pilot.md#工作包-54-explicit-rebuild-与-definitions-生命周期拆分-2026-10-07)。
+- [x] **5.5 Processor PostgreSQL 测试按行为域重组：** 18 个 Processor PostgreSQL cases 按事件处理、显式 rebuild/definitions、generation/queue/rollback 归组；共享 setup、site/capability seed、raw event fixture 和 cleanup 位于 `tests/processor/support.rs`。`tests/processor.rs` target 名称及 ignored 串行运行方式保持不变；canonical fixture suite 保持独立 target。完整数据库验收的执行证据见 [5.6 整体验收记录](./code-refactoring-rust-processor-pilot.md#工作包-56-整体验收与关闭-2026-10-07)。
+- [x] **5.6 整体验收与关闭（2026-10-07）：** 静态复核确认 Processor crate 公共导出与方法签名、事务与锁顺序、失败回滚及测试 target 归属未改变；review 后将 site advisory-lock SQL helper 移入 `queries.rs`，锁 SQL 和事务调用语义保持不变。Processor lib、两个 integration target 编译、Rust 格式、diff 检查、workspace `pnpm check` / `pnpm test` / `pnpm build` 和 `pnpm e2e:analytics` 均通过。首次未设置 `DATABASE_URL` 的 integration 调用提前退出；随后在隔离 E2E PostgreSQL 上重跑 `pnpm test:integration` 完整通过，43 项数据库集成测试通过。详细命令、计数及限制见 [Rust Processor 流水线试点记录](./code-refactoring-rust-processor-pilot.md#工作包-56-整体验收与关闭-2026-10-07)。工作包 5 关闭。
 
 **必须保持的不变量：**
 
-- [ ] Raw event 不可变；event identity/idempotency、收到时间排序、processing 标记和 retry/error 行为不变。解析与归一化不产生数据库副作用。
-- [ ] Site advisory lock、每个事务的 SQL 顺序、失败 rollback、definition-revision lock、queue claim/complete/fail/pause 语义不变；不同 Site 不互相污染。
-- [ ] Generation 继续完整构建后原子激活，旧 generation 可按现有规则保留/回滚；公开查询不能观察到半成品。watermark 和 daily rollup 值不变。
-- [ ] Capability enabled/activation window 对 page view、visitor/session、dimensions、conversion/funnel、custom event、Geo、Web Vitals 的 gates 与事实生成行为不变；explicit backfill 仍按当前 scope/版本约束执行。
-- [ ] Definitions 版本、effective time、import-if-empty 和不可变 revision 规则不变；不修改数据库 schema、migration、CLI 参数、crate 公共 API 或 API 行为。
-- [ ] 依赖方向为输入解析/归一化与纯 sessionization → 事件/重建领域逻辑 → Processor 编排 → queries/store；SQL helpers 不反向依赖业务编排，纯阶段不依赖 PgPool。
+- [x] Raw event 不可变；event identity/idempotency、收到时间排序、processing 标记和 retry/error 行为不变。解析与归一化不产生数据库副作用。
+- [x] Site advisory lock、每个事务的 SQL 顺序、失败 rollback、definition-revision lock、queue claim/complete/fail/pause 语义不变；不同 Site 不互相污染。
+- [x] Generation 继续完整构建后原子激活，旧 generation 可按现有规则保留/回滚；公开查询不能观察到半成品。watermark 和 daily rollup 值不变。
+- [x] Capability enabled/activation window 对 page view、visitor/session、dimensions、conversion/funnel、custom event、Geo、Web Vitals 的 gates 与事实生成行为不变；explicit backfill 仍按当前 scope/版本约束执行。
+- [x] Definitions 版本、effective time、import-if-empty 和不可变 revision 规则不变；不修改数据库 schema、migration、CLI 参数、crate 公共 API 或 API 行为。
+- [x] 依赖方向为输入解析/归一化与纯 sessionization → 事件/重建领域逻辑 → Processor 编排 → queries/store；SQL helpers 不反向依赖业务编排，纯阶段不依赖 PgPool。site advisory-lock helper 位于 `queries.rs`。
 
 **测试映射与保护：**
 
-- [ ] 保留 `services/processor/src/{parser,normalizer,sessionizer,definitions}.rs` 的纯逻辑测试及 canonical protocol fixtures。
-- [ ] 保留数据库测试覆盖：event 原子处理与重复执行、received-at/definition revision 顺序、UTC 日界与跨 Site 隔离、capability pause/resume、late event 与 explicit backfill、generation queue 并发去重、失败不推进标记、完整 rebuild、Geo rebuild、rollback 和定义导入幂等。
-- [ ] 如静态复核发现关键事务/原子可见性无直接断言，先为既有行为补最小 PostgreSQL 回归保护，再移动实现；不扩大业务语义。
+- [x] 保留 `services/processor/src/{parser,normalizer,sessionizer,definitions}.rs` 的纯逻辑测试及 canonical protocol fixtures。
+- [x] 保留数据库测试覆盖：event 原子处理与重复执行、received-at/definition revision 顺序、UTC 日界与跨 Site 隔离、capability pause/resume、late event 与 explicit backfill、generation queue 并发去重、失败不推进标记、完整 rebuild、Geo rebuild、rollback 和定义导入幂等。
+- [x] 静态复核发现 generation transaction 部分写入后的 rollback 缺少直接断言，已补充 PostgreSQL 回归用例；未扩大业务语义。
 
 **验证命令：**
 
-- [ ] `cargo test -p processor --lib` 及必要的行为域定向测试通过。
-- [ ] `pnpm test:integration`：Processor 主 suite 与 canonical fixture suite 在迁移 PostgreSQL 上通过；保留串行运行。
-- [ ] `pnpm check`、`pnpm test`、`pnpm build` 通过；如 E2E 受环境限制，记录具体原因和替代证据，不标记为通过。
-- [ ] `pnpm e2e:analytics` 通过，验证 Processor 生成数据可经 Analytics API / Dashboard workflow 查询。
+- [x] `cargo test -p processor --lib` 及必要的行为域定向测试通过。
+- [x] `pnpm test:integration`：Processor 主 suite 与 canonical fixture suite 在迁移 PostgreSQL 上通过；保留串行运行。
+- [x] `pnpm check`、`pnpm test`、`pnpm build` 通过；E2E 也已通过。
+- [x] `pnpm e2e:analytics` 通过，验证 Processor 生成数据可经 Analytics API / Dashboard workflow 查询。
 
 ### 工作包 6：E2E suite 与契约 tooling
 
