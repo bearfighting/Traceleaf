@@ -196,10 +196,28 @@
 
 ### 工作包 6：E2E suite 与契约 tooling
 
-- [ ] 将大型 suites 按端到端场景分组，保留 runner 生命周期、清理和失败诊断。
-- [ ] 将 contract validators 按输入合同和校验职责模块化，保留 CLI/package 命令。
-- [ ] 评估迁移测试 shell 与 Rust 测试的职责重叠，确认单一清楚的入口。
-- [ ] 运行相应 E2E、contract、格式和静态检查。
+- [x] **6.1 实施前盘点与边界设计：** 对照 [`scripts-and-e2e-inventory.md`](./scripts-and-e2e-inventory.md) 复核 E2E suites、Compose runner、contract validator 和 migration harness 的入口、生命周期、fixture 与调用关系。重点候选为 `e2e-dashboard.mjs`（约 2,033 行）、`e2e-analytics.mjs`（约 609 行）、`e2e-configuration.mjs`（约 490 行）、Analytics API / Configuration validators（约 716 / 592 行）及 `db/tests/test-migrations.sh`（约 866 行）。确认子切片以独立行为场景和输入合同为边界；migration clean-install/upgrade assertions 与应用 integration assertions 各自保留。盘点依据与最终切片应记录在工作包 6 pilot 中。
+- [x] **6.2 E2E suite 按场景拆分（Dashboard 切片，2026-10-07）：** `reports.mjs`、`events.mjs`、`settings.mjs` 现在直接承载对应场景断言及专属准备；入口保留共享 helpers、基础设施生命周期、调用顺序和 PASS 输出。shell 中 Settings 导航覆盖仍属于 shell 场景。Node syntax/runner tests、Prettier、`pnpm e2e:dashboard`（17 个 workflow，含真实浏览器 Web Vitals）及 `pnpm check` 通过。`pnpm check` 有 5 条 generated protocol ESLint unused-disable warning，不影响退出状态；详细记录见 [E2E / contract pilot](./code-refactoring-e2e-contract-pilot.md#工作包-62-dashboard-e2e-suite-场景拆分-2026-10-07)。
+- [x] **6.2.1 清除 Processor Clippy 阻塞：** 修复 `pnpm check` 报告的 9 处 `explicit_auto_deref` warning-as-error，涉及 `services/processor/src/definition_revisions.rs`、`event_facts.rs`、`explicit_rebuilds.rs` 和 `generation_rebuild.rs`。仅按 Clippy 指示调整借用/自动解引用表达式，保留事务及锁行为；`cargo fmt --all -- --check`、workspace Clippy 和 `pnpm check` 均通过，结果见 [E2E 与契约 tooling 重构试点](./code-refactoring-e2e-contract-pilot.md#工作包-621-processor-clippy-阻塞修复2026-10-07)。此项作为工作包 6 的跨切片验证修复，独立于 Dashboard E2E 模块搬移。
+- [x] **6.3 Contract validators 按合同和职责拆分（2026-10-07）：** 五个运行时 validator 已按合同职责拆分；保留 CLI 路径、根 `package.json` 命令、fixtures、诊断与退出语义。Schema/fixture baseline 检查与运行时合同校验分别记录。`pnpm check`、`pnpm test`、`pnpm format:check` 和 `pnpm format:check:docs` 均通过；细节见 [Contract validator 重构试点](./code-refactoring-contract-validator-pilot.md#验收)。
+- [x] **6.4 Migration harness 与 integration 入口复核（2026-10-07）：** current-history idempotency、clean install、upgrade/legacy conversion 与 rollback/failure atomicity、schema assertions 分别映射至内部场景脚本；原入口继续拥有临时数据库命名、URL 派生、`EXIT` cleanup trap，并保持场景顺序。`test:migrations` 仍验证迁移历史/升级，`test:integration` 仍在迁移后的数据库验证应用行为；入口与 CI 调用不变。脚本清单、映射和环境限制见 [Migration harness 重构试点](./code-refactoring-migration-pilot.md)。
+- [ ] **6.5 分切片验证与回归：** 每次搬移后运行对应的 Node/unit tests、validator CLI、受影响 E2E suite 和格式/静态检查；migration harness 变更须在隔离 PostgreSQL 上验证 clean/current/upgrade/failure cleanup。检查 `pnpm e2e:*`、`pnpm test:migrations`、`pnpm test:integration` 和 CI 调用路径仍兼容；不能以根级普通 tests 替代浏览器或数据库覆盖。
+- [ ] **6.6 整体验收与关闭：** 复核场景执行/cleanup/diagnostics、validator contract 与 CLI 输出、migration safety 和命令入口；运行所有受影响 E2E / contract / migration suites 及 workspace 相关 check、test、format/build。逐项记录通过数、环境、未覆盖场景；仅当必需验收全部通过时关闭工作包 6。
+
+**必须保持的不变量：**
+
+- [ ] E2E fixture、步骤顺序、等待条件、断言、suite IDs、CLI 参数及 CI suite grouping 不因代码搬移变化。
+- [ ] Compose E2E 项目、端口分配、共享数据库 reset、缓存卷、browser/process 生命周期、teardown、失败 artifacts 和 diagnostics 保持原语义；不能跨 suite 提前清理共享资源。
+- [ ] Contract validator 保持 JSON Schema / OpenAPI / semantic fixture 的验证范围、失败退出码、诊断内容及 package command；fixture 和生成代码不因拆分被无意改写。
+- [ ] Migration 测试保留 current idempotency、clean install、upgrade/legacy conversion、rollback/failure atomicity、临时数据库清理；`test:migrations` 与 `test:integration` 的职责边界不变。
+- [ ] 小型、已清楚分层的 suites/helpers 不为追求文件数量而拆分；没有稳定独立职责的部分记录保留或延后依据。
+
+**测试映射与验证命令：**
+
+- [ ] 保留 E2E runner/environment/suite-registry 单测及所有被修改 suite 的场景覆盖；针对改动运行相应 `pnpm e2e:*` suites。
+- [ ] 保留 `pnpm protocol:validate`、`pnpm capabilities:validate`、`pnpm http:validate`、`pnpm analytics:contract:validate`、`pnpm analytics:definitions:validate` 的入口及覆盖；运行受影响 validators 和 fixture baseline 检查。
+- [ ] 在隔离 PostgreSQL 上运行 `pnpm test:migrations` 与 `pnpm test:integration`；验证升级/失败路径清理临时数据库且不触碰本地开发库。
+- [ ] 运行变更相关的 `pnpm check`、`pnpm test`、`pnpm format:check`、`pnpm format:check:docs` 和 `pnpm build`，如 E2E 变更影响 CI suite grouping 则复核 workflow 调用。
 
 ### 工作包 7：剩余大型测试、CSS 和候选复核
 
