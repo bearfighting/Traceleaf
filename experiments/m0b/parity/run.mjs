@@ -204,7 +204,7 @@ const tsv = [
   ),
 ].join("\n");
 await writeFile(path.join(artifacts, "results.tsv"), `${tsv}\n`);
-await writeFile(path.join(root, "docs/m0b-step6-parity-matrix.tsv"), `${tsv}\n`);
+await writeFile(path.join(root, "docs/archive/development/m0b-step6-parity-matrix.tsv"), `${tsv}\n`);
 console.log(
   `M0b parity: ${rows.length} fixtures; ${output.counts.mismatches} cross-lane differences; ` +
     `${output.counts.collectorCurrentVsExpected} Collector-current and ${output.counts.typifySerdeVsExpected} typify-Serde expectation differences.`,

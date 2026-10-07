@@ -58,6 +58,17 @@ pub(crate) async fn claim_next_event(
     })
 }
 
+pub(crate) async fn lock_site(
+    connection: &mut PgConnection,
+    site_id: &str,
+) -> Result<(), sqlx::Error> {
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
+        .bind(site_id)
+        .execute(&mut *connection)
+        .await?;
+    Ok(())
+}
+
 pub(crate) async fn upsert_daily(
     connection: &mut PgConnection,
     site_id: &str,

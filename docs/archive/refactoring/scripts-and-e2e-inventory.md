@@ -1,12 +1,12 @@
 # Commands and E2E Baseline Inventory
 
-> Status: command inventory completed; representative cold/warm baselines recorded. The post-fix Dashboard E2E workflow passed on 2026-10-05. This document records current command behavior and measurement instructions; the inventory itself does not change runtime product behavior.
+> Archived: implementation and measurements are historical evidence. For current commands, inspect the root `package.json` and [Getting Started](../../getting-started.md); deferred project work is tracked in [Project Status](../../project-status.md).
 
 Command implementations now live by responsibility in `tooling/`, `db/` and `tests/e2e/`. `package.json` invokes those implementations directly; historical measurements below retain the paths used when they were recorded.
 
 ## Baseline status and scope
 
-[`project-status.md`](project-status.md) sets an MVP feature freeze from 2026-10-04 and says the scripts/E2E tooling work may start after the freeze is lifted or maintainers schedule the engineering work. This user-assigned inventory/baseline task supplied that scheduling authorization. The measured E2E projects used their own PID-scoped Compose project and PostgreSQL volume, and their scripts cleaned those up on exit.
+This inventory was prepared before the scripts/E2E tooling refactor. Its baseline runs used PID-scoped Compose projects and PostgreSQL volumes, which were cleaned up on exit.
 
 The requested representative suites are `analytics` (`pnpm e2e:analytics`), `dashboard` (`pnpm e2e:dashboard`) and `dev-startup` (`pnpm e2e:dev-startup`). “Cold” means that the suite's E2E named volumes are new or empty. Docker daemon image and build layer caches stay intact. “Warm” means rerunning the same suite against the same E2E named volumes. This is not a no-cache Docker build.
 

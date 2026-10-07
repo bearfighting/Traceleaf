@@ -33,7 +33,10 @@ describe("AnalyticsSidebar", () => {
   });
 
   it("styles the current report using the same aria-current value exposed to assistive technology", () => {
-    const styles = readFileSync(fileURLToPath(new URL("../styles.css", import.meta.url)), "utf8");
+    const styles = readFileSync(
+      fileURLToPath(new URL("../styles/dashboard-navigation.css", import.meta.url)),
+      "utf8",
+    );
 
     expect(styles).toContain('.analytics-sidebar-link[aria-current="page"]');
     expect(styles).not.toContain('.analytics-sidebar-link[aria-current="location"]');

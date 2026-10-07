@@ -1,0 +1,89 @@
+@layer components {
+  .dashboard-nav {
+    @apply flex items-center;
+    gap: var(--space-navigation);
+  }
+
+  .dashboard-nav a {
+    @apply inline-flex min-h-10 items-center border-b-2 border-transparent px-2 text-sm font-semibold text-muted no-underline transition hover:text-ink;
+  }
+
+  .dashboard-nav a[aria-current="page"] {
+    @apply border-brand text-brand;
+  }
+
+  .dashboard-nav .add-site-link {
+    @apply ml-2 min-h-10 rounded-lg border border-brand bg-brand px-4 text-white shadow-sm hover:bg-brand-dark hover:text-white;
+  }
+
+  .settings-tabs {
+    @apply flex min-w-0 gap-1 overflow-x-auto;
+    scrollbar-width: thin;
+  }
+
+  .settings-tabs a {
+    @apply inline-flex shrink-0 items-center whitespace-nowrap border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-muted no-underline transition hover:border-line hover:text-ink;
+  }
+
+  .settings-tabs a[aria-current="page"] {
+    @apply border-brand bg-transparent text-brand;
+  }
+
+  .mobile-analytics-menu summary {
+    @apply cursor-pointer list-none rounded-lg border border-line bg-surface px-4 py-3 text-sm font-semibold text-ink;
+  }
+
+  .analytics-sidebar {
+    align-self: start;
+  }
+
+  .analytics-sidebar-nav {
+    @apply grid gap-5;
+  }
+
+  .analytics-sidebar-group {
+    @apply grid gap-1;
+  }
+
+  .analytics-sidebar-heading {
+    @apply mb-1 mt-0 px-3 text-[0.68rem] font-bold uppercase tracking-[0.14em] text-muted;
+  }
+
+  .analytics-sidebar-link {
+    @apply block rounded-lg px-3 py-2 text-sm font-medium text-muted no-underline transition hover:bg-surface hover:text-ink;
+  }
+
+  .analytics-sidebar-link[aria-current="page"] {
+    @apply bg-brand-soft font-semibold text-brand-dark;
+  }
+
+  .mobile-analytics-menu {
+    @apply relative z-10;
+  }
+
+  .mobile-analytics-menu[open] {
+    @apply rounded-xl border border-line bg-surface p-2 shadow-lg;
+  }
+
+  .report-anchor {
+    display: block;
+    height: 0;
+    scroll-margin-top: 1.5rem;
+  }
+
+  .report-links {
+    @apply flex flex-wrap gap-x-5 gap-y-3;
+  }
+
+  .report-links a {
+    @apply font-medium text-brand-dark underline-offset-4 hover:underline;
+  }
+
+  .report-links .report-link {
+    @apply no-underline;
+  }
+
+  .report-links .report-link:hover {
+    text-decoration: underline;
+  }
+}

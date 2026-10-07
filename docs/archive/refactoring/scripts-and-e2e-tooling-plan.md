@@ -1,6 +1,6 @@
 # Scripts 与 E2E 工具整理方案
 
-> 状态：职责迁移、Docker/Rust runtime 整理、E2E helper 与 runner、全量 CI 分组均已实施。本地 8 个 E2E suites 通过；GitHub nightly/tag 的关键路径对比等待后续 workflow 记录。
+> Archived implementation plan: file moves, Docker/Rust runtime work, E2E helpers/runner and CI grouping were implemented. Local suite results are historical; use [Project Status](../../project-status.md) for the only deferred measurement follow-up.
 
 ## 初衷
 

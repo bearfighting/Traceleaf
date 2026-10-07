@@ -1,0 +1,118 @@
+@layer components {
+  .onboarding-steps {
+    @apply mb-6 flex min-w-0 gap-0 overflow-x-auto border-b border-line;
+    scrollbar-width: thin;
+  }
+
+  .onboarding-steps li {
+    @apply shrink-0 border-b-2 border-transparent px-3 py-3 text-sm text-muted;
+  }
+
+  .onboarding-steps li[aria-current="step"] {
+    @apply border-brand font-semibold text-brand;
+  }
+
+  .onboarding-panel {
+    @apply grid max-w-3xl gap-4;
+  }
+
+  .onboarding-panel > :where(h2, h3, p) {
+    @apply m-0;
+  }
+
+  .onboarding-result-title {
+    @apply text-xl font-semibold tracking-tight;
+  }
+
+  .onboarding-copy {
+    @apply text-sm leading-6 text-muted;
+  }
+
+  .onboarding-section-title {
+    @apply mt-4 text-base font-semibold;
+  }
+
+  .onboarding-notice {
+    @apply text-sm text-ink;
+  }
+
+  .button-link-secondary {
+    @apply mt-2 border-line bg-surface text-ink no-underline hover:bg-canvas;
+  }
+
+  .onboarding-key-row {
+    @apply flex flex-wrap items-start gap-3;
+  }
+
+  .onboarding-key-code {
+    @apply max-w-full break-all rounded-lg border border-line bg-canvas p-3 text-sm;
+  }
+
+  .onboarding-add-origin {
+    @apply mt-2;
+  }
+
+  .onboarding-recovery-action {
+    @apply mt-4;
+  }
+
+  .onboarding-warning {
+    @apply grid gap-3 rounded-lg border border-warning-border bg-warning-soft p-4 text-sm text-warning;
+  }
+
+  .onboarding-warning p {
+    @apply m-0;
+  }
+
+  .onboarding-warning-action {
+    @apply w-fit;
+  }
+
+  .onboarding-error {
+    @apply mt-2 text-sm text-danger-foreground;
+  }
+
+  .onboarding-code-block {
+    @apply mt-1 max-w-full overflow-auto rounded-lg bg-code-surface p-4 text-sm text-code-foreground;
+  }
+
+  .onboarding-step-content {
+    @apply grid gap-4;
+  }
+
+  .form-field {
+    @apply grid gap-1.5 text-sm font-medium text-ink;
+  }
+
+  .origin-entry-list {
+    @apply my-3 grid gap-2 pl-5;
+  }
+
+  .origin-entry {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  .capability-choice-list {
+    @apply grid gap-2;
+  }
+
+  .capability-choice-list legend {
+    @apply mb-3 font-semibold;
+  }
+
+  .capability-choice {
+    @apply flex items-center gap-2 text-sm text-ink;
+  }
+
+  .onboarding-review {
+    @apply grid gap-2 text-sm;
+  }
+
+  .onboarding-review p {
+    @apply m-0;
+  }
+
+  .onboarding-wizard-actions {
+    @apply mt-6 flex justify-between gap-3;
+  }
+}

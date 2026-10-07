@@ -85,6 +85,61 @@ afterEach(() => {
 });
 
 describe("IngestKeysManager create recovery", () => {
+  it("does not issue a key when browser storage cannot persist the review marker", async () => {
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("Storage disabled", "QuotaExceededError");
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    renderManager();
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 1)));
+    await act(async () => button("Create replacement key").click());
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(container?.textContent).toContain("Browser storage is unavailable");
+    expect(button("Create replacement key").disabled).toBe(false);
+    setItem.mockRestore();
+  });
+
+  it("keeps an ambiguous create outcome marked for review without persisting its secret", async () => {
+    const fetchMock = vi.fn().mockRejectedValueOnce(new TypeError("Network disconnected"));
+    vi.stubGlobal("fetch", fetchMock);
+    renderManager();
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 1)));
+    await act(async () => {
+      button("Create replacement key").click();
+      await new Promise((resolve) => setTimeout(resolve, 1));
+    });
+
+    expect(
+      window.localStorage.getItem("ingest-keys:site_alpha:production:outcome-unknown"),
+    ).not.toBeNull();
+    expect(container?.textContent).toContain("Network disconnected");
+    expect(button("Create replacement key").disabled).toBe(true);
+    expect(
+      window.localStorage.getItem("ingest-keys:site_alpha:production:outcome-unknown"),
+    ).not.toContain("secret");
+  });
+
+  it("keeps revoke confirmation open when the outcome and refreshed key state are unknown", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Network disconnected"))
+      .mockResolvedValueOnce(Response.json({ policy: { keys: [] } }));
+    vi.stubGlobal("fetch", fetchMock);
+    renderManager();
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 1)));
+    await act(async () => button("Revoke").click());
+    await act(async () => {
+      button("Revoke ik_existing").click();
+      await new Promise((resolve) => setTimeout(resolve, 1));
+    });
+
+    expect(container?.querySelector('[role="alertdialog"]')?.textContent).toContain("ik_existing");
+    expect(container?.textContent).toContain("Network disconnected");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("closes a stale revoke confirmation when a refresh shows the key is already inactive", async () => {
     const latestPolicy = {
       ...policy,
@@ -254,5 +309,39 @@ describe("IngestKeysManager create recovery", () => {
     expect(
       fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/ingest-keys")),
     ).toHaveLength(1);
+  });
+
+  it("does not send a second create while the first request is pending", async () => {
+    let finishCreate!: (response: Response) => void;
+    const fetchMock = vi.fn().mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          finishCreate = resolve;
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderManager();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1));
+    });
+    await act(async () => {
+      button("Create replacement key").click();
+      button("Create replacement key").click();
+      await new Promise((resolve) => setTimeout(resolve, 1));
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      finishCreate(
+        Response.json(
+          {
+            key: "secret",
+            metadata: { key_id: "ik_new", created_at: "2026-10-02T00:00:00Z" },
+            effective_state: { ...policy.effective_state, stored_version: 2 },
+          },
+          { status: 201 },
+        ),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 1));
+    });
   });
 });

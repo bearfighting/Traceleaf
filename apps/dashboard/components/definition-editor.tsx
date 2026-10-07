@@ -1,33 +1,19 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 
-import { configurationRequestError } from "../lib/configuration-api/errors";
-
+import {
+  addPropertyCondition,
+  changePropertyConditionType,
+  removePropertyCondition,
+  renamePropertyCondition,
+  updatePropertyConditionValue,
+} from "./definition-editor/definition-domain";
+import { useDefinitionFlow } from "./definition-editor/use-definition-flow";
 import * as UI from "./ui";
 
 import type { DefinitionLoadResult } from "../lib/configuration-api/server";
 import type { DefinitionSetResponse } from "../lib/configuration-api/types";
-
-type Conversion = DefinitionSetResponse["conversions"][number];
-type Funnel = DefinitionSetResponse["funnels"][number];
-const blankConversion = (): Conversion => ({
-  id: "",
-  name: "",
-  event_name: "",
-  active: true,
-  properties: {},
-});
-const blankFunnel = (): Funnel => ({
-  id: "",
-  name: "",
-  active: true,
-  steps: [
-    { event_name: "", properties: {} },
-    { event_name: "", properties: {} },
-  ],
-});
 
 export function DefinitionEditor({
   siteId,
@@ -71,99 +57,61 @@ function Editor({
   savedMessage: string;
   onSavedMessageChange: (message: string) => void;
 }) {
-  const router = useRouter();
-  const [conversions, setConversions] = useState(initial?.conversions ?? []);
-  const [funnels, setFunnels] = useState(initial?.funnels ?? []);
-  const [baseline, setBaseline] = useState(initial);
-  const [revision, setRevision] = useState(initial?.revision);
-  const [definitionVersion, setDefinitionVersion] = useState(initial?.definition_version);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState(savedMessage);
-  const [versionConflict, setVersionConflict] = useState(false);
-  const [confirmReload, setConfirmReload] = useState(false);
-  const hasUnsavedChanges =
-    JSON.stringify({ conversions, funnels }) !==
-    JSON.stringify({ conversions: baseline?.conversions ?? [], funnels: baseline?.funnels ?? [] });
+  const flow = useDefinitionFlow(siteId, initial, savedMessage, onSavedMessageChange);
 
-  async function save() {
-    setBusy(true);
-    setError("");
-    setMessage("");
-    onSavedMessageChange("");
-    setVersionConflict(false);
-    try {
-      const response = await fetch(
-        `/api/admin/sites/${encodeURIComponent(siteId)}/conversion-funnel-definitions`,
-        {
-          method: revision === undefined ? "POST" : "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            ...(revision === undefined
-              ? { "If-None-Match": "*" }
-              : { "If-Match": `"${revision}"` }),
-          },
-          body: JSON.stringify({ conversions, funnels }),
-          cache: "no-store",
-        },
-      );
-      const body: unknown = await response.json().catch(() => null);
-      if (!response.ok) {
-        if (response.status === 409) setVersionConflict(true);
+  return (
+    <DefinitionEditorPresenter
+      conversions={flow.conversions}
+      funnels={flow.funnels}
+      baseline={flow.baseline}
+      revision={flow.revision}
+      definitionVersion={flow.definitionVersion}
+      busy={flow.busy}
+      error={flow.error}
+      message={flow.message}
+      versionConflict={flow.versionConflict}
+      confirmReload={flow.confirmReload}
+      onConfirmationChange={flow.setConfirmReload}
+      onSave={flow.save}
+      onReload={flow.reloadLatest}
+      actions={flow.actions}
+    />
+  );
+}
 
-        throw new Error(configurationRequestError(response.status, body));
-      }
-      const saved = body as DefinitionSetResponse;
-      setConversions(saved.conversions);
-      setFunnels(saved.funnels);
-      setRevision(saved.revision);
-      setDefinitionVersion(saved.definition_version);
-      setBaseline(saved);
-      const savedMessage = `Saved revision ${saved.definition_version}. Events processed from ${saved.effective_at ?? "the imported baseline"} onward will use it.`;
-      setMessage(savedMessage);
-      onSavedMessageChange(savedMessage);
-      router.refresh();
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not save definitions.");
-    } finally {
-      setBusy(false);
-    }
-  }
+export type DefinitionEditorPresenterProps = {
+  conversions: ReturnType<typeof useDefinitionFlow>["conversions"];
+  funnels: ReturnType<typeof useDefinitionFlow>["funnels"];
+  baseline: ReturnType<typeof useDefinitionFlow>["baseline"];
+  revision: number | undefined;
+  definitionVersion: string | undefined;
+  busy: boolean;
+  error: string;
+  message: string;
+  versionConflict: boolean;
+  confirmReload: boolean;
+  onConfirmationChange: (open: boolean) => void;
+  onSave: () => Promise<string>;
+  onReload: (force?: boolean) => Promise<void>;
+  actions: ReturnType<typeof useDefinitionFlow>["actions"];
+};
 
-  async function reloadLatest(force = false) {
-    if (hasUnsavedChanges && !force) {
-      setConfirmReload(true);
-
-      return;
-    }
-    setConfirmReload(false);
-
-    setBusy(true);
-    setError("");
-    setMessage("");
-    onSavedMessageChange("");
-    try {
-      const response = await fetch(
-        `/api/admin/sites/${encodeURIComponent(siteId)}/conversion-funnel-definitions`,
-        { method: "GET", cache: "no-store" },
-      );
-      const body: unknown = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(configurationRequestError(response.status, body));
-      const latest = body as DefinitionSetResponse;
-      setConversions(latest.conversions);
-      setFunnels(latest.funnels);
-      setRevision(latest.revision);
-      setDefinitionVersion(latest.definition_version);
-      setBaseline(latest);
-      setVersionConflict(false);
-      setMessage(`Loaded latest definitions at revision ${latest.definition_version}.`);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not reload definitions.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
+export function DefinitionEditorPresenter({
+  conversions,
+  funnels,
+  baseline,
+  revision,
+  definitionVersion,
+  busy,
+  error,
+  message,
+  versionConflict,
+  confirmReload,
+  onConfirmationChange,
+  onSave,
+  onReload,
+  actions,
+}: DefinitionEditorPresenterProps) {
   return (
     <section
       className="card definition-editor"
@@ -179,7 +127,7 @@ function Editor({
         <div role="alert">
           <p>{error}</p>
           {versionConflict && (
-            <UI.Button type="button" disabled={busy} onClick={() => void reloadLatest()}>
+            <UI.Button type="button" disabled={busy} onClick={() => void onReload()}>
               {busy ? "Loading latest definitions…" : "Reload latest definitions"}
             </UI.Button>
           )}
@@ -202,13 +150,7 @@ function Editor({
                 <UI.Input
                   value={item.id}
                   disabled={index < (baseline?.conversions.length ?? 0)}
-                  onChange={(event) =>
-                    setConversions(
-                      conversions.map((row, i) =>
-                        i === index ? { ...row, id: event.target.value } : row,
-                      ),
-                    )
-                  }
+                  onChange={(event) => actions.updateConversion(index, { id: event.target.value })}
                 />
               </label>
               <label className="definition-field">
@@ -216,11 +158,7 @@ function Editor({
                 <UI.Input
                   value={item.name}
                   onChange={(event) =>
-                    setConversions(
-                      conversions.map((row, i) =>
-                        i === index ? { ...row, name: event.target.value } : row,
-                      ),
-                    )
+                    actions.updateConversion(index, { name: event.target.value })
                   }
                 />
               </label>
@@ -229,32 +167,20 @@ function Editor({
                 <UI.Input
                   value={item.event_name}
                   onChange={(event) =>
-                    setConversions(
-                      conversions.map((row, i) =>
-                        i === index ? { ...row, event_name: event.target.value } : row,
-                      ),
-                    )
+                    actions.updateConversion(index, { event_name: event.target.value })
                   }
                 />
               </label>
               <PropertyConditions
                 value={item.properties}
-                onChange={(properties) =>
-                  setConversions(
-                    conversions.map((row, i) => (i === index ? { ...row, properties } : row)),
-                  )
-                }
+                onChange={(properties) => actions.updateConversion(index, { properties })}
               />
               <label className="definition-active-toggle">
                 <UI.Checkbox
                   type="checkbox"
                   checked={item.active}
                   onChange={(event) =>
-                    setConversions(
-                      conversions.map((row, i) =>
-                        i === index ? { ...row, active: event.target.checked } : row,
-                      ),
-                    )
+                    actions.updateConversion(index, { active: event.target.checked })
                   }
                 />{" "}
                 Active
@@ -265,7 +191,7 @@ function Editor({
             type="button"
             className="button-fit"
             variant="secondary"
-            onClick={() => setConversions([...conversions, blankConversion()])}
+            onClick={actions.addConversion}
           >
             Add conversion
           </UI.Button>
@@ -280,26 +206,14 @@ function Editor({
                 <UI.Input
                   value={item.id}
                   disabled={index < (baseline?.funnels.length ?? 0)}
-                  onChange={(event) =>
-                    setFunnels(
-                      funnels.map((row, i) =>
-                        i === index ? { ...row, id: event.target.value } : row,
-                      ),
-                    )
-                  }
+                  onChange={(event) => actions.updateFunnel(index, { id: event.target.value })}
                 />
               </label>
               <label className="definition-field">
                 Name{" "}
                 <UI.Input
                   value={item.name}
-                  onChange={(event) =>
-                    setFunnels(
-                      funnels.map((row, i) =>
-                        i === index ? { ...row, name: event.target.value } : row,
-                      ),
-                    )
-                  }
+                  onChange={(event) => actions.updateFunnel(index, { name: event.target.value })}
                 />
               </label>
               <h4 className="definition-subheading">Ordered steps</h4>
@@ -311,53 +225,23 @@ function Editor({
                     <UI.Input
                       value={step.event_name}
                       onChange={(event) =>
-                        setFunnels(
-                          funnels.map((row, i) =>
-                            i === index
-                              ? {
-                                  ...row,
-                                  steps: row.steps.map((value, j) =>
-                                    j === stepIndex
-                                      ? { ...value, event_name: event.target.value }
-                                      : value,
-                                  ),
-                                }
-                              : row,
-                          ),
-                        )
+                        actions.updateFunnelStep(index, stepIndex, {
+                          event_name: event.target.value,
+                        })
                       }
                     />
                   </label>
                   <PropertyConditions
                     value={step.properties}
                     onChange={(properties) =>
-                      setFunnels(
-                        funnels.map((row, i) =>
-                          i === index
-                            ? {
-                                ...row,
-                                steps: row.steps.map((value, j) =>
-                                  j === stepIndex ? { ...value, properties } : value,
-                                ),
-                              }
-                            : row,
-                        ),
-                      )
+                      actions.updateFunnelStep(index, stepIndex, { properties })
                     }
                   />
                   {item.steps.length > 2 && (
                     <UI.Button
                       type="button"
                       variant="secondary"
-                      onClick={() =>
-                        setFunnels(
-                          funnels.map((row, i) =>
-                            i === index
-                              ? { ...row, steps: row.steps.filter((_, j) => j !== stepIndex) }
-                              : row,
-                          ),
-                        )
-                      }
+                      onClick={() => actions.removeFunnelStep(index, stepIndex)}
                     >
                       Remove step
                     </UI.Button>
@@ -367,15 +251,7 @@ function Editor({
               <UI.Button
                 type="button"
                 variant="secondary"
-                onClick={() =>
-                  setFunnels(
-                    funnels.map((row, i) =>
-                      i === index
-                        ? { ...row, steps: [...row.steps, { event_name: "", properties: {} }] }
-                        : row,
-                    ),
-                  )
-                }
+                onClick={() => actions.addFunnelStep(index)}
               >
                 Add step
               </UI.Button>
@@ -384,11 +260,7 @@ function Editor({
                   type="checkbox"
                   checked={item.active}
                   onChange={(event) =>
-                    setFunnels(
-                      funnels.map((row, i) =>
-                        i === index ? { ...row, active: event.target.checked } : row,
-                      ),
-                    )
+                    actions.updateFunnel(index, { active: event.target.checked })
                   }
                 />{" "}
                 Active
@@ -399,14 +271,19 @@ function Editor({
             type="button"
             className="button-fit"
             variant="secondary"
-            onClick={() => setFunnels([...funnels, blankFunnel()])}
+            onClick={actions.addFunnel}
           >
             Add funnel
           </UI.Button>
         </section>
       </fieldset>
       <div className="definition-editor-actions">
-        <UI.Button type="button" className="button-fit" disabled={busy} onClick={() => void save()}>
+        <UI.Button
+          type="button"
+          className="button-fit"
+          disabled={busy}
+          onClick={() => void onSave()}
+        >
           {busy ? "Saving…" : "Save new revision"}
         </UI.Button>
       </div>
@@ -415,8 +292,8 @@ function Editor({
         title="Discard unsaved changes?"
         description="Reload the latest definitions and discard your unsaved changes?"
         confirmLabel="Reload definitions"
-        onCancel={() => setConfirmReload(false)}
-        onConfirm={() => void reloadLatest(true)}
+        onCancel={() => onConfirmationChange(false)}
+        onConfirm={() => void onReload(true)}
       />
     </section>
   );
@@ -444,10 +321,7 @@ function PropertyConditions({
               <UI.Input
                 value={key}
                 onChange={(event) => {
-                  const next = { ...value };
-                  delete next[key];
-                  next[event.target.value] = propertyValue;
-                  onChange(next);
+                  onChange(renamePropertyCondition(value, key, event.target.value));
                 }}
               />
             </label>
@@ -456,18 +330,13 @@ function PropertyConditions({
               <UI.Select
                 value={type}
                 onChange={(event) => {
-                  const nextType = event.target.value;
-                  onChange({
-                    ...value,
-                    [key]:
-                      nextType === "null"
-                        ? null
-                        : nextType === "boolean"
-                          ? false
-                          : nextType === "number"
-                            ? 0
-                            : "",
-                  });
+                  onChange(
+                    changePropertyConditionType(
+                      value,
+                      key,
+                      event.target.value as "string" | "number" | "boolean" | "null",
+                    ),
+                  );
                 }}
               >
                 <option value="string">Text</option>
@@ -481,7 +350,11 @@ function PropertyConditions({
                 Value{" "}
                 <UI.Select
                   value={String(propertyValue)}
-                  onChange={(event) => onChange({ ...value, [key]: event.target.value === "true" })}
+                  onChange={(event) =>
+                    onChange(
+                      updatePropertyConditionValue(value, key, event.target.value === "true"),
+                    )
+                  }
                 >
                   <option value="true">True</option>
                   <option value="false">False</option>
@@ -494,33 +367,24 @@ function PropertyConditions({
                   value={String(propertyValue)}
                   type={type === "number" ? "number" : "text"}
                   onChange={(event) =>
-                    onChange({
-                      ...value,
-                      [key]: type === "number" ? Number(event.target.value) : event.target.value,
-                    })
+                    onChange(
+                      updatePropertyConditionValue(
+                        value,
+                        key,
+                        type === "number" ? Number(event.target.value) : event.target.value,
+                      ),
+                    )
                   }
                 />
               </label>
             ) : null}
-            <UI.Button
-              type="button"
-              onClick={() => {
-                const next = { ...value };
-                delete next[key];
-                onChange(next);
-              }}
-            >
+            <UI.Button type="button" onClick={() => onChange(removePropertyCondition(value, key))}>
               Remove condition
             </UI.Button>
           </div>
         );
       })}
-      <UI.Button
-        type="button"
-        onClick={() =>
-          onChange({ ...conditions, [`property_${Object.keys(conditions).length + 1}`]: "" })
-        }
-      >
+      <UI.Button type="button" onClick={() => onChange(addPropertyCondition(conditions))}>
         Add property condition
       </UI.Button>
     </fieldset>
