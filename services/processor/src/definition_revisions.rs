@@ -30,7 +30,7 @@ impl Processor {
                 .and_then(serde_json::Value::as_str)
                 .ok_or_else(|| ProcessorError::InvalidDefinitions("missing site_id".to_owned()))?;
             let mut tx = self.pool.begin().await?;
-            queries::lock_site(&mut *tx, site_id).await?;
+            queries::lock_site(&mut tx, site_id).await?;
             let exists = sqlx::query_scalar::<_, bool>(
                 "SELECT EXISTS(SELECT 1 FROM site_definition_revisions WHERE site_id=$1)",
             )

@@ -38,7 +38,7 @@ impl Processor {
             return Err(ProcessorError::CapabilityDisabled(site_id.to_owned()));
         }
         let mut transaction = self.pool.begin().await?;
-        queries::lock_site(&mut *transaction, site_id).await?;
+        queries::lock_site(&mut transaction, site_id).await?;
         sqlx::query("DELETE FROM custom_event_facts WHERE site_id = $1")
             .bind(site_id)
             .execute(&mut *transaction)
@@ -86,7 +86,7 @@ impl Processor {
             return Err(ProcessorError::CapabilityDisabled(site_id.to_owned()));
         }
         let mut tx = self.pool.begin().await?;
-        queries::lock_site(&mut *tx, site_id).await?;
+        queries::lock_site(&mut tx, site_id).await?;
         sqlx::query("DELETE FROM geo_country_facts WHERE site_id=$1")
             .bind(site_id)
             .execute(&mut *tx)
@@ -114,7 +114,7 @@ impl Processor {
             return Err(ProcessorError::CapabilityDisabled(site_id.to_owned()));
         }
         let mut tx = self.pool.begin().await?;
-        queries::lock_site(&mut *tx, site_id).await?;
+        queries::lock_site(&mut tx, site_id).await?;
         sqlx::query("DELETE FROM web_vital_facts WHERE site_id=$1")
             .bind(site_id)
             .execute(&mut *tx)
@@ -137,7 +137,7 @@ impl Processor {
             return Ok(0);
         }
         let mut tx = self.pool.begin().await?;
-        queries::lock_site(&mut *tx, site_id).await?;
+        queries::lock_site(&mut tx, site_id).await?;
         if capabilities.enabled(crate::CapabilityId::Conversions) {
             if explicit_backfill {
                 sqlx::query(

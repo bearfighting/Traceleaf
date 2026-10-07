@@ -345,7 +345,7 @@ impl Processor {
         let parser = WootheeParser::new();
         let mut transaction = self.pool.begin().await?;
 
-        queries::lock_site(&mut *transaction, &request.site_id).await?;
+        queries::lock_site(&mut transaction, &request.site_id).await?;
         if let Some(queue_id) = request.queue_id {
             let queue_status = sqlx::query_scalar::<_, String>(
                 "SELECT status FROM analytics_rebuild_queue

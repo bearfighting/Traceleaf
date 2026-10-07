@@ -53,7 +53,7 @@ pub(super) async fn process_event(
                 .get("event_name")
                 .and_then(serde_json::Value::as_str)
                 .ok_or_else(|| ProcessorError::InvalidCustomEvent(event.event_id.clone()))?;
-            queries::lock_site(&mut **transaction, &event.site_id).await?;
+            queries::lock_site(transaction, &event.site_id).await?;
             let session_id = if capabilities.enabled(crate::CapabilityId::Sessions) {
                 if let Some(visitor_id) = event.visitor_id.as_deref() {
                     sqlx::query_scalar::<_, String>("SELECT se.session_id::text FROM session_events se JOIN analytics_generations g ON g.generation_id=se.generation_id AND g.site_id=se.site_id AND g.status='active' WHERE se.site_id=$1 AND se.visitor_id=$2::uuid AND se.occurred_at <= $3 AND se.occurred_at > $3 - INTERVAL '30 minutes' AND (se.occurred_at AT TIME ZONE 'UTC')::date=($3 AT TIME ZONE 'UTC')::date ORDER BY se.occurred_at DESC LIMIT 1")
@@ -149,7 +149,7 @@ pub(super) async fn process_event(
         || capabilities.enabled(crate::CapabilityId::BrowserContext)
         || capabilities.enabled(crate::CapabilityId::Dimensions)
     {
-        queries::lock_site(&mut **transaction, &event.site_id).await?;
+        queries::lock_site(transaction, &event.site_id).await?;
         if let Some(visitor_id) = event.visitor_id.as_deref() {
             let delay = event.received_at.signed_duration_since(event.occurred_at);
             let rebuild_reason = if delay > chrono::Duration::hours(24) {
@@ -186,7 +186,7 @@ pub(super) async fn process_event(
     if !queries::mark_processed(transaction, event.id).await? {
         return Err(ProcessorError::RawEventNotUpdated(event.id));
     }
-    queries::lock_site(&mut **transaction, &event.site_id).await?;
+    queries::lock_site(transaction, &event.site_id).await?;
     queries::advance_page_view_watermark(transaction, &event.site_id).await?;
     Ok(())
 }
