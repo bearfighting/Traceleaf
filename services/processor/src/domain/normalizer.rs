@@ -1,7 +1,7 @@
 use serde_json::Value;
 use url::Url;
 
-use crate::parser::UserAgentParser;
+use crate::domain::parser::UserAgentParser;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NormalizedContext {
@@ -92,7 +92,7 @@ fn referrer_host(object: Option<&serde_json::Map<String, Value>>) -> String {
 #[cfg(test)]
 mod tests {
     use super::normalize_context;
-    use crate::parser::WootheeParser;
+    use crate::domain::parser::WootheeParser;
     use serde_json::json;
 
     #[test]

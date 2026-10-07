@@ -2,7 +2,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use serde_json::Value;
 use sqlx::{PgConnection, Postgres, Transaction};
 
-use crate::models::RawEvent;
+use crate::domain::models::RawEvent;
 
 pub(crate) async fn claim_next_event(
     transaction: &mut Transaction<'_, Postgres>,

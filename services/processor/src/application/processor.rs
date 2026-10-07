@@ -1,20 +1,23 @@
 use sqlx::{PgPool, postgres::PgPoolOptions};
 
-use crate::ProcessorError;
+use crate::{
+    CapabilityRuntime, CapabilitySnapshot, ProcessorError,
+    domain::definitions::AnalyticsDefinitions,
+};
 
 #[derive(Clone)]
 pub struct Processor {
     pub(super) pool: PgPool,
-    pub(super) definitions: crate::definitions::AnalyticsDefinitions,
+    pub(super) definitions: AnalyticsDefinitions,
     pub(super) database_definitions: bool,
-    pub(super) capabilities: crate::CapabilityRuntime,
+    pub(super) capabilities: CapabilityRuntime,
 }
 
 impl Processor {
     pub async fn connect(database_url: &str) -> Result<Self, ProcessorError> {
         let mut processor = Self::connect_with_definitions(
             database_url,
-            crate::definitions::AnalyticsDefinitions {
+            AnalyticsDefinitions {
                 version: "1".to_owned(),
                 sites: Vec::new(),
             },
@@ -26,7 +29,7 @@ impl Processor {
 
     pub async fn connect_with_definitions(
         database_url: &str,
-        definitions: crate::definitions::AnalyticsDefinitions,
+        definitions: AnalyticsDefinitions,
     ) -> Result<Self, ProcessorError> {
         definitions
             .validate()
@@ -35,10 +38,9 @@ impl Processor {
             .max_connections(5)
             .connect(database_url)
             .await?;
-        let capabilities =
-            crate::CapabilityRuntime::new(pool.clone(), "processor").map_err(|_| {
-                ProcessorError::CapabilityConfigurationUnavailable("runtime".to_owned())
-            })?;
+        let capabilities = CapabilityRuntime::new(pool.clone(), "processor").map_err(|_| {
+            ProcessorError::CapabilityConfigurationUnavailable("runtime".to_owned())
+        })?;
         capabilities.spawn();
         Ok(Self {
             pool,
@@ -51,7 +53,7 @@ impl Processor {
     pub(super) async fn current_capabilities(
         &self,
         site_id: &str,
-    ) -> Result<crate::CapabilitySnapshot, ProcessorError> {
+    ) -> Result<CapabilitySnapshot, ProcessorError> {
         if let Some(snapshot) = self.capabilities.snapshot(site_id) {
             return Ok(snapshot);
         }

@@ -1,24 +1,16 @@
-mod capabilities;
-mod definition_revisions;
-pub mod definitions;
-mod error;
-mod event_facts;
-mod event_processing;
-mod explicit_rebuilds;
-mod generation_rebuild;
-mod models;
-mod normalizer;
-mod parser;
-mod processor;
-mod queries;
-mod sessionizer;
+mod application;
+mod domain;
+mod storage;
 
-pub use capabilities::{CapabilityContract, CapabilityId, CapabilityRegistry, CapabilityStatus};
+pub use application::Processor;
+pub use application::ProcessorError;
 pub use configuration_runtime::{CapabilityRuntime, CapabilitySnapshot};
-pub use error::ProcessorError;
-pub use normalizer::{NormalizedContext, normalize_context};
-pub use parser::{ParsedUserAgent, UserAgentParser, WOOTHEE_VERSION, WootheeParser};
-pub use processor::Processor;
-pub use sessionizer::{
+pub use domain::capabilities::{
+    CapabilityContract, CapabilityId, CapabilityRegistry, CapabilityStatus,
+};
+pub use domain::definitions;
+pub use domain::normalizer::{NormalizedContext, normalize_context};
+pub use domain::parser::{ParsedUserAgent, UserAgentParser, WOOTHEE_VERSION, WootheeParser};
+pub use domain::sessionizer::{
     SessionEventOutput, SessionInput, SessionOutput, deterministic_session_id, sessionize,
 };

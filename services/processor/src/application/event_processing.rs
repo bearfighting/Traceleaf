@@ -1,4 +1,8 @@
-use crate::{ProcessorError, event_facts, processor::Processor, queries};
+use crate::{
+    ProcessorError,
+    application::{Processor, definition_revisions, event_facts},
+    storage::queries,
+};
 
 impl Processor {
     pub async fn process_one(&self) -> Result<bool, ProcessorError> {
@@ -16,7 +20,7 @@ impl Processor {
             }
         };
         let definitions = if self.database_definitions {
-            crate::definition_revisions::load_definition_revision(
+            definition_revisions::load_definition_revision(
                 &mut transaction,
                 &event.site_id,
                 event.received_at,
