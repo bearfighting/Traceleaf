@@ -1,0 +1,47 @@
+@layer base {
+  :root {
+    color-scheme: light;
+    --space-control: 0.75rem;
+    --space-navigation: 1rem;
+    font-family: Arial, Helvetica, sans-serif;
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    min-width: 320px;
+    min-height: 100vh;
+    margin: 0;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  button,
+  select {
+    cursor: pointer;
+  }
+
+  a {
+    color: inherit;
+  }
+
+  :focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--color-brand) 42%, transparent);
+    outline-offset: 2px;
+  }
+}

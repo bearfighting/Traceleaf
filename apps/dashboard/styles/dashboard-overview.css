@@ -1,0 +1,98 @@
+@layer components {
+  .connection-status-card {
+    @apply grid gap-5;
+  }
+
+  .connection-status-header {
+    @apply flex flex-wrap items-start justify-between gap-4;
+  }
+
+  .connection-status-title {
+    @apply grid min-w-0 gap-2;
+  }
+
+  .connection-status-title .eyebrow,
+  .connection-status-title h2,
+  .connection-status-title > p {
+    @apply m-0;
+  }
+
+  .connection-status-title h2 {
+    @apply text-xl font-semibold tracking-tight;
+  }
+
+  .connection-status-title > p:last-child {
+    @apply max-w-5xl text-sm leading-6 text-muted;
+  }
+
+  .connection-status-facts,
+  .connection-status-services {
+    @apply m-0 grid list-none gap-3 border-0 p-0 sm:grid-cols-2 lg:grid-cols-3;
+  }
+
+  .connection-status-fact {
+    @apply grid content-start gap-1 rounded-lg border border-line bg-canvas p-4;
+  }
+
+  .connection-status-fact dt {
+    @apply text-xs font-semibold uppercase tracking-wide text-muted;
+  }
+
+  .connection-status-fact dd {
+    @apply m-0 text-sm font-medium leading-5 text-ink;
+  }
+
+  .connection-status-fact small {
+    @apply text-xs text-muted;
+  }
+
+  .connection-status-services {
+    @apply border-t border-line pt-5;
+  }
+
+  .connection-status-links {
+    @apply flex flex-wrap gap-x-5 gap-y-2 border-t border-line pt-4 text-sm font-medium text-brand-dark;
+  }
+
+  .connection-status-missing {
+    @apply m-0 rounded-lg bg-warning-soft p-3 text-sm text-warning;
+  }
+
+  .site-overview-card {
+    @apply flex flex-wrap items-start justify-between gap-6;
+  }
+
+  .site-overview-primary {
+    @apply grid min-w-0 gap-2;
+  }
+
+  .site-overview-primary .eyebrow,
+  .site-overview-primary h2,
+  .site-overview-primary p {
+    @apply m-0;
+  }
+
+  .site-overview-primary h2 {
+    @apply text-xl font-semibold tracking-tight;
+  }
+
+  .site-overview-primary p:last-child {
+    @apply text-sm text-muted;
+  }
+
+  .site-overview-meta {
+    @apply grid gap-3 sm:grid-cols-3;
+  }
+
+  .site-overview-meta div {
+    @apply grid gap-1 rounded-lg bg-canvas px-4 py-3;
+  }
+
+  .site-overview-meta dt {
+    @apply text-xs font-semibold uppercase tracking-wide text-muted;
+  }
+
+  .site-overview-meta dd {
+    @apply m-0 text-sm font-medium text-ink;
+  }
+}

@@ -221,7 +221,8 @@
 
 ### 工作包 7：剩余大型测试、CSS 和候选复核
 
-- [ ] 按基线结论处理 HTTP/processor tests、CSS 和其他活跃代码候选。
-- [ ] 对生成代码、实验目录、迁移和 fixture 依照其维护方式单独决定。
-- [ ] 为每项候选记录拆分、保留或延后结论及依据。
-- [ ] 回顾重构是否改善局部理解和修改范围；若只是增加文件跳转则调整边界。
+- [x] **7.1 候选复核与拆分设计：** 对照领域边界、验证基线和当前文件复核 API HTTP 集成测试、Processor 测试、Dashboard CSS、Collector HTTP tests 和其他活跃大文件；职责边界与保留依据见[集成测试与全局样式复核](./code-refactoring-test-and-style-review.md)。
+- [x] **7.2 Analytics API HTTP 测试按路由职责分组：** 保留 `http` integration target、数据库依赖/ignored 语义、所有 test 名称、assertions、共享 seed/reset 及清理流程；测试按 Analytics reports、site management、configuration、capability runtime 分置测试模块。隔离 PostgreSQL 18.6 上 15 个 DB tests 通过，常规 target 的 3 个测试通过。
+- [x] **7.3 Dashboard 全局样式边界：** 保留 Tailwind 和全局导入入口，按 theme、base、Dashboard layout、navigation、Analytics reports、Dashboard overview、settings、site creation、responsive 分文件。导航/sidebar/报表链接规则集中到 `dashboard-navigation.css`，连接状态/站点概览规则集中到 `dashboard-overview.css`；最终文件布局下 build 和 Dashboard E2E 通过。
+- [x] **7.4 剩余候选处置：** Processor tests 已由工作包 5 分组；Collector HTTP tests 按 ingest 行为保留；生成代码从生成源维护；实验目录按生命周期、迁移按历史记录、canonical fixtures 按验证输入管理。复核依据见 7.1。
+- [x] **7.5 验收与回顾：** 最终样式归档及 sidebar 测试路径修改后，受影响 Dashboard 测试、`pnpm check`、`pnpm test`、source/docs format checks、`pnpm build` 和 Dashboard E2E 均通过；工作包 7 关闭。环境、结果和覆盖边界见[工作包 7 验收记录](./code-refactoring-test-and-style-review.md#工作包-7-验收2026-10-07)。

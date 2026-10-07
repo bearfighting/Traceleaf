@@ -1,0 +1,162 @@
+@layer components {
+  .configuration-page {
+    @apply grid gap-4;
+  }
+
+  .configuration-list {
+    @apply my-5 grid grid-cols-1 gap-x-5 gap-y-2 md:grid-cols-2;
+  }
+
+  .configuration-toggle {
+    @apply flex items-center justify-between gap-3 border-b border-line py-3;
+  }
+
+  .configuration-toggle span,
+  .configuration-field {
+    @apply grid gap-1.5;
+  }
+
+  .configuration-toggle small,
+  .configuration-field small {
+    @apply font-normal text-muted;
+  }
+
+  .configuration-field {
+    @apply my-4 font-semibold text-ink;
+  }
+
+  .configuration-field textarea,
+  .configuration-field input {
+    @apply w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm;
+  }
+
+  .effective-state {
+    @apply my-3 flex flex-wrap gap-x-4 gap-y-2 rounded-lg bg-brand-soft p-3 text-sm text-brand-dark;
+  }
+
+  .effective-current {
+    @apply bg-success-soft text-success-foreground;
+  }
+
+  .effective-stale {
+    @apply bg-warning-soft text-warning;
+  }
+
+  .privacy-note {
+    @apply my-4 border-l-4 border-brand bg-brand-soft px-4 py-3 text-sm text-brand-dark;
+  }
+
+  .one-time-secret {
+    @apply my-4 grid gap-3 wrap-anywhere rounded-lg border border-warning-border bg-warning-soft p-4;
+  }
+
+  .one-time-secret code {
+    @apply text-base;
+  }
+
+  .key-list {
+    @apply grid list-none gap-2 pl-0;
+  }
+
+  .ingest-key-card {
+    @apply grid gap-4;
+  }
+
+  .ingest-key-actions {
+    @apply flex items-center justify-between gap-6;
+  }
+
+  .ingest-key-actions p {
+    @apply m-0 max-w-3xl;
+  }
+
+  .key-list li {
+    @apply flex items-center justify-between gap-3 border-t border-line py-3;
+  }
+
+  .configuration-error,
+  .configuration-success {
+    @apply rounded-lg px-4 py-3 text-sm;
+  }
+
+  .configuration-error {
+    @apply bg-danger-soft text-danger-foreground;
+  }
+
+  .configuration-success {
+    @apply bg-success-soft text-success-foreground;
+  }
+
+  .definition-editor {
+    @apply grid gap-6;
+  }
+
+  .definition-editor > :where(h2, p) {
+    @apply m-0;
+  }
+
+  .definition-groups {
+    @apply grid min-w-0 gap-8 border-0 p-0;
+  }
+
+  .definition-group {
+    @apply grid min-w-0 gap-5;
+  }
+
+  .definition-group + .definition-group {
+    @apply border-t border-line pt-6;
+  }
+
+  .definition-group > h3 {
+    @apply m-0 text-base font-semibold;
+  }
+
+  .definition-item {
+    @apply m-0 grid min-w-0 gap-5 border-line bg-canvas p-4;
+  }
+
+  .definition-field {
+    @apply grid gap-1.5 text-sm font-medium text-ink;
+  }
+
+  .definition-active-toggle {
+    @apply flex items-center gap-2 text-sm font-medium text-ink;
+  }
+
+  .definition-subheading {
+    @apply m-0 text-sm font-semibold;
+  }
+
+  .definition-step {
+    @apply grid min-w-0 gap-3 rounded-lg border border-line bg-surface p-4;
+  }
+
+  .definition-editor-actions {
+    @apply flex justify-start border-t border-line pt-5;
+  }
+
+  .property-conditions {
+    @apply grid min-w-0 gap-3 rounded-lg border border-line p-4;
+  }
+
+  .property-condition-row {
+    @apply grid min-w-0 gap-3 border-b border-line pb-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto];
+  }
+
+  .property-condition-row label {
+    @apply grid gap-1.5 text-sm font-medium text-ink;
+  }
+
+  .environment-selector-form {
+    @apply grid grid-cols-[minmax(16rem,24rem)_auto] items-end gap-4;
+  }
+
+  .environment-selector-form .configuration-field {
+    @apply m-0;
+  }
+
+  .environment-selector-form > p {
+    @apply col-span-full m-0;
+  }
+
+}

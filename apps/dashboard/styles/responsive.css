@@ -1,0 +1,94 @@
+.analytics-sidebar-desktop {
+  display: block;
+}
+
+.mobile-analytics-menu {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .dashboard-container {
+    width: min(100% - 32px, 1440px);
+  }
+
+  .dashboard-content {
+    width: min(100% - 32px, 1440px);
+  }
+
+  .dashboard-nav {
+    width: 100%;
+    gap: 0.5rem;
+  }
+
+  .dashboard-nav a {
+    flex: 1 1 auto;
+    text-align: center;
+    justify-content: center;
+    padding-inline: 0.5rem;
+  }
+
+  .dashboard-nav .add-site-link {
+    margin-left: 0;
+  }
+
+  .settings-tabs {
+    width: 100%;
+  }
+
+  .environment-selector-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .environment-selector-form > p {
+    grid-column: auto;
+  }
+
+  .connection-status-facts,
+  .connection-status-services {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .key-list li {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ingest-key-actions {
+    @apply items-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 1023px) {
+  .analytics-sidebar {
+    position: relative;
+    grid-column: 1 / -1;
+  }
+
+  .analytics-sidebar-desktop {
+    display: none;
+  }
+
+  .mobile-analytics-menu {
+    display: block;
+    max-width: 28rem;
+  }
+
+  .mobile-analytics-menu .analytics-sidebar-nav {
+    max-height: min(65vh, 28rem);
+    overflow-y: auto;
+    padding: 0.75rem 0.25rem 0.25rem;
+  }
+
+  .data-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
