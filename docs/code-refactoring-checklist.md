@@ -133,11 +133,35 @@
 
 ### 工作包 4：Rust configuration runtime 和服务边界
 
-- [ ] 先整理 configuration-runtime 的模块入口和类型职责。
-- [ ] 按 HTTP 请求边界重构 Collector handler 调用链。
-- [ ] 按校验/应用服务/持久化边界整理 site configuration 流程。
-- [ ] 保持公共 API、错误语义、策略、安全限制和数据库行为。
-- [ ] 运行对应 crate/service 的 fmt、clippy、tests 和 build。
+- [x] **4.1 实施前复核与边界细化：** 已静态梳理 configuration-runtime、Collector HTTP、Analytics API configuration/store 的调用方向、已有测试和公开边界；实施前待确认项及最终动态证据/限制见[Rust 配置重构试点记录](./code-refactoring-rust-configuration-pilot.md#工作包-41-实施前复核-2026-10-06)及 4.6。本步骤未修改 Rust 代码，未运行产品测试。
+- [x] **4.2 configuration-runtime 模块化：** 已将 snapshot/schema validator、runtime/refresh 与测试支持分别整理到 `capability_snapshot.rs`、`runtime.rs` 和 `test_support.rs`；`lib.rs` 保留稳定公共 re-export 与 `REFRESH_INTERVAL`。schema、capability/依赖及 activation-window 校验、refresh/stale/report 和后台刷新周期保持不变；定向测试、Clippy、格式与 diff 检查均通过，详见[Rust 配置重构试点记录](./code-refactoring-rust-configuration-pilot.md#工作包-42-configuration-runtime-模块化-2026-10-06)。工作包 4 的整体验收见 4.6。
+- [x] **4.3 Collector HTTP 请求边界：** 已将路由组装、事件请求处理、preflight、response/error 与按行为分组的测试整理到 `http/`；保留 `collector::http` 路径及路由构造函数。body/content-type 与 JSON 检查、site/origin/key 授权、限流、capability gate、batch validation、Geo 和 sink 顺序及错误映射经静态复核与定向测试确认，详见[Rust 配置重构试点记录](./code-refactoring-rust-configuration-pilot.md#工作包-43-collector-http-请求边界-2026-10-06)。Collector PostgreSQL 集成及 configuration E2E 验收见 4.6。
+- [x] **4.4 Analytics API configuration handler：** 已按资源整理 capability/policy/key/definition 请求处理，并归组 precondition、输入/存储校验、response/ETag、错误映射等共享职责及相关测试；route、HTTP 契约和一次性密钥语义保持不变，验证与未运行项见[Rust 配置重构试点记录](./code-refactoring-rust-configuration-pilot.md#工作包-44-analytics-api-configuration-handler-2026-10-06)。
+- [x] **4.5 Analytics API configuration store：** 已按 capabilities、environment policy/key、applied-state 查询和 definition revisions 拆分 `config_store.rs`；façade 保留调用接口、共享类型与错误映射，SQL/事务/锁/audit 顺序及存储语义不变。定向验证与环境限制见[Rust 配置重构试点记录](./code-refactoring-rust-configuration-pilot.md#工作包-45-analytics-api-configuration-store-2026-10-06)。工作包 4 的整体验收见 4.6。
+- [x] **4.6 整体验收与关闭（2026-10-06）：** 已复核依赖方向、导出面、错误映射、测试归属及 diff；`pnpm check`、`pnpm test`、`pnpm build`、完整 `pnpm test:integration`（在隔离 E2E PostgreSQL 上）和 `pnpm e2e:configuration` 均通过。refresh 生命周期经调用点/循环结构复核并由集成/E2E 运行覆盖；Tokio task cancellation/shutdown 时序没有专门测试，详见试点记录。完整结果、环境说明与静态边界结论见[Rust 配置重构试点记录](./code-refactoring-rust-configuration-pilot.md#工作包-46-整体验收与关闭-2026-10-06)。工作包 4 关闭。
+
+**必须保持的不变量：**
+
+- [x] `configuration-runtime` 继续提供现有公共类型与方法；Capability schema、site/version 身份、Page Views 必选、implemented/dependency 规则和 activation windows 校验不变。
+- [x] Runtime 刷新仍保留最后有效 snapshot；数据库读取失败、单 Site 文档无效、stale 状态和 applied-state 报告的现有语义不变。`REFRESH_INTERVAL` 和后台 task 生命周期不得因模块移动改变。
+- [x] Collector 的 route、request/response/status/error、body 限制、CORS、安全策略、rate limit 和事件拒绝/接收顺序不变；batch 不得部分写入。
+- [x] Analytics API 保留 `If-Match` / `If-None-Match`、ETag、验证错误结构、effective-state response、一次性 Ingest Key 返回及 key digest 存储语义。
+- [x] Store 的事务、版本控制、审计、Origin 唯一性、定义 immutable revision/既有 ID 保留及回滚行为不变；不修改数据库 schema 或历史 migration。
+- [x] 依赖方向保持为 HTTP adapter/handler → runtime、领域服务和 store；runtime/store 不依赖 Axum handler；未扩大 crate/service 公共 API。
+
+**测试映射与新增保护：**
+
+- [x] 保留 `configuration-runtime` 的 snapshot/schema/activation-window 单测；Collector 与 Analytics API shared runtime stale/applied-state 调用覆盖通过 PostgreSQL 集成测试。
+- [x] 保留 Collector HTTP handler、`tests/http_ingestion.rs` 和 `tests/runtime_policy_postgres.rs` 对请求顺序、安全策略、拒绝行为及 runtime policy 的覆盖；workspace 与 integration 测试通过。
+- [x] 保留 Analytics API configuration handler/store 单测、`tests/module_boundaries.rs` 及 `tests/http.rs` 的 configuration admin/API、ETag、transaction、audit、key 和 definition revision 覆盖；workspace 与 PostgreSQL integration 测试通过。
+- [x] 拆分后的测试按行为域归组，fixture/setup 接口清晰；未引入通用测试框架。
+
+**实施验证命令：**
+
+- [x] 子切片 crate 定向测试均已记录；最终 workspace test 与 PostgreSQL integration 覆盖通过。
+- [x] `pnpm check`、`pnpm test`、`pnpm build` 通过；`pnpm check` 中 5 条 generated protocol unused-disable warning，无 errors。
+- [x] `pnpm test:integration` 完整通过：Collector 9 项、Processor 17 项、Analytics API 15 项；使用隔离 E2E PostgreSQL、migration 后运行，未连接本地开发数据库。
+- [x] `pnpm e2e:configuration` 通过，覆盖配置工作流；运行器已清理隔离 Compose 服务、数据卷和网络。
 
 ### 工作包 5：Rust Processor 流水线
 
