@@ -2,7 +2,9 @@
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 import { ConfigurationEditor, ConfigurationErrorFeedback } from "./configuration-editor";
 
@@ -14,6 +16,7 @@ afterEach(() => {
   root = undefined;
   container?.remove();
   container = undefined;
+  vi.unstubAllGlobals();
   delete (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
     .IS_REACT_ACT_ENVIRONMENT;
 });
@@ -101,6 +104,50 @@ describe("ConfigurationEditor", () => {
     act(() => root?.render(<ConfigurationEditor {...props} result={refreshed} />));
 
     expect(container.textContent).toContain("Runtime status: current");
+  });
+
+  it("shows the runtime state returned by a capability save for its new version", async () => {
+    const saved = {
+      ...result.capabilities,
+      configuration: { ...result.capabilities.configuration, version: 4 },
+      effective_state: {
+        status: "stale" as const,
+        stored_version: 4,
+        applied_versions: { collector: 3, processor: null, analytics_api: 2 },
+      },
+    };
+    const fetchMock = vi.fn().mockResolvedValue(Response.json(saved));
+    vi.stubGlobal("fetch", fetchMock);
+    (
+      globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+
+    act(() =>
+      root?.render(
+        <ConfigurationEditor
+          siteId="site-one"
+          environment="production"
+          result={result}
+          section="capabilities"
+        />,
+      ),
+    );
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 1)));
+    const saveButton = [...(container.querySelectorAll("button") ?? [])].find((button) =>
+      button.textContent?.includes("Save capabilities"),
+    );
+
+    await act(async () => {
+      saveButton?.click();
+      await Promise.resolve();
+    });
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(container.textContent).toContain("Runtime status: stale");
+    expect(container.textContent).toContain("Stored version 4");
   });
 
   it("renders environment ingestion state from the stored policy", () => {

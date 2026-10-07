@@ -100,10 +100,36 @@
 
 ### 工作包 3：Dashboard 定义、配置和密钥管理
 
-- [ ] 依据各自状态所有权确定一个或多个完整切片，不先做横向通用框架。
-- [ ] 将展示、API/I/O、格式转换和领域校验分别放到已确认的边界。
-- [ ] 保持编辑、保存、失败反馈、空状态和兼容语义。
-- [ ] 按切片运行 Dashboard 检查和回归测试。
+- [x] **3.1 实施前复核与切片排序：** 已静态梳理 Definitions、Capabilities、Environments/Origins 和 Ingest Keys 的页面入口、状态/API 所有权、现有测试与关键保护边界；按风险和耦合度排出实现顺序，见[Dashboard 设置流程试点计划](./code-refactoring-dashboard-settings-pilot.md#工作包-31-静态复核与切片排序-2026-10-06)。未修改产品代码或测试，未运行产品测试。
+- [x] **3.2 抽离 Definitions 领域规则与 API I/O：** 已提取纯 draft/属性条件操作与浏览器端保存/刷新请求；锁定新建 POST、更新 PUT、`If-None-Match` / `If-Match`、revision 和 validation error 契约，见[试点记录](./code-refactoring-dashboard-settings-pilot.md#工作包-32-definitions-domain-与-api-io-2026-10-06)。
+- [x] **3.3 整理 Definitions 流程与 Presenter：** 保留稳定 `DefinitionEditor({ siteId, result })` 入口；新增 flow hook 统一持有 drafts、baseline、冲突/重载确认、pending/error/success 状态并协调 API 与 `router.refresh()`；编辑表单继续通过已存在的显式更新回调执行 draft 操作。按 site/revision 重置、site 关联保存提示、有序 funnel steps、不可变既有 ID、dirty draft 保护及 revision history 页面行为均保留，见[试点记录](./code-refactoring-dashboard-settings-pilot.md#工作包-33-definitions-flow-与-presenter-2026-10-06)。
+- [x] **3.4 拆分 Capabilities 与初始化流程：** 隔离 capability 依赖/可用性规则、初始化和带版本保存流程；保留 Page Views 必选、依赖先后约束、隐私说明、`If-None-Match` 初始化、`If-Match` 更新和 runtime effective-state 呈现，详见[试点记录](./code-refactoring-dashboard-settings-pilot.md#工作包-34-capabilities-与初始化流程-2026-10-06)。
+- [x] **3.5 拆分 Environment/Origins policy 流程：** 隔离输入归一化/payload 和 policy 创建/更新 I/O；保留 default environment、无 policy 状态、允许来源列表、rate limit、启停语义、ETag 乐观并发及初始化/不可用状态，详见[试点记录](./code-refactoring-dashboard-settings-pilot.md#工作包-35-environmentorigins-policy-流程-2026-10-06)。
+- [x] **3.6 整理 Ingest Keys 生命周期：** 新增专用 flow hook 和 Presenter，保留 create/revoke、一次性 secret、跨 tab Web Locks、localStorage unknown marker、列表刷新和模糊结果处理；严格响应验证、ETag 条件写、review 流程与失败时禁止重复签发不变，详见[试点记录](./code-refactoring-dashboard-settings-pilot.md#工作包-36-ingest-keys-生命周期-2026-10-06)。
+- [x] **3.7 关闭切片：** 已检查依赖方向、导出面、命名、测试归属、页面/API 契约及错误诊断；Dashboard 全量测试、typecheck/lint/format、diff 检查和配置 E2E 均通过。根级检查与 build 未运行，原因及证据见[试点记录](./code-refactoring-dashboard-settings-pilot.md#工作包-37-完整验收与关闭-2026-10-06)。
+
+**必须保持的不变量：**
+
+- [x] Settings 页面入口、route/query context、site/environment 选择、server-only loader/client 及 Dashboard API 契约不变；不把 server-only client 引入浏览器模块。
+- [x] Definitions 保留不可变的已存 ID、转换/漏斗属性类型、漏斗步骤顺序、revision/effective time、冲突处理和未保存 draft 丢弃确认。
+- [x] Capabilities 保留 Page Views 必选、依赖规则、尚未实现 capability 的禁用状态和隐私约束；初始化仍为 create-only，更新仍使用版本条件。
+- [x] Environment policy 保留显式 environment 身份、Origins/rate-limit/enabled 字段语义、无 policy 空状态及版本冲突保护。
+- [x] Ingest Key secret 仅在创建响应页面内存短暂展示；跨 tab 协调、unknown marker、有效列表复核和无法确认时阻止再次签发的行为不变。
+- [x] 不重构 API routes、`lib/site-management/client.ts`、server-only loaders、持久化或后端；不引入横向通用 CRUD/form 框架。
+
+**测试映射与新增保护：**
+
+- [x] 以 `definition-editor.test.tsx` 和 `definitions/page.test.tsx` 为基线；补足 domain/API 测试后保留保存、验证错误、revision conflict、reload discard confirm 和历史版本页面行为。
+- [x] 以 `configuration-editor.test.tsx`、`configuration-editor.initialize.ui.test.tsx`、`settings-task-page.test.tsx` 为 Capabilities/Environment 基线；验证依赖阻止、初始化及版本头、空/失败状态和刷新数据。
+- [x] 以 `ingest-keys-manager.test.tsx` 为安全状态基线；保留跨 tab 锁、marker、无效响应、列表刷新、revoke stale confirmation 和 secret 展示边界，并补 storage 写失败、模糊 create 结果及无法确认 revoke 状态。
+- [x] 保留 `lib/configuration-api/*`、`lib/site-management/client.test.ts`、Settings page 与 route/proxy 的既有契约覆盖；只在实际变更边界时扩充，不做无关改动。
+
+**实施验证命令：**
+
+- [x] Ingest Keys 子切片运行 `ingest-keys-manager.test.tsx`、`settings-task-page.test.tsx` 和 `lib/ingest-keys/api.test.ts` 定向测试、Dashboard 全量测试、typecheck/lint/格式检查及 `git diff --check`；结果 16 项定向测试与 270 项 Dashboard 测试通过，typecheck、lint、Prettier 和 diff 检查通过。
+- [x] 工作包 3 全部子切片实现后运行 `pnpm --filter @web-analytics/dashboard test` 及 Dashboard typecheck/lint/format 检查；54 个测试文件、271 个测试通过，typecheck/lint/format 均通过。
+- [x] 按变更面运行相关 settings E2E；`pnpm e2e:configuration` 通过，覆盖初始化/配置/有效状态和浏览器设置工作流。
+- [x] 根据变更面决定是否运行根级 `pnpm check`、`pnpm test` 和 build；本切片只改 Dashboard 客户端/测试与重构文档，根级检查及 build 未运行，详见试点记录。
 
 ### 工作包 4：Rust configuration runtime 和服务边界
 
