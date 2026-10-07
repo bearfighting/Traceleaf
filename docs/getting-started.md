@@ -1,473 +1,72 @@
 # Getting Started
 
+This guide covers local development. The product baseline is documented in [MVP Scope](mvp-scope.md); deployment and data handling procedures are in the [Operations Guide](operations.md).
+
 ## Requirements
 
 - Node.js 26.10.0
 - pnpm 12.6.0
-- Rust 1.98.1 with Cargo
+- Docker Compose v2 for the full local stack
+- Rust 1.98.1 and Cargo only for Rust development and tests
 
-Phase 0 和 Phase 1 不需要 Rust、Cargo、PostgreSQL 或其他后端依赖。Phase 2 Collector 需要 Rust；Phase 3 Storage 需要 Docker 和 PostgreSQL。
-
-## Install
-
-在仓库根目录执行：
+Install workspace dependencies from the repository root:
 
 ```bash
 pnpm install
 ```
 
-## Configure Geo country lookup
+## Run the playground
 
-The backend profile requires an operator-supplied local MMDB. Supported sources are MaxMind GeoLite2 Country and DB-IP City Lite; both are read only for ISO country code lookup. Place the selected database at `./data/GeoLite2-Country.mmdb`, mounted read-only into Collector. The database filename does not select the provider; Collector checks the MMDB type and records the provider and build epoch. Compose never downloads a dataset, and Collector fails startup if the file is absent, unreadable, corrupt, or unsupported.
-
-Set `GEOIP_TRUSTED_PROXIES` to a comma-separated list of proxy CIDRs only when Collector is behind known proxies. Forwarded client IPs are ignored by default.
-
-### Offline Geo database update
-
-MaxMind GeoLite2 Country requires an authorized account and use under the [GeoLite End User License Agreement](https://www.maxmind.com/en/geolite/eula). MaxMind attribution must credit **MaxMind, available from [https://www.maxmind.com](https://www.maxmind.com)**; superseded database copies must be destroyed within 30 days. See [MaxMind update guidance](https://support.maxmind.com/knowledge-base/articles/download-and-update-maxmind-databases).
-
-DB-IP City Lite is distributed under [CC BY 4.0](https://db-ip.com/db/download/ip-to-city-lite). A web application must include a link to DB-IP on pages that display or use its results. The Geo report conditionally displays **IP geolocation by DB-IP** when its selected date range contains DB-IP-derived data. Follow DB-IP's release guidance and record the release/build epoch and official checksum for each file.
-
-For each operator-managed update:
-
-1. Obtain the dataset from the provider under its license. Record provider, release/build epoch and the provider's published checksum. Do not commit the database or place it in CI artifacts.
-2. Verify the published checksum and inspect MMDB metadata. Accept only `GeoLite2-Country` or `DBIP-City-Lite`; reject corrupt files, mismatched checksums and other database types.
-3. As a post-launch operational check, mount the candidate in staging at `GEOIP_DATABASE_PATH`, restart Collector, and send controlled synthetic requests through the configured trusted-proxy path. Confirm country and `unknown` results. This staging exercise is not an MVP completion gate. Never use a real visitor IP as a test value or log it.
-4. Keep a restricted, short-lived rollback copy. Copy the candidate to a temporary file on the same filesystem, verify it again, then atomically replace `./data/GeoLite2-Country.mmdb`. Restart Collector and check health and a synthetic country report before promotion.
-5. If validation fails, restore the verified previous file atomically and restart Collector. Securely delete superseded licensed copies according to the relevant provider license and retention terms.
-6. Record the new provider, build epoch, checksum, deployment time and smoke-test result. Record only aggregate coverage metrics; never record IP addresses.
-
-For both providers, an individual unmapped or invalid address becomes `unknown`. Historical enrichment retains only the country code and source metadata; changing the dataset does not re-resolve historical requests.
-
-If the file is absent, unreadable, corrupt, or has an unsupported database type, Collector startup fails closed; restore a verified file before restarting. If an individual address has no country record or cannot be parsed, the event is enriched as `unknown`.
-
-## Run the Playground
+Run the Next.js playground directly:
 
 ```bash
 pnpm dev
 ```
 
-默认访问：
+Choose another supported router with `pnpm dev --router react` or `pnpm dev --router tanstack`. The playground is available at `http://localhost:3000` (React Router: `3101`; TanStack Router: `3102`).
 
-```text
-http://localhost:3000
-```
+## Run the full local stack
 
-当前 Playground 提供常见 Next.js App Router 导航场景和 Navigation Debug Panel。
-
-Phase 7 PR2.5 提供统一的 Router playground 选择入口。默认仍启动 Next playground：
+Copy `.env.example` to `.env`, then start PostgreSQL, migrations, backend services, Dashboard and playground:
 
 ```bash
-pnpm dev --router next
-pnpm dev --router react
-pnpm dev --router tanstack
-```
-
-对应的 Docker Compose 目标用法如下：
-
-```bash
-pnpm docker:dev --router react
-pnpm docker:dev --router tanstack --with-backend
-```
-
-`next`、`react` 和 `tanstack` 是固定 allowlist；未知 Router 参数会返回错误，不会启动 playground。
-
-可测试页面：
-
-```text
-/
-/about
-/products/example
-/search?q=test
-/nested
-/nested/child
-```
-
-可测试操作：
-
-```text
-<Link>
-router.push()
-router.replace()
-router.back()
-router.forward()
-search params
-hash
-```
-
-## Run the Dashboard
-
-Phase 4 的 Dashboard 运行在独立的 Next.js app 中，已接入 Overview、Timeline、Top Pages、站点选择和日期范围查询。Dashboard 只通过服务端 Query Client 请求 Analytics API。
-
-```bash
-ANALYTICS_API_URL=http://localhost:4002 \
-pnpm --filter @web-analytics/dashboard dev
-```
-
-默认访问：
-
-```text
-http://localhost:3000/dashboard
-```
-
-Dashboard 支持以下 URL 参数：
-
-```text
-/dashboard?site_id=site_playground&from=2026-09-01&to=2026-09-18
-```
-
-Dashboard 从 Site Registry API 获取站点列表；首次启动时需配置匹配的 `CONFIG_ADMIN_TOKENS` 与服务端 `DASHBOARD_CONFIG_ADMIN_TOKEN`。没有显式 `site_id` 时默认选择 Registry 顺序中的首个 active Site。`ANALYTICS_API_URL` 必须是绝对的 HTTP(S) URL，例如 `http://localhost:4002`。Site Management 默认复用该地址，也可通过服务端 `SITE_MANAGEMENT_API_URL` 独立配置。Dashboard 通过服务端 client 请求两个 API；浏览器不会收到管理 token。
-
-管理配置时，设置 `DASHBOARD_DEFAULT_ENVIRONMENT`（默认 `production`），并将 `DASHBOARD_CONFIG_ADMIN_TOKEN` 设置为 `CONFIG_ADMIN_TOKENS` 中的一把 deployment-admin token。配置入口为 `http://localhost:3000/dashboard/settings`；Dashboard 服务端 BFF 使用该凭据调用受保护配置 API，浏览器不会获得 Admin token。生产部署还必须由可信反向代理保护 Dashboard 管理入口。
-
-以 Compose 启动包含数据库迁移、后端、Dashboard 和 Next.js Playground 的完整本地环境。普通启动保持空 Site Registry：
-
-```bash
+cp .env.example .env
 pnpm dev:up
 ```
 
-首次启动前复制 `.env.example` 为 `.env`。若需要本地 Demo Site，显式运行：
+The Dashboard is at `http://localhost:13000/dashboard`; the Next.js playground is at `http://localhost:3000`. The default startup leaves the Site Registry empty. To create the local demo Site, configure a non-empty `LOCAL_DEV_INGEST_KEY` in `.env` and explicitly run:
 
 ```bash
 pnpm dev:up --seed-init
-# --seed 是 --seed-init 的简写
 ```
 
-Seed 在 migration 成功后创建固定的 `site_example`、capabilities、activation windows 和 `development` Ingest Policy；Registry 元数据使用 `Local Example Site` 与 `http://localhost:3000`。默认启动不会创建 Site，只有显式传入 `--seed-init`（或简写 `--seed`）才会执行初始化。开发 Compose overlay 的 seed 与三个 Playground SDK 共用 `.env` 中显式设置的 `LOCAL_DEV_INGEST_KEY`；缺失或空白时 seed 会报错，不会生成凭据。策略只保存 key 的 SHA-256 摘要，并允许默认 Playground 端口（3000、3101、3102）；可通过 `PLAYGROUND_ORIGINS` 设置逗号分隔的 Origin 列表。Seed 仅补齐缺失记录，不覆盖已有配置，也不生成分析事件。本地示例凭据不可用于生产。
+The seed is for local development only. It does not overwrite existing Site configuration or create analytics events. Open the Dashboard and use **Add a Site** to exercise the normal onboarding flow instead.
 
-同一显式开关也适用于 `pnpm docker:backend --seed-init`、`pnpm docker:processing --seed-init` 和 `pnpm docker:dev --with-backend --seed-init`。这些后端启动入口默认都不 seed。
-
-首次接入网站时，保持默认空 Registry 并打开 `http://localhost:13000/dashboard`。选择 **Add a Site**，填写名称和 Website URL，确认 Environment 与 Allowed Origins，再提交创建。创建结果页只显示一次明文 Ingest Key；复制它和 Site ID 到目标网站的 SDK 环境配置。配置生效后，Settings 会分别显示 capabilities、ingest policy 的运行时状态，以及 Site 是否收到 Page Views。若离开结果页后丢失 key，可从 Settings 创建 replacement key。
-
-Playground 默认访问 `http://localhost:3000`，Dashboard 访问 `http://localhost:13000/dashboard`。关闭服务但保留数据库数据和 Docker volumes：
+Stop the stack while keeping its database volume:
 
 ```bash
 pnpm dev:down
 ```
 
-`compose.dev.yaml` 只由本地开发启动入口加载，普通 Compose、CI 和隔离 E2E 流程不会运行开发 seed。要清空数据库仍需显式删除 PostgreSQL volume；`pnpm dev:down` 不会删除它。
-
-Protocol Consolidation 后，事件协议不需要额外的 site-level rollout flag。
-Visitor、Session 和 Dimensions 由 Dashboard 的 Site capabilities 配置管理；
-旧 `analytics_enabled` 仅保留用于迁移/回滚兼容，不再作为运行时开关。`protocol_v2_enabled`
-已弃用且不会被 runtime 读取。
-
-运行 Dashboard 浏览器 E2E 前安装 Chromium：
-
-```bash
-pnpm playwright:install
-pnpm e2e:dashboard
-```
-
-统一 runner 支持选择 suite、组合选择和保留共享环境：
-
-```bash
-pnpm e2e --suite analytics --suite dashboard
-pnpm e2e --suite api
-pnpm e2e --all
-pnpm e2e --suite configuration --keep-environment
-pnpm e2e:down
-```
-
-普通 suites 串行复用同一 PostgreSQL，并在每个 suite 前清空 E2E 业务数据、重建公共 Site/capability/policy baseline；migration ledger 与 Docker 构建缓存保留。`pnpm e2e:up` 可预先启动并保留共享数据库，之后运行 suite 会复用它，直到 `pnpm e2e:down`。未显式启动环境时，runner 会在运行结束后清理自己创建的 Compose project；`--keep-environment` 可留下环境以便排障。环境 project、指纹和随机凭据保存在权限为 `0600` 的 `.cache/e2e/environment.json`。Onboarding、Development Startup 和 Router suites 继续使用各自隔离的生命周期。
-
-完整验收空数据库到首个 Page View 的 Dashboard onboarding（需要 Docker 和本机 Chromium）：
-
-```bash
-pnpm e2e:site-onboarding
-```
-
-该命令使用独立 Compose 项目和 PostgreSQL 数据卷，不读取开发 seed；浏览器从 Dashboard 创建 Site 后，测试 Playground 使用创建所得 Site ID 与 key，通过允许的 Origin 发送真实 SDK 事件。结束时只清理该测试项目及其数据卷。另用 `pnpm e2e:dev-startup` 验收默认空 Registry 和显式 seed 的幂等行为。
-
-配置管理跨层 E2E 使用隔离的 Compose 项目和数据卷，覆盖受保护配置写入、运行时版本收敛、存储故障恢复、站点隔离和 Dashboard 展示：
-
-```bash
-pnpm e2e:configuration
-```
-
-失败诊断保存在 `artifacts/configuration-e2e/`。共享服务使用 E2E 专属随机端口；Onboarding 和其他隔离 suite 仍支持各自的端口环境变量。E2E Docker 编译缓存与 Compose project 分离，因此环境清理不会删除 Cargo target、Cargo registry、Node modules 和 Next.js 构建缓存。缓存卷可用 `docker volume ls --filter name=web-analytics-e2e-` 查看；不再需要时按列出的具体卷名删除，避免清除其他项目的数据。Dashboard API-error 测试使用的临时 `.next` 卷会在测试结束后删除。
-
-## Check
+## Checks and tests
 
 ```bash
 pnpm check
-```
-
-执行 Prettier 格式检查、TypeScript 类型检查和 ESLint。
-
-## Format
-
-```bash
-pnpm format
-```
-
-使用 Prettier 格式化项目文件。格式规则包括统一缩进、引号、分号、trailing comma 和文件末尾 newline。
-
-Import 顺序由 ESLint `import/order` 检查，代码边界的空行由 ESLint padding 规则检查。新增 workspace 时，应提供同名的 `format` 和 `format:check` scripts，使根目录命令自动覆盖它。
-
-## Test
-
-```bash
 pnpm test
-```
-
-验证 Phase 3 Storage、Processor 和 Analytics API contract fixtures：
-
-```bash
-pnpm analytics:contract:validate
-```
-
-该命令校验 OpenAPI 3.1 JSON contract、canonical fixtures、Raw Event 语义、UTC 聚合结果和 API 响应结构。`/overview` 查询站点累计 Page Views；Reports API 使用 `/reports/{from}/{to}/...` 路径并限制为最多 366 天。PR1 提供 contract 和 fixtures；PR2 另外提供 PostgreSQL Storage 和 migration。
-
-验证 Phase 2 HTTP contract fixtures：
-
-```bash
-pnpm http:validate
-```
-
-该命令检查 request/response fixture 的结构、状态码、header 格式、scenario ID、配置引用、边界 payload、CORS response 和 setup 状态，不启动 Collector。
-
-命令会执行 Protocol 校验以及所有已创建 package 的单元测试。
-
-`pnpm test` 同时校验 Event Protocol V1 的合法和非法 fixtures。
-
-## PostgreSQL Storage
-
-Compose uses PostgreSQL 18.6. The PostgreSQL 18 official image stores data under
-`/var/lib/postgresql/18/docker`; this repository uses a new `postgres_data_v18`
-volume so an existing PostgreSQL 17 volume is never opened by the new server.
-Before switching an existing local database, make a custom-format backup while
-its PostgreSQL 17 container is still running:
-
-```bash
-docker compose exec -T postgres pg_dump -U analytics -d analytics -Fc > analytics.pg_dump
-```
-
-After starting PostgreSQL 18, restore the data into the new database, then
-apply any migrations introduced since the backup:
-
-```bash
-docker compose exec -T postgres pg_restore -U analytics -d analytics --clean --if-exists < analytics.pg_dump
-```
-
-Keep the backup outside version control and remove it after confirming the
-restore. The old named volume remains available for rollback; do not attach it
-to the PostgreSQL 18 container.
-
-Configuration documents, environment policies, Ingest Key digests, Conversion/Funnel definitions, and configuration audit records are stored in PostgreSQL and are included in the database backup. Treat these backups as sensitive and restrict access accordingly. Keep `CONFIG_ADMIN_TOKENS` in the deployment secret manager; it is not stored in PostgreSQL and must be restored separately. Ingest Key plaintext is returned only when a key is created, so retain it in the site's secret store when clients need to continue sending events. After a database restore, start the services and wait for their reported applied versions to converge before considering configuration current.
-
-启动 Phase 3 PostgreSQL：
-
-```bash
-cp .env.example .env
-docker compose --profile storage up -d --wait postgres
-export DATABASE_URL=postgres://analytics:analytics@localhost:5432/analytics
-pnpm db:migrate
-```
-
-执行完整 migration regression。该命令要求 `DATABASE_URL` 和本机可用的
-`psql`，会验证首次执行、重复执行、migration history/checksum 以及核心
-表、索引和约束，并在隔离临时数据库中验证旧 migration history 升级到当前版本。
-执行用户需要拥有 `CREATEDB` 权限：
-
-```bash
-pnpm test:migrations
-```
-
-运行 PostgreSQL 集成测试：
-
-```bash
-DATABASE_URL=postgres://analytics:analytics@localhost:5432/analytics pnpm test:integration
-```
-
-PostgreSQL migrations are owned by the repository infrastructure and run by
-the standalone `db-migrator`. Collector, Processor, and Analytics API do not
-create or upgrade the schema during startup. Deploy the migration job before
-deploying services that require the schema.
-
-启动 Collector 和 PostgreSQL 的开发 workflow：
-
-```bash
-pnpm docker:backend
-```
-
-该命令同时启用 `backend` 和 `storage` profiles。Collector 使用 PostgreSQL；没有 `DATABASE_URL` 时不会静默回退到 InMemory Sink。
-`pnpm docker:backend` 会加载开发 Compose 覆盖层，等待 PostgreSQL 健康并执行 migration，再启动 Collector 与 Next.js Playground；它默认不创建 Site。需要 Demo Site 时运行 `pnpm docker:backend --seed-init`。完整 Dashboard 环境使用 `pnpm dev:up`；停止时运行 `pnpm dev:down`，数据库 volume 会保留。
-
-启动 Processor 和 Analytics API workflow：
-
-```bash
-pnpm docker:processing
-```
-
-该命令启用 `backend`、`storage` 和 `processing` profiles，先执行 migration，再启动 Collector、Processor、Analytics API 和 Playground；它默认不创建 Site。需要 Demo Site 时运行 `pnpm docker:processing --seed-init`。Analytics API 地址为 `http://localhost:4002`。
-
-运行完整 Phase 3 E2E workflow：
-
-```bash
-pnpm e2e:analytics
-```
-
-该命令会启动独立的 PostgreSQL、Collector、Processor one-shot 和 Analytics API 测试环境，逐个执行 canonical fixtures，结束后自动清理自己的容器和 volume，不影响用户已有 PostgreSQL volume。
-失败时会把 Compose config、service status 和 Collector、Processor、Analytics API、db-migrate 日志写入 `artifacts/analytics-e2e/`。
-
-### 开发期 MMDB 测试
-
-仓库附带的 [合成 GeoLite2 测试数据库](../tests/fixtures/geo/README.md) 只用于开发测试，不是正式数据集。它只由 `compose.e2e.yaml` 覆盖挂载；普通 Compose/backend 启动使用部署方提供的 `./data/GeoLite2-Country.mmdb`。
-
-只验证本地解析器、已知国家/Unknown、release metadata 和坏文件启动失败时运行：
-
-```bash
-pnpm test:geo-mmdb
-```
-
-验证本机部署方提供的 DB-IP City Lite 文件（需要放在 `./data/GeoLite2-Country.mmdb`）时运行：
-
-```bash
-pnpm test:geo-mmdb-local
-```
-
-验证完整 Collector → Processor → Analytics API Geo workflow 时运行：
-
-```bash
-E2E_FIXTURES=geo-countries.json pnpm e2e:analytics
-```
-
-这两项测试使用仓库里的合成数据库与保留地址，不需要或访问真实访客 IP，也不会下载数据库。测试地址和数据映射见 fixture README。
-
-单独运行 Protocol 校验：
-
-```bash
-pnpm protocol:validate
-```
-
-## Build
-
-```bash
+pnpm format:check
+pnpm format:check:docs
 pnpm build
 ```
 
-构建当前所有 TypeScript packages，再构建 Next.js Playground 的生产版本。
-
-## Docker Development
-
-需要 Docker 和 Docker Compose v2：
+PostgreSQL migration and integration tests require an isolated test database; see [Operations Guide](operations.md#database-migrations-and-tests). The E2E runner installs Chromium separately when needed:
 
 ```bash
-pnpm docker:dev
+pnpm playwright:install
+pnpm e2e --all
 ```
 
-该命令默认构建并启动 Next Router Playground，访问地址为：
+Run one suite with its package shortcut, such as `pnpm e2e:dashboard` or `pnpm e2e:site-onboarding`. `pnpm e2e:down` stops a separately retained E2E environment. E2E databases are isolated from the development Compose database.
 
-```text
-http://localhost:3000
-```
+## Country Geo data
 
-默认 Compose 只运行 Playground，不包含 PostgreSQL；页面内的 SDK workflow 使用本地 MockTransport，不发起真实 API request。通过 backend override 可以额外启动 Phase 2 Collector。
-
-Playground 默认使用 MockTransport。独立启动 Playground 或使用不带开发 overlay 的 Compose 时，要显式配置 Browser SDK 的 `NEXT_PUBLIC_ANALYTICS_*` 环境变量来启用本地 Collector workflow：
-
-```env
-NEXT_PUBLIC_ANALYTICS_TRANSPORT=fetch
-NEXT_PUBLIC_ANALYTICS_ENDPOINT=http://localhost:4001/v1/events
-NEXT_PUBLIC_ANALYTICS_INGEST_KEY=public-key-example
-NEXT_PUBLIC_ANALYTICS_SITE_ID=site_example
-```
-
-开发 Compose 启动入口（如 `pnpm dev:up`、`pnpm docker:dev --with-backend`）会从 `LOCAL_DEV_INGEST_KEY` 配置 Playground SDK，并将其独立映射给显式 seed 的输入；此时无需另设 `NEXT_PUBLIC_ANALYTICS_INGEST_KEY`。这些入口仍默认不创建 Site，需要 Demo Site 时显式加 `--seed-init`。使用 React Router 或 TanStack Router 时，seed 默认也允许对应的本地端口 Origin。自定义端口或 Origin 时，同步更新 `PLAYGROUND_ORIGINS`。基础 Compose 保留 `NEXT_PUBLIC_ANALYTICS_SITE_ID` 和 `NEXT_PUBLIC_ANALYTICS_INGEST_KEY` 作为独立 Playground SDK 配置；它们不会初始化数据库 Site 或 key。
-
-`NEXT_PUBLIC_ANALYTICS_ENDPOINT` 必须是完整的 `POST /v1/events` URL，不能只填写 Collector base URL。浏览器会自动发送 `Origin`，Collector 会执行 CORS、Origin、Ingest Key、Schema 和限流校验。
-
-启动 Phase 2 Collector：
-
-```bash
-pnpm docker:backend
-```
-
-如果同时启动 Playground，并要求它等待 Collector 健康后再启动：
-
-```bash
-pnpm dev:up
-```
-
-也可以直接运行：
-
-```bash
-pnpm docker:backend
-```
-
-切换 Docker playground：
-
-```bash
-pnpm docker:dev --router react
-pnpm docker:dev --router tanstack
-pnpm docker:dev --router react --with-backend
-```
-
-默认端口分别为 Next `3000`、React Router `3101` 和 TanStack Router `3102`，可通过 `PLAYGROUND_NEXT_PORT`、`PLAYGROUND_REACT_PORT` 和 `PLAYGROUND_TANSTACK_PORT` 覆盖。`--with-backend` 会加载本地开发覆盖层并启用 `backend`、`storage` 和 `processing` profiles；该入口默认不 seed，显式 seed 使用 `--with-backend --seed-init`。不带 `--with-backend` 时，即使 `.env` 配置了 fetch，`pnpm docker:dev` 仍使用 MockTransport。
-
-Collector 默认监听 `http://localhost:4001`，健康检查地址为：
-
-```text
-http://localhost:4001/health
-```
-
-当前 Collector 提供健康检查、配置加载、`POST /v1/events`、Origin/CORS、Public Ingest Key 校验和单进程限流。合法事件暂存于进程内 InMemory Sink；Origin 必须配置在对应 site/environment 的 `allowed_origins` 中。
-
-生成本地测试 key（命令只输出 key，不修改 TOML）：
-
-```bash
-cargo run -p collector -- key generate --site site_example --environment production
-```
-
-发送一个合法 EventBatch：
-
-```bash
-curl -i \\
-  -X POST http://localhost:4001/v1/events \\
-  -H 'Content-Type: application/json' \\
-  -H 'X-Ingest-Key: <configured-key>' \\
-  -H 'Origin: https://www.example.com' \\
-  --data '{"schema_version":1,"events":[{"schema_version":1,"event_id":"01J00000000000000000000000","type":"page_view","site_id":"site_example","occurred_at":1760000000000,"path":"/about"}]}'
-```
-
-成功请求返回 `202` 和已接收事件数量。每个 `site_id + Origin` 默认每分钟允许 600 个请求，超限返回 `429`。当前 Collector 不持久化事件，重启后 InMemory Sink 会清空。
-
-启用完整 Compose workflow：
-
-```bash
-docker compose \
-  -f compose.yaml \
-  -f compose.backend.yaml \
-  --profile backend up --build
-```
-
-Transport 不自动重试，也不持久化发送失败的事件。Collector 的 `400`、`401`、`403`、`413`、`429` 和 `5xx` 响应会转换为可识别的 `FetchTransportError`。
-
-## CI
-
-GitHub Actions 会复用本地检查命令，并额外验证 Docker Compose 配置。CI 的
-`integration` job 使用 PostgreSQL 18.6 service，先运行 `pnpm test:migrations`，
-再运行 `pnpm test:integration`；独立的 `analytics-e2e` 和 `dashboard-e2e`
-job 分别运行两个 E2E 命令。失败诊断 artifact 位于 `artifacts/analytics-e2e/`
-和 `artifacts/dashboard-e2e/`，CI 会上传它们供下载。migration job 必须先于
-Collector、Processor 和 Analytics API 启动。
-
-Collector 的 Site identity、environment policy、Origin 和 Ingest Key digest 仅从 PostgreSQL 加载。监听地址和端口通过 `collector serve --host` / `--port` 指定；数据库、GeoIP 和日志配置通过部署环境变量提供。旧 TOML 示例只供迁移参考与测试使用，不由 Collector 启动读取。
-
-## 当前范围
-
-当前已包含：
-
-- `observer-core` 的通用导航契约
-- `observer-next` 的 Next.js App Router Adapter
-- `analytics-core` 的基础事件管线
-- `analytics-browser` 的 Browser SDK runtime 和 Context provider
-- Browser SDK 的本地 Mock Buffer workflow
-- `@web-analytics/transport` FetchTransport 和 Collector API workflow
-- Next.js Router Playground
-
-当前仍不包含：
-
-- Buffer 持久化、离线队列和 BeaconTransport
-- Analytics API 和 Dashboard
+The backend requires an operator-supplied MMDB at the configured `GEOIP_DATABASE_PATH`; Compose does not download it. Supported data sources, licensing, update and rollback procedures are in [Country Geo data operations](operations.md#country-geo-database).

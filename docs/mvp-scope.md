@@ -22,7 +22,7 @@ Geo region/city, Firefox/WebKit browser coverage, multi-organization access, adv
 
 ## Acceptance Record
 
-Phase 7 and Phase 8 implementation and acceptance are complete. The current CI workflow has passed, including functional checks and E2E jobs, as reported by the project owner. Detailed plans and evidence are in the [archive](archive/README.md).
+The frozen product baseline was accepted after the Phase 7 and Phase 8 implementation. The archived plans and acceptance records provide that historical evidence; current verification and release readiness are tracked separately in [Project Status](project-status.md).
 
 The MVP scope is frozen: further product features or release requirements need an explicit decision to reopen it. This freeze records the product baseline; it does not claim production operations or public SDK publication have been validated.
 

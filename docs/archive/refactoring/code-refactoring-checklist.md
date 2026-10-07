@@ -1,5 +1,7 @@
 # 代码重构执行 Checklist
 
+> 已归档：工作包 1–7 全部完成并关闭。本文件保留执行记录，不再作为当前待办清单。
+
 本文件跟踪 [代码重构路线图](./code-refactoring-roadmap.md) 的工作包。按业务/领域切片推进，一个工作包可以涉及多个相关文件；不以逐文件修改为工作单位。每个工作包应一次覆盖实现、调用方、测试和必要文档，并形成可单独审查的变更。
 
 ## 工作包 1：建立基线并设计第一批重构切片
@@ -196,7 +198,7 @@
 
 ### 工作包 6：E2E suite 与契约 tooling
 
-- [x] **6.1 实施前盘点与边界设计：** 对照 [`scripts-and-e2e-inventory.md`](./scripts-and-e2e-inventory.md) 复核 E2E suites、Compose runner、contract validator 和 migration harness 的入口、生命周期、fixture 与调用关系。重点候选为 `e2e-dashboard.mjs`（约 2,033 行）、`e2e-analytics.mjs`（约 609 行）、`e2e-configuration.mjs`（约 490 行）、Analytics API / Configuration validators（约 716 / 592 行）及 `db/tests/test-migrations.sh`（约 866 行）。确认子切片以独立行为场景和输入合同为边界；migration clean-install/upgrade assertions 与应用 integration assertions 各自保留。盘点依据与最终切片应记录在工作包 6 pilot 中。
+- [x] **6.1 实施前盘点与边界设计：** 对照 [`scripts-and-e2e-inventory.md`](scripts-and-e2e-inventory.md) 复核 E2E suites、Compose runner、contract validator 和 migration harness 的入口、生命周期、fixture 与调用关系。重点候选为 `e2e-dashboard.mjs`（约 2,033 行）、`e2e-analytics.mjs`（约 609 行）、`e2e-configuration.mjs`（约 490 行）、Analytics API / Configuration validators（约 716 / 592 行）及 `db/tests/test-migrations.sh`（约 866 行）。确认子切片以独立行为场景和输入合同为边界；migration clean-install/upgrade assertions 与应用 integration assertions 各自保留。盘点依据与最终切片应记录在工作包 6 pilot 中。
 - [x] **6.2 E2E suite 按场景拆分（Dashboard 切片，2026-10-07）：** `reports.mjs`、`events.mjs`、`settings.mjs` 现在直接承载对应场景断言及专属准备；入口保留共享 helpers、基础设施生命周期、调用顺序和 PASS 输出。shell 中 Settings 导航覆盖仍属于 shell 场景。Node syntax/runner tests、Prettier、`pnpm e2e:dashboard`（17 个 workflow，含真实浏览器 Web Vitals）及 `pnpm check` 通过。`pnpm check` 有 5 条 generated protocol ESLint unused-disable warning，不影响退出状态；详细记录见 [E2E / contract pilot](./code-refactoring-e2e-contract-pilot.md#工作包-62-dashboard-e2e-suite-场景拆分-2026-10-07)。
 - [x] **6.2.1 清除 Processor Clippy 阻塞：** 修复 `pnpm check` 报告的 9 处 `explicit_auto_deref` warning-as-error，涉及 `services/processor/src/definition_revisions.rs`、`event_facts.rs`、`explicit_rebuilds.rs` 和 `generation_rebuild.rs`。仅按 Clippy 指示调整借用/自动解引用表达式，保留事务及锁行为；`cargo fmt --all -- --check`、workspace Clippy 和 `pnpm check` 均通过，结果见 [E2E 与契约 tooling 重构试点](./code-refactoring-e2e-contract-pilot.md#工作包-621-processor-clippy-阻塞修复2026-10-07)。此项作为工作包 6 的跨切片验证修复，独立于 Dashboard E2E 模块搬移。
 - [x] **6.3 Contract validators 按合同和职责拆分（2026-10-07）：** 五个运行时 validator 已按合同职责拆分；保留 CLI 路径、根 `package.json` 命令、fixtures、诊断与退出语义。Schema/fixture baseline 检查与运行时合同校验分别记录。`pnpm check`、`pnpm test`、`pnpm format:check` 和 `pnpm format:check:docs` 均通过；细节见 [Contract validator 重构试点](./code-refactoring-contract-validator-pilot.md#验收)。

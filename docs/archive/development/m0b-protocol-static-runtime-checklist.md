@@ -41,7 +41,7 @@
 **证据 / 备注**
 
 - 候选及固定版本：Toolkit commit `825f4398e125f586354a18ba575d4d37edc5c745`、json-schema-to-typescript `16.0.0`、cargo-typify `0.8.0`；锁定方式、许可与工具链见[第二步结果报告](m0b-step2-generator-feasibility.md)。
-- 生成 / 检查命令：[试验脚本](../../../scripts/compare-contract-type-generators.mjs) 的 `--snapshot` / `--check`；精确命令、原始失败和输入处理见第二步结果报告。
+- 生成 / 检查命令：[试验脚本](../../../tooling/contracts/compare-contract-type-generators.mjs) 的 `--snapshot` / `--check`；精确命令、原始失败和输入处理见第二步结果报告。
 - 可重复性结果：两个干净目录的结果清单和四份成功产物逐字节一致；`--check` 正常通过，故意改动临时样本时退出 1；`pnpm protocol:validate` 退出 0。
 - 人工介入或不支持特性：无生成后人工修补。事件 Rust 因外部 `$ref`、保留约束后的 `if/then/else` 未生成；Toolkit 配置 TS 有损，typify 配置 Rust 的 `schema_version` 类型变宽。四条路径的限定结论见第二步结果报告；Toolkit 的详细问题见[专项报告](m0b-toolkit-findings.md)。
 

@@ -9,3 +9,4 @@ Completed implementation plans, milestone checklists, design explorations and ac
 - Detailed roadmap history.
 - Detailed Release Readiness measurements and historical checklist.
 - Development-only M0–M9 plans, checklists, closeout reports and superseded architecture proposals are in [development](development/).
+- Completed code refactoring roadmap, checklist, candidate analysis, work package records and acceptance evidence are in [refactoring](refactoring/).
