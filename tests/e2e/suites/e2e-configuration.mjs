@@ -205,7 +205,8 @@ async function runProcessorOnce() {
       "-p",
       "processor",
       "--",
-      "--once",
+      "once",
+      "process",
     ],
     { capture: true },
   );

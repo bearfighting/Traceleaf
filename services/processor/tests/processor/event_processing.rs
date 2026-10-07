@@ -188,7 +188,7 @@ async fn once_cli_processes_the_backlog() {
             "ANALYTICS_DEFINITIONS_FILE",
             "/path/that/must/not/be-read/analytics-definitions.json",
         )
-        .arg("--once")
+        .args(["once", "process"])
         .status()
         .expect("processor binary should start");
     assert!(status.success());

@@ -337,7 +337,7 @@ async fn explicit_import_definitions_cli_reads_file_and_is_idempotent() {
         std::process::Command::new(env!("CARGO_BIN_EXE_processor"))
             .env("DATABASE_URL", database_url())
             .env("ANALYTICS_DEFINITIONS_FILE", &definitions_path)
-            .arg("--import-definitions-if-empty")
+            .args(["once", "definitions", "import-if-empty"])
             .output()
             .expect("processor importer should start")
     };
