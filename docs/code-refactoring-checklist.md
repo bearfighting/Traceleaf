@@ -201,23 +201,23 @@
 - [x] **6.2.1 清除 Processor Clippy 阻塞：** 修复 `pnpm check` 报告的 9 处 `explicit_auto_deref` warning-as-error，涉及 `services/processor/src/definition_revisions.rs`、`event_facts.rs`、`explicit_rebuilds.rs` 和 `generation_rebuild.rs`。仅按 Clippy 指示调整借用/自动解引用表达式，保留事务及锁行为；`cargo fmt --all -- --check`、workspace Clippy 和 `pnpm check` 均通过，结果见 [E2E 与契约 tooling 重构试点](./code-refactoring-e2e-contract-pilot.md#工作包-621-processor-clippy-阻塞修复2026-10-07)。此项作为工作包 6 的跨切片验证修复，独立于 Dashboard E2E 模块搬移。
 - [x] **6.3 Contract validators 按合同和职责拆分（2026-10-07）：** 五个运行时 validator 已按合同职责拆分；保留 CLI 路径、根 `package.json` 命令、fixtures、诊断与退出语义。Schema/fixture baseline 检查与运行时合同校验分别记录。`pnpm check`、`pnpm test`、`pnpm format:check` 和 `pnpm format:check:docs` 均通过；细节见 [Contract validator 重构试点](./code-refactoring-contract-validator-pilot.md#验收)。
 - [x] **6.4 Migration harness 与 integration 入口复核（2026-10-07）：** current-history idempotency、clean install、upgrade/legacy conversion 与 rollback/failure atomicity、schema assertions 分别映射至内部场景脚本；原入口继续拥有临时数据库命名、URL 派生、`EXIT` cleanup trap，并保持场景顺序。`test:migrations` 仍验证迁移历史/升级，`test:integration` 仍在迁移后的数据库验证应用行为；入口与 CI 调用不变。脚本清单、映射和环境限制见 [Migration harness 重构试点](./code-refactoring-migration-pilot.md)。
-- [ ] **6.5 分切片验证与回归：** 每次搬移后运行对应的 Node/unit tests、validator CLI、受影响 E2E suite 和格式/静态检查；migration harness 变更须在隔离 PostgreSQL 上验证 clean/current/upgrade/failure cleanup。检查 `pnpm e2e:*`、`pnpm test:migrations`、`pnpm test:integration` 和 CI 调用路径仍兼容；不能以根级普通 tests 替代浏览器或数据库覆盖。
-- [ ] **6.6 整体验收与关闭：** 复核场景执行/cleanup/diagnostics、validator contract 与 CLI 输出、migration safety 和命令入口；运行所有受影响 E2E / contract / migration suites 及 workspace 相关 check、test、format/build。逐项记录通过数、环境、未覆盖场景；仅当必需验收全部通过时关闭工作包 6。
+- [x] **6.5 分切片验证与回归（2026-10-07）：** 在锁定 Node 26.10.0 / pnpm 12.6.0 下完成 protocol、capability、HTTP、Analytics API、definitions validators 与 schema/fixture baseline；`pnpm e2e:dashboard`、`pnpm check`、`pnpm test`、`pnpm format:check` 均通过。隔离 PostgreSQL 18.6 上 `pnpm test:migrations` 与 `pnpm test:integration` 通过，并在 upgrade 临时库创建后注入失败，确认入口以状态 97 退出且 clean/upgrade 临时库均由 `EXIT` trap 清理。运行结果、环境和覆盖边界见 [工作包 6.5 验收记录](./code-refactoring-e2e-contract-pilot.md#工作包-65-分切片验证与回归2026-10-07)。本项不关闭 6.6。
+- [x] **6.6 整体验收与关闭（2026-10-07）：** 在锁定 Node 26.10.0 / pnpm 12.6.0 下完成 Dashboard E2E（17 workflow）、五个 contract validators 与 schema/fixture baseline、隔离 PostgreSQL 18.6 migration/integration suites（43 passed、3 filtered）以及 `pnpm check`、`pnpm test`、source/docs format check 和 `pnpm build`。首次与 workspace/数据库任务并行运行 Dashboard 时，Settings 状态断言超时；读取 artifacts 后串行重跑，17 个 workflow 全部通过，未改代码。Migration `EXIT` cleanup 后无临时库，E2E runner 清理独立 Compose project 和 volume。CI、package scripts、suite IDs、调用顺序及命令入口保持不变；环境、诊断与未覆盖范围详见 [工作包 6.6 验收记录](./code-refactoring-e2e-contract-pilot.md#工作包-66-整体验收与关闭2026-10-07)。工作包 6 关闭。
 
 **必须保持的不变量：**
 
-- [ ] E2E fixture、步骤顺序、等待条件、断言、suite IDs、CLI 参数及 CI suite grouping 不因代码搬移变化。
-- [ ] Compose E2E 项目、端口分配、共享数据库 reset、缓存卷、browser/process 生命周期、teardown、失败 artifacts 和 diagnostics 保持原语义；不能跨 suite 提前清理共享资源。
-- [ ] Contract validator 保持 JSON Schema / OpenAPI / semantic fixture 的验证范围、失败退出码、诊断内容及 package command；fixture 和生成代码不因拆分被无意改写。
-- [ ] Migration 测试保留 current idempotency、clean install、upgrade/legacy conversion、rollback/failure atomicity、临时数据库清理；`test:migrations` 与 `test:integration` 的职责边界不变。
-- [ ] 小型、已清楚分层的 suites/helpers 不为追求文件数量而拆分；没有稳定独立职责的部分记录保留或延后依据。
+- [x] E2E fixture、步骤顺序、等待条件、断言、suite IDs、CLI 参数及 CI suite grouping 不因代码搬移变化。
+- [x] Compose E2E 项目、端口分配、共享数据库 reset、缓存卷、browser/process 生命周期、teardown、失败 artifacts 和 diagnostics 保持原语义；不能跨 suite 提前清理共享资源。
+- [x] Contract validator 保持 JSON Schema / OpenAPI / semantic fixture 的验证范围、失败退出码、诊断内容及 package command；fixture 和生成代码不因拆分被无意改写。
+- [x] Migration 测试保留 current idempotency、clean install、upgrade/legacy conversion、rollback/failure atomicity、临时数据库清理；`test:migrations` 与 `test:integration` 的职责边界不变。
+- [x] 小型、已清楚分层的 suites/helpers 不为追求文件数量而拆分；没有稳定独立职责的部分记录保留或延后依据。
 
 **测试映射与验证命令：**
 
-- [ ] 保留 E2E runner/environment/suite-registry 单测及所有被修改 suite 的场景覆盖；针对改动运行相应 `pnpm e2e:*` suites。
-- [ ] 保留 `pnpm protocol:validate`、`pnpm capabilities:validate`、`pnpm http:validate`、`pnpm analytics:contract:validate`、`pnpm analytics:definitions:validate` 的入口及覆盖；运行受影响 validators 和 fixture baseline 检查。
-- [ ] 在隔离 PostgreSQL 上运行 `pnpm test:migrations` 与 `pnpm test:integration`；验证升级/失败路径清理临时数据库且不触碰本地开发库。
-- [ ] 运行变更相关的 `pnpm check`、`pnpm test`、`pnpm format:check`、`pnpm format:check:docs` 和 `pnpm build`，如 E2E 变更影响 CI suite grouping 则复核 workflow 调用。
+- [x] 保留 E2E runner/environment/suite-registry 单测及所有被修改 suite 的场景覆盖；针对改动运行相应 `pnpm e2e:*` suites。
+- [x] 保留 `pnpm protocol:validate`、`pnpm capabilities:validate`、`pnpm http:validate`、`pnpm analytics:contract:validate`、`pnpm analytics:definitions:validate` 的入口及覆盖；运行受影响 validators 和 fixture baseline 检查。
+- [x] 在隔离 PostgreSQL 上运行 `pnpm test:migrations` 与 `pnpm test:integration`；验证升级/失败路径清理临时数据库且不触碰本地开发库。
+- [x] 运行变更相关的 `pnpm check`、`pnpm test`、`pnpm format:check`、`pnpm format:check:docs` 和 `pnpm build`，如 E2E 变更影响 CI suite grouping 则复核 workflow 调用。
 
 ### 工作包 7：剩余大型测试、CSS 和候选复核
 

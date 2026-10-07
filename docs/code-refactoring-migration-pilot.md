@@ -17,4 +17,4 @@
 
 ## 验收状态
 
-`bash -n` 对入口和四个场景脚本通过。`package.json`、integration runner 和 CI workflow 的入口及调用顺序保持不变。此环境缺少 `psql`，Docker socket 访问也被拒绝；此外 `pnpm --version` 报 `[ERROR] unable to open database file`。因此本次无法在隔离 PostgreSQL 上运行 migration/integration suites，也无法确认真实失败运行后的数据库清理；这些覆盖仍属于 checklist 6.5/6.6，不能据此关闭工作包 6。
+`bash -n` 对入口和四个场景脚本通过。`package.json`、integration runner 和 CI workflow 的入口及调用顺序保持不变。6.4 切片时未能在本地执行数据库 suites；6.5 和 6.6 已在独立 PostgreSQL 18.6 上完成 current/clean/upgrade、integration、失败原子回滚和临时库清理验证，详见 [E2E / contract pilot 的工作包 6.5 验收](./code-refactoring-e2e-contract-pilot.md#工作包-65-分切片验证与回归2026-10-07)及[工作包 6.6 验收](./code-refactoring-e2e-contract-pilot.md#工作包-66-整体验收与关闭2026-10-07)。工作包 6 已关闭。
