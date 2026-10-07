@@ -1,62 +1,51 @@
-//! PostgreSQL statements that replace derived facts from their source tables.
+//! Web vital fact writes and rebuilds.
 
 use sqlx::PgConnection;
 
-pub(crate) async fn rebuild_custom_event_facts(
+pub(crate) async fn has_linked_page_view(
     connection: &mut PgConnection,
     site_id: &str,
-) -> Result<u64, sqlx::Error> {
-    sqlx::query("DELETE FROM custom_event_facts WHERE site_id = $1")
+    page_view_event_id: &str,
+    occurred_at_millis: i64,
+    path: &str,
+) -> Result<bool, sqlx::Error> {
+    sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM raw_events WHERE site_id=$1 AND event_id=$2 AND event_type='page_view' AND occurred_at=to_timestamp($3::double precision/1000) AND path=$4)")
         .bind(site_id)
-        .execute(&mut *connection)
-        .await?;
-    let result = sqlx::query(
-        "INSERT INTO custom_event_facts (raw_event_id, site_id, event_id, occurred_at, received_at, event_name)
-         SELECT id, site_id, event_id, occurred_at, received_at, payload->>'event_name'
-         FROM raw_events
-         WHERE site_id = $1 AND event_type = 'custom_event' AND processed_at IS NOT NULL",
-    )
-    .bind(site_id)
-    .execute(&mut *connection)
-    .await?;
-    Ok(result.rows_affected())
+        .bind(page_view_event_id)
+        .bind(occurred_at_millis)
+        .bind(path)
+        .fetch_one(&mut *connection)
+        .await
 }
 
-pub(crate) async fn clear_conversion_funnel_watermark_versions(
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn upsert_web_vital_fact(
     connection: &mut PgConnection,
+    raw_event_id: i64,
     site_id: &str,
+    page_view_event_id: &str,
+    page_view_at_millis: i64,
+    path: &str,
+    metric: &str,
+    value: f64,
+    rating: &str,
+    navigation_type: &str,
+    report_sequence: i64,
 ) -> Result<(), sqlx::Error> {
-    sqlx::query(
-        "UPDATE analytics_watermarks
-         SET definition_version = NULL, updated_at = NOW()
-         WHERE site_id = $1 AND generation_id IS NULL
-           AND source_name IN ('conversions', 'funnels')",
-    )
-    .bind(site_id)
-    .execute(&mut *connection)
-    .await?;
-    Ok(())
-}
-
-pub(crate) async fn rebuild_geo_country_facts(
-    connection: &mut PgConnection,
-    site_id: &str,
-) -> Result<u64, sqlx::Error> {
-    sqlx::query("DELETE FROM geo_country_facts WHERE site_id=$1")
+    sqlx::query("INSERT INTO web_vital_facts(raw_event_id,site_id,page_view_event_id,page_view_occurred_at,path,metric,value,rating,navigation_type,report_sequence) VALUES($1,$2,$3,to_timestamp($4::double precision/1000),$5,$6,$7,$8,$9,$10) ON CONFLICT(site_id,page_view_event_id,metric) DO UPDATE SET raw_event_id=EXCLUDED.raw_event_id,page_view_occurred_at=EXCLUDED.page_view_occurred_at,path=EXCLUDED.path,value=EXCLUDED.value,rating=EXCLUDED.rating,navigation_type=EXCLUDED.navigation_type,report_sequence=EXCLUDED.report_sequence WHERE EXCLUDED.report_sequence > web_vital_facts.report_sequence OR (EXCLUDED.report_sequence = web_vital_facts.report_sequence AND EXCLUDED.raw_event_id < web_vital_facts.raw_event_id)")
+        .bind(raw_event_id)
         .bind(site_id)
+        .bind(page_view_event_id)
+        .bind(page_view_at_millis)
+        .bind(path)
+        .bind(metric)
+        .bind(value)
+        .bind(rating)
+        .bind(navigation_type)
+        .bind(report_sequence)
         .execute(&mut *connection)
         .await?;
-    let result = sqlx::query(
-        "INSERT INTO geo_country_facts(raw_event_id,site_id,country_code,occurred_at)
-         SELECT m.raw_event_id,m.site_id,m.country_code,r.occurred_at
-         FROM geo_event_metadata m JOIN raw_events r ON r.id=m.raw_event_id
-         WHERE m.site_id=$1 AND r.event_type='page_view' AND r.processed_at IS NOT NULL
-         ON CONFLICT(raw_event_id) DO UPDATE SET country_code=EXCLUDED.country_code,occurred_at=EXCLUDED.occurred_at",
-    )
-    .bind(site_id)
-    .execute(&mut *connection)
-    .await?;
-    Ok(result.rows_affected())
+    Ok(())
 }
 
 pub(crate) async fn rebuild_web_vital_facts(

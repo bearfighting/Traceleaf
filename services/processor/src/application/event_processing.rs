@@ -1,13 +1,13 @@
 use crate::{
     ProcessorError,
     application::{Processor, definition_revisions, event_facts},
-    storage::queries,
+    storage::events::raw_events,
 };
 
 impl Processor {
     pub async fn process_one(&self) -> Result<bool, ProcessorError> {
         let mut transaction = self.pool.begin().await?;
-        let Some(event) = queries::claim_next_event(&mut transaction).await? else {
+        let Some(event) = raw_events::claim_next_event(&mut transaction).await? else {
             transaction.rollback().await?;
             return Ok(false);
         };

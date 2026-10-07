@@ -1,9 +1,10 @@
-//! PostgreSQL query helpers used by processor workflows.
+//! PostgreSQL queries grouped by the data domains they read and write.
 
-pub(crate) mod conversion_funnel_rebuilds;
 pub(crate) mod definitions;
-pub(crate) mod event_facts;
-pub(crate) mod fact_rebuilds;
-pub(crate) mod generation_facts;
-pub(crate) mod generation_lifecycle;
-pub(crate) mod queries;
+pub(crate) mod events;
+pub(crate) mod facts;
+pub(crate) mod generations;
+pub(crate) mod page_views;
+pub(crate) mod rebuild_queue;
+pub(crate) mod site_lock;
+pub(crate) mod watermarks;

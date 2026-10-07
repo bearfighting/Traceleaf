@@ -1,7 +1,7 @@
 use chrono::NaiveDate;
 
 use crate::{
-    ProcessorError, application::Processor, storage::generation_lifecycle as generation_storage,
+    ProcessorError, application::Processor, storage::rebuild_queue as rebuild_queue_storage,
 };
 
 use super::{AGGREGATION_VERSION, RebuildRequest};
@@ -9,7 +9,8 @@ use super::{AGGREGATION_VERSION, RebuildRequest};
 impl Processor {
     pub async fn process_rebuild_queue_once(&self) -> Result<bool, ProcessorError> {
         let mut transaction = self.pool.begin().await?;
-        let request = generation_storage::claim_next_incremental_rebuild(&mut transaction).await?;
+        let request =
+            rebuild_queue_storage::claim_next_incremental_rebuild(&mut transaction).await?;
 
         let Some((queue_id, site_id, scope_from, scope_to, parser_version, rebuild_reason)) =
             request
@@ -30,7 +31,7 @@ impl Processor {
             return Ok(false);
         }
 
-        generation_storage::set_rebuild_running(&mut transaction, queue_id).await?;
+        rebuild_queue_storage::set_rebuild_running(&mut transaction, queue_id).await?;
         transaction.commit().await?;
 
         let request = RebuildRequest {
@@ -53,7 +54,7 @@ impl Processor {
             Err(ProcessorError::RebuildQueueAlreadyHandled(_)) => Ok(true),
             Err(ProcessorError::RebuildQueuePaused(_)) => Ok(false),
             Err(error) => {
-                generation_storage::set_rebuild_failed(&self.pool, queue_id, &error.to_string())
+                rebuild_queue_storage::set_rebuild_failed(&self.pool, queue_id, &error.to_string())
                     .await?;
                 Err(error)
             }
@@ -71,7 +72,7 @@ impl Processor {
         if scope_from > scope_to {
             return Err(ProcessorError::InvalidRebuildScope);
         }
-        generation_storage::enqueue_site_rebuild(
+        rebuild_queue_storage::enqueue_site_rebuild(
             &self.pool,
             site_id,
             scope_from,

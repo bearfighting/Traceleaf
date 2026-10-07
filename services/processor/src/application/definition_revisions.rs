@@ -3,7 +3,7 @@ use sqlx::{Postgres, Transaction};
 
 use crate::{
     Processor, ProcessorError,
-    storage::{definitions as definition_storage, queries},
+    storage::{definitions as definition_storage, site_lock},
 };
 
 impl Processor {
@@ -33,7 +33,7 @@ impl Processor {
                 .and_then(serde_json::Value::as_str)
                 .ok_or_else(|| ProcessorError::InvalidDefinitions("missing site_id".to_owned()))?;
             let mut tx = self.pool.begin().await?;
-            queries::lock_site(&mut tx, site_id).await?;
+            site_lock::lock_site(&mut tx, site_id).await?;
             let exists =
                 definition_storage::site_has_definition_revisions(&mut tx, site_id).await?;
             if exists {

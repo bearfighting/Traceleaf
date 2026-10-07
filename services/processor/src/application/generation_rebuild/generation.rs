@@ -4,7 +4,10 @@ use crate::{
     ProcessorError,
     application::Processor,
     domain::parser::{WOOTHEE_VERSION, WootheeParser},
-    storage::{generation_facts, generation_lifecycle as generation_storage, queries},
+    storage::{
+        generations::{facts as generation_facts, lifecycle as generation_storage},
+        rebuild_queue, site_lock, watermarks,
+    },
 };
 use chrono::{NaiveDate, Utc};
 use serde_json::json;
@@ -137,14 +140,10 @@ impl Processor {
                 )
                 .await;
                 let _ = if let Some(queue_id) = request.queue_id {
-                    generation_storage::fail_rebuild_queue_by_id(
-                        &self.pool,
-                        queue_id,
-                        &failure_reason,
-                    )
-                    .await
+                    rebuild_queue::fail_rebuild_queue_by_id(&self.pool, queue_id, &failure_reason)
+                        .await
                 } else {
-                    generation_storage::fail_rebuild_queue_by_scope(
+                    rebuild_queue::fail_rebuild_queue_by_scope(
                         &self.pool,
                         &request.site_id,
                         request.scope_from,
@@ -168,10 +167,10 @@ impl Processor {
         let parser = WootheeParser::new();
         let mut transaction = self.pool.begin().await?;
 
-        queries::lock_site(&mut transaction, &request.site_id).await?;
+        site_lock::lock_site(&mut transaction, &request.site_id).await?;
         if let Some(queue_id) = request.queue_id {
             let queue_status =
-                generation_storage::load_rebuild_queue_status(&mut transaction, queue_id).await?;
+                rebuild_queue::load_rebuild_queue_status(&mut transaction, queue_id).await?;
             if queue_status == "completed" || queue_status == "failed" {
                 return Err(ProcessorError::RebuildQueueAlreadyHandled(queue_id));
             }
@@ -189,7 +188,7 @@ impl Processor {
                         || caps.enabled(crate::CapabilityId::Dimensions)
                 });
             if !enabled {
-                generation_storage::set_rebuild_pending(&mut transaction, queue_id).await?;
+                rebuild_queue::set_rebuild_pending(&mut transaction, queue_id).await?;
                 transaction.commit().await?;
                 return Err(ProcessorError::RebuildQueuePaused(queue_id));
             }
@@ -251,7 +250,7 @@ impl Processor {
         generation_facts::refresh_rollups(&mut transaction, generation_id).await?;
 
         if let Some(watermark) = watermark {
-            generation_storage::advance_generation_watermarks(
+            watermarks::advance_generation_watermarks(
                 &mut transaction,
                 &request.site_id,
                 generation_id,
@@ -271,10 +270,10 @@ impl Processor {
 
         generation_storage::activate_generation(&mut transaction, generation_id).await?;
         if request.queue_id.is_some() {
-            generation_storage::complete_incremental_rebuilds(&mut transaction, &request.site_id)
+            rebuild_queue::complete_incremental_rebuilds(&mut transaction, &request.site_id)
                 .await?;
         } else if request.rebuild_reason == "backfill" {
-            generation_storage::complete_backfill_rebuilds(
+            rebuild_queue::complete_backfill_rebuilds(
                 &mut transaction,
                 &request.site_id,
                 request.scope_from,

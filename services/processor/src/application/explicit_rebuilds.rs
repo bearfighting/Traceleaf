@@ -3,8 +3,9 @@ use crate::{
     application::event_facts,
     domain::models::RawEvent,
     storage::{
-        conversion_funnel_rebuilds as rebuild_storage, event_facts as fact_storage, fact_rebuilds,
-        queries,
+        definitions,
+        facts::{conversion_funnels, custom_events, geo_country, sessions, web_vitals},
+        site_lock, watermarks,
     },
 };
 
@@ -15,7 +16,7 @@ impl Processor {
         version: &str,
     ) -> Result<u64, ProcessorError> {
         let (row_revision, document) =
-            rebuild_storage::load_definition_revision_for_version(&self.pool, site_id, version)
+            definitions::load_definition_revision_for_version(&self.pool, site_id, version)
                 .await?
                 .ok_or_else(|| {
                     ProcessorError::InvalidDefinitions(format!(
@@ -51,12 +52,11 @@ impl Processor {
             return Err(ProcessorError::CapabilityDisabled(site_id.to_owned()));
         }
         let mut transaction = self.pool.begin().await?;
-        queries::lock_site(&mut transaction, site_id).await?;
+        site_lock::lock_site(&mut transaction, site_id).await?;
         let affected_rows =
-            fact_rebuilds::rebuild_custom_event_facts(&mut transaction, site_id).await?;
-        queries::advance_custom_event_watermark(&mut transaction, site_id).await?;
-        fact_rebuilds::clear_conversion_funnel_watermark_versions(&mut transaction, site_id)
-            .await?;
+            custom_events::rebuild_custom_event_facts(&mut transaction, site_id).await?;
+        watermarks::advance_custom_event_watermark(&mut transaction, site_id).await?;
+        watermarks::clear_conversion_funnel_watermark_versions(&mut transaction, site_id).await?;
         transaction.commit().await?;
         if !self.database_definitions {
             self.rebuild_conversion_funnel_facts(site_id).await?;
@@ -81,8 +81,8 @@ impl Processor {
             return Err(ProcessorError::CapabilityDisabled(site_id.to_owned()));
         }
         let mut tx = self.pool.begin().await?;
-        queries::lock_site(&mut tx, site_id).await?;
-        let affected_rows = fact_rebuilds::rebuild_geo_country_facts(&mut tx, site_id).await?;
+        site_lock::lock_site(&mut tx, site_id).await?;
+        let affected_rows = geo_country::rebuild_geo_country_facts(&mut tx, site_id).await?;
         tx.commit().await?;
         Ok(affected_rows)
     }
@@ -96,9 +96,9 @@ impl Processor {
             return Err(ProcessorError::CapabilityDisabled(site_id.to_owned()));
         }
         let mut tx = self.pool.begin().await?;
-        queries::lock_site(&mut tx, site_id).await?;
-        let affected_rows = fact_rebuilds::rebuild_web_vital_facts(&mut tx, site_id).await?;
-        queries::advance_web_vital_watermark(&mut tx, site_id).await?;
+        site_lock::lock_site(&mut tx, site_id).await?;
+        let affected_rows = web_vitals::rebuild_web_vital_facts(&mut tx, site_id).await?;
+        watermarks::advance_web_vital_watermark(&mut tx, site_id).await?;
         tx.commit().await?;
         Ok(affected_rows)
     }
@@ -115,10 +115,10 @@ impl Processor {
             return Ok(0);
         }
         let mut tx = self.pool.begin().await?;
-        queries::lock_site(&mut tx, site_id).await?;
+        site_lock::lock_site(&mut tx, site_id).await?;
         if capabilities.enabled(crate::CapabilityId::Conversions) {
             if explicit_backfill {
-                rebuild_storage::delete_conversion_facts_for_version(
+                conversion_funnels::delete_conversion_facts_for_version(
                     &mut tx,
                     site_id,
                     &self.definitions.version,
@@ -127,7 +127,7 @@ impl Processor {
             } else if let Some(enabled_since) =
                 capabilities.enabled_since(crate::CapabilityId::Conversions)
             {
-                rebuild_storage::delete_conversion_facts_since(
+                conversion_funnels::delete_conversion_facts_since(
                     &mut tx,
                     site_id,
                     &self.definitions.version,
@@ -138,7 +138,7 @@ impl Processor {
         }
         if capabilities.enabled(crate::CapabilityId::Funnels) {
             if explicit_backfill {
-                rebuild_storage::delete_funnel_facts_for_version(
+                conversion_funnels::delete_funnel_facts_for_version(
                     &mut tx,
                     site_id,
                     &self.definitions.version,
@@ -147,7 +147,7 @@ impl Processor {
             } else if let Some(enabled_since) =
                 capabilities.enabled_since(crate::CapabilityId::Funnels)
             {
-                rebuild_storage::delete_funnel_facts_since(
+                conversion_funnels::delete_funnel_facts_since(
                     &mut tx,
                     site_id,
                     &self.definitions.version,
@@ -156,13 +156,12 @@ impl Processor {
                 .await?;
             }
         }
-        let events = rebuild_storage::load_processed_custom_events(&mut tx, site_id).await?;
+        let events = custom_events::load_processed_custom_events(&mut tx, site_id).await?;
         let mut count = 0_u64;
         for (id, event_id, occurred_at, received_at, visitor_id, payload) in events {
             let session_id = if capabilities.enabled(crate::CapabilityId::Sessions) {
                 if let Some(visitor_id) = visitor_id.as_deref() {
-                    fact_storage::find_active_session(&mut tx, site_id, visitor_id, occurred_at)
-                        .await?
+                    sessions::find_active_session(&mut tx, site_id, visitor_id, occurred_at).await?
                 } else {
                     None
                 }
@@ -170,7 +169,7 @@ impl Processor {
                 None
             };
             if capabilities.enabled(crate::CapabilityId::Sessions) {
-                rebuild_storage::set_custom_event_session(
+                custom_events::set_custom_event_session(
                     &mut tx,
                     site_id,
                     &event_id,

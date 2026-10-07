@@ -12,7 +12,7 @@ use crate::{
         parser::{UserAgentParser, WOOTHEE_VERSION},
         sessionizer::{SessionInput, SessionOutput, sessionize},
     },
-    storage::generation_facts,
+    storage::generations::facts as generation_facts,
 };
 
 type DimensionDailyKey = (String, NaiveDate, String, String);

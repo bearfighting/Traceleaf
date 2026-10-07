@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use serde_json::Value;
-use sqlx::{PgConnection, Postgres, Transaction};
+use sqlx::{PgConnection, PgPool, Postgres, Transaction};
 
 pub(crate) async fn site_has_definition_revisions(
     connection: &mut PgConnection,
@@ -45,4 +45,18 @@ pub(crate) async fn load_definition_revision(
         .bind(received_at)
         .fetch_optional(&mut **transaction)
         .await
+}
+
+pub(crate) async fn load_definition_revision_for_version(
+    pool: &PgPool,
+    site_id: &str,
+    version: &str,
+) -> Result<Option<(i64, Value)>, sqlx::Error> {
+    sqlx::query_as::<_, (i64, Value)>(
+        "SELECT revision, document FROM site_definition_revisions WHERE site_id=$1 AND definition_version=$2",
+    )
+    .bind(site_id)
+    .bind(version)
+    .fetch_optional(pool)
+    .await
 }

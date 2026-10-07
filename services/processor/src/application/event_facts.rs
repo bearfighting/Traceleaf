@@ -4,7 +4,11 @@ use sqlx::{Postgres, Transaction};
 use crate::{
     ProcessorError,
     domain::{definitions::AnalyticsDefinitions, models::RawEvent, parser::WOOTHEE_VERSION},
-    storage::{event_facts as fact_storage, queries},
+    storage::{
+        events::raw_events,
+        facts::{conversion_funnels, custom_events, geo_country, sessions, web_vitals},
+        page_views, rebuild_queue, site_lock, watermarks,
+    },
 };
 
 pub(super) fn event_is_before_activation(
@@ -36,13 +40,13 @@ pub(super) async fn process_event(
             && (!capabilities.enabled(crate::CapabilityId::WebVitals)
                 || event_is_before_activation(event, capabilities, crate::CapabilityId::WebVitals)))
     {
-        if !queries::mark_processed(transaction, event.id).await? {
+        if !raw_events::mark_processed(transaction, event.id).await? {
             return Err(ProcessorError::RawEventNotUpdated(event.id));
         }
         if event_type == Some("custom_event") {
-            queries::advance_custom_event_watermark(transaction, &event.site_id).await?;
+            watermarks::advance_custom_event_watermark(transaction, &event.site_id).await?;
         } else {
-            queries::advance_web_vital_watermark(transaction, &event.site_id).await?;
+            watermarks::advance_web_vital_watermark(transaction, &event.site_id).await?;
         }
         return Ok(());
     }
@@ -57,10 +61,10 @@ pub(super) async fn process_event(
                 .get("event_name")
                 .and_then(serde_json::Value::as_str)
                 .ok_or_else(|| ProcessorError::InvalidCustomEvent(event.event_id.clone()))?;
-            queries::lock_site(transaction, &event.site_id).await?;
+            site_lock::lock_site(transaction, &event.site_id).await?;
             let session_id = if capabilities.enabled(crate::CapabilityId::Sessions) {
                 if let Some(visitor_id) = event.visitor_id.as_deref() {
-                    fact_storage::find_active_session(
+                    sessions::find_active_session(
                         transaction,
                         &event.site_id,
                         visitor_id,
@@ -73,7 +77,7 @@ pub(super) async fn process_event(
             } else {
                 None
             };
-            fact_storage::insert_custom_event_fact(
+            custom_events::insert_custom_event_fact(
                 transaction,
                 event.id,
                 &event.site_id,
@@ -94,10 +98,10 @@ pub(super) async fn process_event(
                 false,
             )
             .await?;
-            if !queries::mark_processed(transaction, event.id).await? {
+            if !raw_events::mark_processed(transaction, event.id).await? {
                 return Err(ProcessorError::RawEventNotUpdated(event.id));
             }
-            queries::advance_custom_event_watermark(transaction, &event.site_id).await?;
+            watermarks::advance_custom_event_watermark(transaction, &event.site_id).await?;
             advance_definition_watermarks(transaction, &event.site_id, &definitions.version, false)
                 .await?;
             return Ok(());
@@ -137,7 +141,7 @@ pub(super) async fn process_event(
                 .and_then(serde_json::Value::as_i64)
                 .ok_or_else(|| ProcessorError::InvalidCustomEvent(event.event_id.clone()))?;
             // A vital is accepted only for a stored Page View in the same site with matching snapshot fields.
-            let linked = fact_storage::has_linked_page_view(
+            let linked = web_vitals::has_linked_page_view(
                 transaction,
                 &event.site_id,
                 pv_id,
@@ -148,7 +152,7 @@ pub(super) async fn process_event(
             if !linked {
                 return Err(ProcessorError::InvalidCustomEvent(event.event_id.clone()));
             }
-            fact_storage::upsert_web_vital_fact(
+            web_vitals::upsert_web_vital_fact(
                 transaction,
                 event.id,
                 &event.site_id,
@@ -162,8 +166,8 @@ pub(super) async fn process_event(
                 sequence,
             )
             .await?;
-            queries::mark_processed(transaction, event.id).await?;
-            queries::advance_web_vital_watermark(transaction, &event.site_id).await?;
+            raw_events::mark_processed(transaction, event.id).await?;
+            watermarks::advance_web_vital_watermark(transaction, &event.site_id).await?;
             return Ok(());
         }
         Some("page_view") => {}
@@ -171,16 +175,16 @@ pub(super) async fn process_event(
     }
 
     let day = event.occurred_at.with_timezone(&Utc).date_naive();
-    queries::upsert_daily(transaction, &event.site_id, day).await?;
-    queries::upsert_route(transaction, &event.site_id, day, &event.path).await?;
-    queries::upsert_total(transaction, &event.site_id).await?;
+    page_views::upsert_daily(transaction, &event.site_id, day).await?;
+    page_views::upsert_route(transaction, &event.site_id, day, &event.path).await?;
+    page_views::upsert_total(transaction, &event.site_id).await?;
 
     if capabilities.enabled(crate::CapabilityId::AnonymousVisitors)
         || capabilities.enabled(crate::CapabilityId::Sessions)
         || capabilities.enabled(crate::CapabilityId::BrowserContext)
         || capabilities.enabled(crate::CapabilityId::Dimensions)
     {
-        queries::lock_site(transaction, &event.site_id).await?;
+        site_lock::lock_site(transaction, &event.site_id).await?;
         if let Some(visitor_id) = event.visitor_id.as_deref() {
             let delay = event.received_at.signed_duration_since(event.occurred_at);
             let rebuild_reason = if delay > chrono::Duration::hours(24) {
@@ -188,7 +192,7 @@ pub(super) async fn process_event(
             } else {
                 "incremental"
             };
-            queries::enqueue_rebuild(
+            rebuild_queue::enqueue_rebuild(
                 transaction,
                 &event.site_id,
                 visitor_id,
@@ -203,13 +207,13 @@ pub(super) async fn process_event(
     if capabilities.enabled(crate::CapabilityId::Geo)
         && !event_is_before_activation(event, capabilities, crate::CapabilityId::Geo)
     {
-        fact_storage::insert_geo_country_fact(transaction, event.id).await?;
+        geo_country::insert_geo_country_fact(transaction, event.id).await?;
     }
-    if !queries::mark_processed(transaction, event.id).await? {
+    if !raw_events::mark_processed(transaction, event.id).await? {
         return Err(ProcessorError::RawEventNotUpdated(event.id));
     }
-    queries::lock_site(transaction, &event.site_id).await?;
-    queries::advance_page_view_watermark(transaction, &event.site_id).await?;
+    site_lock::lock_site(transaction, &event.site_id).await?;
+    watermarks::advance_page_view_watermark(transaction, &event.site_id).await?;
     Ok(())
 }
 
@@ -240,7 +244,7 @@ pub(super) async fn record_conversion_and_funnel_facts(
                 &conversion.event_name,
                 &conversion.properties,
             ) {
-                fact_storage::insert_conversion_fact(
+                conversion_funnels::insert_conversion_fact(
                     transaction,
                     &event.site_id,
                     &conversion.id,
@@ -267,7 +271,7 @@ pub(super) async fn record_conversion_and_funnel_facts(
             continue;
         }
         if explicit_backfill {
-            fact_storage::delete_funnel_session_facts(
+            conversion_funnels::delete_funnel_session_facts(
                 transaction,
                 &event.site_id,
                 &funnel.id,
@@ -281,7 +285,7 @@ pub(super) async fn record_conversion_and_funnel_facts(
         } else {
             capabilities.enabled_since(crate::CapabilityId::Funnels)
         };
-        let session_events = fact_storage::load_funnel_session_events(
+        let session_events = conversion_funnels::load_funnel_session_events(
             transaction,
             &event.site_id,
             &session_id,
@@ -310,7 +314,7 @@ pub(super) async fn record_conversion_and_funnel_facts(
             }
             let day =
                 *cohort_day.get_or_insert_with(|| occurred_at.with_timezone(&Utc).date_naive());
-            fact_storage::insert_funnel_step_fact(
+            conversion_funnels::insert_funnel_step_fact(
                 transaction,
                 &event.site_id,
                 &funnel.id,
@@ -335,7 +339,7 @@ pub(super) async fn advance_definition_watermarks(
     definition_version: &str,
     replace_definition_version: bool,
 ) -> Result<(), ProcessorError> {
-    fact_storage::advance_definition_watermarks(
+    watermarks::advance_definition_watermarks(
         transaction,
         site_id,
         definition_version,
