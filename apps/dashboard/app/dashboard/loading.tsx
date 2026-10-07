@@ -1,4 +1,4 @@
-import { DashboardLoadingHeader } from "../../components/dashboard-loading-header";
+import { DashboardLoadingHeader } from "../../components/shared/dashboard-loading-header";
 
 export default function DashboardLoading() {
   return (

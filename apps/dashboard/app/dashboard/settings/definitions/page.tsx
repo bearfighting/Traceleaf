@@ -1,27 +1,27 @@
 import Link from "next/link";
 import React from "react";
 
-import { DashboardHeader, DashboardShell } from "../../../../components/dashboard-shell";
-import { DefinitionEditor } from "../../../../components/definition-editor";
-import { SettingsNavigation } from "../../../../components/settings-navigation";
+import { DefinitionEditor } from "../../../../components/settings/definition-editor";
+import { SettingsNavigation } from "../../../../components/settings/settings-navigation";
+import { DashboardHeader, DashboardShell } from "../../../../components/shared/dashboard-shell";
 import {
   SiteDirectoryState,
   SiteSelectionState,
-} from "../../../../components/site-directory-state";
+} from "../../../../components/sites/site-directory-state";
 import { selectDashboardSite, siteOptions } from "../../../../config/sites";
-import { ANALYTICS_DIMENSIONS } from "../../../../lib/analytics-api/types";
+import { ANALYTICS_DIMENSIONS } from "../../../../lib/analytics/analytics-api/types";
+import { loadDefinitionRevisionHistory } from "../../../../lib/analytics/dashboard-page-data";
 import {
   getConfigurationEnvironment,
   loadSiteDefinitions,
-} from "../../../../lib/configuration-api/server";
-import { loadDefinitionRevisionHistory } from "../../../../lib/dashboard-page-data";
+} from "../../../../lib/settings/configuration-api/server";
 import {
   analyticsReportRoute,
   dashboardRoute,
   settingsRoute,
   type SettingsRouteContext,
-} from "../../../../lib/settings-routes";
-import { loadSiteDirectory } from "../../../../lib/site-management/client";
+} from "../../../../lib/settings/settings-routes";
+import { loadSiteDirectory } from "../../../../lib/sites/site-management/client";
 
 export const dynamic = "force-dynamic";
 

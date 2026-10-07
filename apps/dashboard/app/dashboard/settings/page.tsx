@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { legacySettingsRedirect } from "../../../lib/settings-routes";
+import { legacySettingsRedirect } from "../../../lib/settings/settings-routes";
 
 export default async function LegacySettingsPage({
   searchParams,

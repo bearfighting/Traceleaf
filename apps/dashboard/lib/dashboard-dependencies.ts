@@ -1,4 +1,7 @@
-import type { AnalyticsApiClient, AnalyticsApiClientOptions } from "./analytics-api/client";
+import type {
+  AnalyticsApiClient,
+  AnalyticsApiClientOptions,
+} from "./analytics/analytics-api/client";
 
 export interface DashboardApiDependencies {
   client?: AnalyticsApiClient;

@@ -3,25 +3,21 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
-vi.mock("../../../../lib/site-management/client", () => ({ loadSiteDirectory: vi.fn() }));
-vi.mock("../../../../lib/configuration-api/server", () => ({
+vi.mock("../../../../lib/sites/site-management/client", () => ({ loadSiteDirectory: vi.fn() }));
+vi.mock("../../../../lib/settings/configuration-api/server", () => ({
   getConfigurationEnvironment: vi.fn(() => undefined),
   loadSiteDefinitions: vi.fn(),
 }));
-vi.mock("../../../../lib/dashboard-page-data", () => ({
+vi.mock("../../../../lib/analytics/dashboard-page-data", () => ({
   loadDefinitionRevisionHistory: vi.fn(),
 }));
-vi.mock("../../../../components/dashboard-shell", () => ({
+vi.mock("../../../../components/shared/dashboard-shell", () => ({
   DashboardHeader: () => <header />,
   DashboardShell: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
-vi.mock("../../../../components/definition-editor", () => ({
+vi.mock("../../../../components/settings/definition-editor", () => ({
   DefinitionEditor: () => <div>Definition editor</div>,
 }));
-
-import { loadSiteDefinitions } from "../../../../lib/configuration-api/server";
-import { loadDefinitionRevisionHistory } from "../../../../lib/dashboard-page-data";
-import { loadSiteDirectory } from "../../../../lib/site-management/client";
 
 import DefinitionsPage from "./page";
 
@@ -29,6 +25,11 @@ afterEach(() => vi.resetAllMocks());
 
 describe("DefinitionsPage", () => {
   it("renders the editor without an Environment and links historical revisions", async () => {
+    const { loadSiteDefinitions } =
+      await import("../../../../lib/settings/configuration-api/server");
+    const { loadSiteDirectory } = await import("../../../../lib/sites/site-management/client");
+    const { loadDefinitionRevisionHistory } =
+      await import("../../../../lib/analytics/dashboard-page-data");
     vi.mocked(loadSiteDirectory).mockResolvedValue({
       kind: "ready",
       sites: [

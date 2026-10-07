@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 
-import { ANALYTICS_REPORT_COPY } from "../../../lib/analytics-report-copy";
+import { ANALYTICS_REPORT_COPY } from "../../../lib/analytics/analytics-report-copy";
 import { DashboardRouteContent } from "../page";
 
-import type { AnalyticsReport } from "../../../lib/settings-routes";
+import type { AnalyticsReport } from "../../../lib/settings/settings-routes";
 import type { Metadata } from "next";
 
 function isAnalyticsReport(report: string): report is AnalyticsReport {

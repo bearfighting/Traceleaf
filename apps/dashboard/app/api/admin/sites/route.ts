@@ -1,4 +1,4 @@
-import { proxyConfigurationRequest } from "../../../../lib/configuration-api/proxy";
+import { proxyConfigurationRequest } from "../../../../lib/settings/configuration-api/proxy";
 
 export async function POST(request: Request): Promise<Response> {
   return proxyConfigurationRequest(request, "/v1/admin/sites", "POST", "");

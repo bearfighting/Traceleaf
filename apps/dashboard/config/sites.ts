@@ -1,4 +1,4 @@
-import type { ManagedSite } from "../lib/site-management/client";
+import type { ManagedSite } from "../lib/sites/site-management/client";
 
 export type SiteSelection =
   | { kind: "selected"; site: ManagedSite }

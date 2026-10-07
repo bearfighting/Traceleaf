@@ -1,30 +1,30 @@
 import React from "react";
 
-import { DashboardHeader, DashboardShell } from "../../../../components/dashboard-shell";
-import { SettingsNavigation } from "../../../../components/settings-navigation";
+import { SettingsNavigation } from "../../../../components/settings/settings-navigation";
+import { DashboardHeader, DashboardShell } from "../../../../components/shared/dashboard-shell";
 import {
   SiteConnectionStatus,
   type PageViewEvidence,
-} from "../../../../components/site-connection-status";
+} from "../../../../components/sites/site-connection-status";
 import {
   SiteDirectoryState,
   SiteSelectionState,
-} from "../../../../components/site-directory-state";
+} from "../../../../components/sites/site-directory-state";
 import { selectDashboardSite, siteOptions } from "../../../../config/sites";
-import { createAnalyticsApiClient } from "../../../../lib/analytics-api/client";
-import { getAnalyticsApiUrl } from "../../../../lib/analytics-api/config";
-import { AnalyticsApiClientError } from "../../../../lib/analytics-api/errors";
-import { ANALYTICS_DIMENSIONS } from "../../../../lib/analytics-api/types";
+import { createAnalyticsApiClient } from "../../../../lib/analytics/analytics-api/client";
+import { getAnalyticsApiUrl } from "../../../../lib/analytics/analytics-api/config";
+import { AnalyticsApiClientError } from "../../../../lib/analytics/analytics-api/errors";
+import { ANALYTICS_DIMENSIONS } from "../../../../lib/analytics/analytics-api/types";
 import {
   getConfigurationEnvironment,
   loadSiteConfiguration,
-} from "../../../../lib/configuration-api/server";
+} from "../../../../lib/settings/configuration-api/server";
 import {
   dashboardRoute,
   settingsRoute,
   type SettingsRouteContext,
-} from "../../../../lib/settings-routes";
-import { loadSiteDirectory } from "../../../../lib/site-management/client";
+} from "../../../../lib/settings/settings-routes";
+import { loadSiteDirectory } from "../../../../lib/sites/site-management/client";
 
 export const dynamic = "force-dynamic";
 

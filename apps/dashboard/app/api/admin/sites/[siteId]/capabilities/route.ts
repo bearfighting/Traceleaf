@@ -1,4 +1,4 @@
-import { proxyConfigurationRequest } from "../../../../../../lib/configuration-api/proxy";
+import { proxyConfigurationRequest } from "../../../../../../lib/settings/configuration-api/proxy";
 
 type Context = { params: Promise<{ siteId: string }> };
 

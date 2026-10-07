@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { selectDashboardSite, siteOptions } from "./sites";
 
-import type { ManagedSite } from "../lib/site-management/client";
+import type { ManagedSite } from "../lib/sites/site-management/client";
 
 const active: ManagedSite = {
   site_id: "site_active",
