@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use analytics_api::{AdminTokens, connect, router, state_with_admin_tokens};
+use analytics_api::{AdminTokens, RouterConfig, build_router};
 use anyhow::Context;
 use clap::Parser;
 use tracing::info;
@@ -22,13 +22,15 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     let database_url = std::env::var("DATABASE_URL").context("DATABASE_URL must be configured")?;
     let admin_tokens = AdminTokens::from_environment()?;
-    let state = state_with_admin_tokens(
-        connect(&database_url).context("failed to initialize Analytics API state")?,
+    let router = build_router(RouterConfig {
+        database_url,
+        definition_version: "1".to_owned(),
         admin_tokens,
-    );
+    })
+    .context("failed to initialize Analytics API router")?;
     let listener =
         tokio::net::TcpListener::bind(SocketAddr::new(cli.host.parse()?, cli.port)).await?;
     info!(service = "analytics-api", host = %cli.host, port = cli.port, "analytics API started");
-    axum::serve(listener, router(state)).await?;
+    axum::serve(listener, router).await?;
     Ok(())
 }
