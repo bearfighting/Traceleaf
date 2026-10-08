@@ -1,5 +1,6 @@
 use super::router;
-use crate::sink::{EventSink, InMemorySink, SinkError, StoredEvent};
+use crate::application::event_sink::{EventSink, SinkError, StoredEvent};
+use crate::test_support::InMemorySink;
 use async_trait::async_trait;
 use axum::{
     body::{Body, to_bytes},
@@ -14,10 +15,10 @@ fn app<S>(sink: S) -> axum::Router
 where
     S: EventSink + 'static,
 {
-    let policy = crate::security::KeyPolicy::new(
-        crate::config::SiteRegistry::from_sites(vec![
+    let policy = crate::domain::security::KeyPolicy::new(
+        crate::domain::config::SiteRegistry::from_sites(vec![
             {
-                let mut site = crate::config::SiteConfig::new(
+                let mut site = crate::domain::config::SiteConfig::new(
                     "site_example",
                     "production",
                     true,
@@ -26,15 +27,20 @@ where
                 site.allowed_origins = vec!["https://example.com".into()];
                 site
             },
-            crate::config::SiteConfig::new("site_disabled", "production", false, "disabled-key"),
+            crate::domain::config::SiteConfig::new(
+                "site_disabled",
+                "production",
+                false,
+                "disabled-key",
+            ),
         ])
         .expect("test registry should be valid"),
     );
     router(
-        crate::validation::Validator::new().expect("schemas should compile"),
+        crate::domain::validation::Validator::new().expect("schemas should compile"),
         sink,
         policy,
-        crate::rate_limit::RateLimiter::new(),
+        crate::application::rate_limit::RateLimiter::new(),
     )
 }
 

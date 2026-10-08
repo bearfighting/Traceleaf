@@ -1,14 +1,13 @@
-pub mod capabilities;
 pub mod cli;
-pub mod config;
-pub mod error;
-pub mod geo;
-pub mod http;
 pub mod key;
 pub mod logging;
-pub mod protocol;
-pub mod rate_limit;
-pub mod runtime_policy;
-pub mod security;
-pub mod sink;
-pub mod validation;
+
+pub mod application;
+pub mod domain;
+pub mod storage;
+pub mod transport;
+
+#[cfg(test)]
+pub mod test_support;
+#[cfg(test)]
+mod test_support_tests;

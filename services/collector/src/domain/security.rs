@@ -4,7 +4,7 @@ use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
 use thiserror::Error;
 
-use crate::config::{SiteConfig, SiteRegistry, normalize_origin};
+use crate::domain::config::{SiteConfig, SiteRegistry, normalize_origin};
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum AccessError {
@@ -128,7 +128,7 @@ fn log_rejected(site_id: &str, reason: &str) {
 #[cfg(test)]
 mod tests {
     use super::{AccessError, KeyPolicy};
-    use crate::config::{SiteConfig, SiteRegistry};
+    use crate::domain::config::{SiteConfig, SiteRegistry};
 
     fn policy() -> KeyPolicy {
         let mut development =

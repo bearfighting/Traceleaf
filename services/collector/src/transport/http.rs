@@ -1,6 +1,8 @@
 use crate::{
-    geo::GeoLookup, rate_limit::RateLimiter, security::KeyPolicy, sink::EventSink,
-    validation::Validator,
+    application::event_sink::EventSink,
+    application::geo_lookup::GeoResolver,
+    application::rate_limit::RateLimiter,
+    domain::{security::KeyPolicy, validation::Validator},
 };
 use axum::{
     Json, Router,
@@ -9,6 +11,7 @@ use axum::{
 use configuration_runtime::CapabilityRuntime;
 use std::sync::Arc;
 
+pub mod client_ip;
 mod events;
 mod preflight;
 mod response;
@@ -21,7 +24,7 @@ pub struct AppState {
     pub(super) sink: Arc<dyn EventSink>,
     pub(super) policy: Arc<KeyPolicy>,
     pub(super) rate_limiter: Arc<RateLimiter>,
-    pub(super) geo: Option<Arc<GeoLookup>>,
+    pub(super) geo: Option<Arc<dyn GeoResolver>>,
     pub(super) trusted_proxies: Arc<Vec<ipnet::IpNet>>,
     pub(super) capabilities: Option<CapabilityRuntime>,
 }
@@ -42,7 +45,7 @@ pub fn router_with_geo<S>(
     sink: S,
     policy: KeyPolicy,
     rate_limiter: RateLimiter,
-    geo: Option<GeoLookup>,
+    geo: Option<Arc<dyn GeoResolver>>,
     trusted_proxies: Vec<ipnet::IpNet>,
 ) -> Router
 where
@@ -63,7 +66,7 @@ pub fn router_with_capabilities<S>(
     sink: S,
     policy: KeyPolicy,
     rate_limiter: RateLimiter,
-    geo: Option<GeoLookup>,
+    geo: Option<Arc<dyn GeoResolver>>,
     trusted_proxies: Vec<ipnet::IpNet>,
     capabilities: Option<CapabilityRuntime>,
 ) -> Router
@@ -78,7 +81,7 @@ where
             sink: Arc::new(sink),
             policy: Arc::new(policy),
             rate_limiter: Arc::new(rate_limiter),
-            geo: geo.map(Arc::new),
+            geo,
             trusted_proxies: Arc::new(trusted_proxies),
             capabilities,
         })

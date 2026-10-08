@@ -1,13 +1,13 @@
 use axum::{body::Body, body::to_bytes, http::Request};
 use chrono::{Duration, Utc};
 use collector::{
-    config::CollectorConfig,
-    http::router,
-    rate_limit::RateLimiter,
-    security::KeyPolicy,
-    sink::{EventSink, InMemorySink},
-    validation::Validator,
+    application::config::load_from_path,
+    application::{event_sink::EventSink, rate_limit::RateLimiter},
+    domain::{security::KeyPolicy, validation::Validator},
+    transport::http::router,
 };
+mod common;
+use common::InMemorySink;
 use std::path::Path;
 use tower::ServiceExt;
 
@@ -26,7 +26,7 @@ where
 {
     let config_path =
         Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/collector-origin-policy.toml");
-    let config = CollectorConfig::load_from_path(&config_path).expect("test config should load");
+    let config = load_from_path(&config_path).expect("test config should load");
     router(
         Validator::new().expect("schemas should compile"),
         sink,

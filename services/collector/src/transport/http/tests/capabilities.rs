@@ -1,11 +1,14 @@
 use super::*;
 use crate::{
-    config::{SiteConfig, SiteRegistry},
-    http::{AppState, events::validate_batch},
-    rate_limit::RateLimiter,
-    security::KeyPolicy,
-    sink::StoredEvent,
-    validation::Validator,
+    application::{
+        capabilities::CapabilityState, event_sink::StoredEvent, rate_limit::RateLimiter,
+    },
+    domain::{
+        config::{SiteConfig, SiteRegistry},
+        security::KeyPolicy,
+        validation::Validator,
+    },
+    transport::http::{AppState, events::validate_batch},
 };
 use axum::http::StatusCode;
 use chrono::Utc;
@@ -78,7 +81,7 @@ async fn capability_runtime_rejects_disabled_events_and_redacts_page_view_fields
         true,
         Some("https://example.com"),
         None,
-        Some(capabilities.clone()),
+        CapabilityState::Available(capabilities.clone()),
     )
     .await;
     assert_eq!(response.status(), StatusCode::ACCEPTED);
@@ -88,7 +91,7 @@ async fn capability_runtime_rejects_disabled_events_and_redacts_page_view_fields
         assert!(event.payload.get("context").is_none());
         assert!(event.payload.get("visitor_id").is_none());
         match &event.event {
-            crate::protocol::AnalyticsEvent::PageView(page_view) => {
+            crate::domain::protocol::AnalyticsEvent::PageView(page_view) => {
                 assert!(page_view.context.is_none());
                 assert!(page_view.visitor_id.is_none());
             }
@@ -106,7 +109,7 @@ async fn capability_runtime_rejects_disabled_events_and_redacts_page_view_fields
         true,
         Some("https://example.com"),
         None,
-        Some(capabilities),
+        CapabilityState::Available(capabilities),
     )
     .await;
     assert_eq!(response.status(), StatusCode::FORBIDDEN);

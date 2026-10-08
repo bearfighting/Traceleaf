@@ -1,5 +1,116 @@
 use clap::{Args, Parser, Subcommand};
 
+use crate::{
+    application::{event_sink::SinkError, runtime_policy::RuntimePolicyManager},
+    domain::{config::ConfigError, validation::ValidationError},
+    domain::{config::SiteRegistry, security::KeyPolicy, validation::Validator},
+    key::KeyGenerationError,
+    storage::{
+        geo::GeoLookup, runtime_policy::PostgresRuntimePolicyRepository, sink::PostgresSink,
+    },
+    transport::http,
+};
+use std::{
+    net::{IpAddr, SocketAddr},
+    path::Path,
+};
+use thiserror::Error;
+use tracing::info;
+
+pub async fn run() -> Result<(), CliError> {
+    let cli = Cli::parse();
+    match cli.command {
+        Commands::Serve(args) => serve(args).await,
+        Commands::Key {
+            command: KeyCommands::Generate(args),
+        } => generate_key(args).await,
+    }
+}
+
+async fn generate_key(_args: KeyGenerateArgs) -> Result<(), CliError> {
+    let key = crate::key::generate()?;
+    println!("{key}");
+    Ok(())
+}
+
+async fn serve(args: ServeArgs) -> Result<(), CliError> {
+    let host: IpAddr = args.host.parse()?;
+    let address = SocketAddr::from((host, args.port));
+    let validator = Validator::new().map_err(CliError::ValidationSetup)?;
+    let database_url = std::env::var("DATABASE_URL").map_err(|_| CliError::MissingDatabaseUrl)?;
+    let sink = PostgresSink::connect(&database_url).await?;
+    let policy = KeyPolicy::new(SiteRegistry::from_runtime_sites(Vec::new())?);
+    let policy_validator =
+        crate::application::runtime_policy::stored_policy_validator().map_err(|error| {
+            CliError::RuntimeConfiguration(format!(
+                "invalid embedded environment policy schema: {error}"
+            ))
+        })?;
+    let runtime = RuntimePolicyManager::with_repository(
+        std::sync::Arc::new(PostgresRuntimePolicyRepository::new(sink.pool())),
+        policy.clone(),
+        policy_validator,
+    )
+    .map_err(|error| CliError::RuntimeConfiguration(error.to_string()))?;
+    let geo_path = std::env::var("GEOIP_DATABASE_PATH").map_err(|_| CliError::GeoConfiguration("GEOIP_DATABASE_PATH must point to a supported local GeoLite2 Country or DB-IP City Lite MMDB".to_owned()))?;
+    let geo = GeoLookup::open(Path::new(&geo_path))
+        .map_err(|error| CliError::GeoConfiguration(error.to_string()))?;
+    let trusted_proxies = std::env::var("GEOIP_TRUSTED_PROXIES")
+        .unwrap_or_default()
+        .split(',')
+        .filter(|value| !value.trim().is_empty())
+        .map(|value| value.trim().parse::<ipnet::IpNet>())
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| {
+            CliError::GeoConfiguration(format!("invalid GEOIP_TRUSTED_PROXIES: {error}"))
+        })?;
+    let capabilities = configuration_runtime::CapabilityRuntime::new(sink.pool(), "collector")
+        .map_err(CliError::RuntimeConfiguration)?;
+    let app = http::router_with_capabilities(
+        validator,
+        sink.clone(),
+        policy,
+        crate::application::rate_limit::RateLimiter::new(),
+        Some(std::sync::Arc::new(geo)),
+        trusted_proxies,
+        Some(capabilities.clone()),
+    );
+    let listener = tokio::net::TcpListener::bind(address).await?;
+    runtime.spawn();
+    capabilities.spawn();
+    info!(service = "collector", version = env!("CARGO_PKG_VERSION"), host = %args.host, port = args.port, "collector started");
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .map_err(CliError::Serve)
+}
+
+#[derive(Debug, Error)]
+pub enum CliError {
+    #[error(transparent)]
+    Config(#[from] ConfigError),
+    #[error("invalid bind address: {0}")]
+    Address(#[from] std::net::AddrParseError),
+    #[error("failed to bind collector: {0}")]
+    Bind(#[from] std::io::Error),
+    #[error("collector server failed: {0}")]
+    Serve(std::io::Error),
+    #[error("failed to initialize event schema validator: {0}")]
+    ValidationSetup(ValidationError),
+    #[error("DATABASE_URL must be configured")]
+    MissingDatabaseUrl,
+    #[error("failed to initialize Collector configuration runtime: {0}")]
+    RuntimeConfiguration(String),
+    #[error("GeoIP configuration error: {0}")]
+    GeoConfiguration(String),
+    #[error(transparent)]
+    Storage(#[from] SinkError),
+    #[error("failed to generate ingest key: {0}")]
+    KeyGeneration(#[from] KeyGenerationError),
+}
+
 #[derive(Debug, Parser)]
 #[command(name = "collector", version, about = "Web Analytics event collector")]
 pub struct Cli {

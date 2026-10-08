@@ -1,5 +1,5 @@
 #[allow(dead_code)]
-#[path = "generated/environment_policy.rs"]
+#[path = "../generated/environment_policy.rs"]
 mod generated_environment_policy;
 
 use std::{
@@ -8,13 +8,13 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::application::runtime_policy_repository::RuntimePolicyRepository;
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use getrandom::fill as random_fill;
 use jsonschema::{Draft, Validator};
 use serde_json::Value;
-use sqlx::PgPool;
 
-use crate::{
+use crate::domain::{
     config::{SiteConfig, SiteRegistry},
     security::KeyPolicy,
 };
@@ -24,7 +24,7 @@ pub const STATUS_HEARTBEAT_TTL: Duration = Duration::from_secs(15);
 const STATUS_PRUNE_INTERVAL: Duration = Duration::from_secs(3600);
 const STATUS_RETENTION: &str = "1 day";
 const POLICY_SCHEMA: &str = include_str!(
-    "../../../protocol/contracts/configuration/current/environment-policy.schema.json"
+    "../../../../protocol/contracts/configuration/current/environment-policy.schema.json"
 );
 
 type Identity = (String, String);
@@ -54,7 +54,7 @@ struct Report {
 }
 
 pub struct RuntimePolicyManager {
-    pool: PgPool,
+    repository: Arc<dyn RuntimePolicyRepository>,
     policy: KeyPolicy,
     validator: Validator,
     instance_id: String,
@@ -63,15 +63,15 @@ pub struct RuntimePolicyManager {
 }
 
 impl RuntimePolicyManager {
-    pub fn new(
-        pool: PgPool,
+    pub fn with_repository(
+        repository: Arc<dyn RuntimePolicyRepository>,
         policy: KeyPolicy,
         validator: Validator,
     ) -> Result<Arc<Self>, getrandom::Error> {
         let mut instance_bytes = [0_u8; 16];
         random_fill(&mut instance_bytes)?;
         Ok(Arc::new(Self {
-            pool,
+            repository,
             policy,
             validator,
             instance_id: URL_SAFE_NO_PAD.encode(instance_bytes),
@@ -91,16 +91,7 @@ impl RuntimePolicyManager {
     }
 
     pub async fn refresh_once(&self) -> bool {
-        let rows = match sqlx::query_as::<_, (String, String, i64, Value)>(
-            "SELECT policy.site_id, policy.environment, policy.version, policy.document
-             FROM site_environment_policies AS policy
-             JOIN site_registry AS site USING (site_id)
-             WHERE site.lifecycle_status = 'active'
-             ORDER BY policy.site_id, policy.environment",
-        )
-        .fetch_all(&self.pool)
-        .await
-        {
+        let rows = match self.repository.active_policies().await {
             Ok(rows) => rows,
             Err(_) => {
                 tracing::warn!(
@@ -115,7 +106,11 @@ impl RuntimePolicyManager {
         let mut parsed = Vec::with_capacity(rows.len());
         let mut invalid = HashSet::new();
         let mut present = HashSet::new();
-        for (site_id, environment, version, document) in rows {
+        for row in rows {
+            let site_id = row.site_id;
+            let environment = row.environment;
+            let version = row.version;
+            let document = row.document;
             let identity = (site_id.clone(), environment.clone());
             present.insert(identity.clone());
             match parse_database_policy(&self.validator, &site_id, &environment, version, &document)
@@ -189,30 +184,26 @@ impl RuntimePolicyManager {
 
     async fn write_report(&self, report: &Report) {
         let status = if report.stale { "stale" } else { "current" };
-        let result = sqlx::query(
-            "INSERT INTO configuration_runtime_state (instance_id, service, site_id, environment, applied_version, refresh_status, last_seen_at) VALUES ($1, 'collector', $2, $3, $4, $5, NOW()) ON CONFLICT (instance_id, site_id, environment) DO UPDATE SET applied_version = EXCLUDED.applied_version, refresh_status = EXCLUDED.refresh_status, last_seen_at = NOW()",
-        )
-        .bind(&self.instance_id)
-        .bind(&report.identity.0)
-        .bind(&report.identity.1)
-        .bind(report.applied_version)
-        .bind(status)
-        .execute(&self.pool)
-        .await;
+        let result = self
+            .repository
+            .record_applied_policy(
+                &self.instance_id,
+                &report.identity.0,
+                &report.identity.1,
+                report.applied_version,
+                status,
+            )
+            .await;
         if result.is_err() {
             tracing::warn!("Collector applied-version report unavailable");
         }
     }
 
     async fn clear_report(&self, identity: &Identity) {
-        let result = sqlx::query(
-            "DELETE FROM configuration_runtime_state WHERE instance_id = $1 AND service = 'collector' AND site_id = $2 AND environment = $3",
-        )
-        .bind(&self.instance_id)
-        .bind(&identity.0)
-        .bind(&identity.1)
-        .execute(&self.pool)
-        .await;
+        let result = self
+            .repository
+            .delete_applied_policy(&self.instance_id, &identity.0, &identity.1)
+            .await;
         if result.is_err() {
             tracing::warn!("removed Collector policy status cleanup failed");
             self.write_report(&Report {
@@ -235,35 +226,15 @@ impl RuntimePolicyManager {
             }
         };
         if should_prune {
-            let result = sqlx::query(
-                "DELETE FROM configuration_runtime_state WHERE last_seen_at < NOW() - $1::INTERVAL",
-            )
-            .bind(STATUS_RETENTION)
-            .execute(&self.pool)
-            .await;
+            let result = self.repository.prune_expired(STATUS_RETENTION).await;
             if result.is_err() {
                 tracing::warn!("expired Collector runtime state cleanup failed");
-            }
-            let result = sqlx::query(
-                "DELETE FROM configuration_runtime_instances WHERE last_seen_at < NOW() - $1::INTERVAL",
-            )
-            .bind(STATUS_RETENTION)
-            .execute(&self.pool)
-            .await;
-            if result.is_err() {
-                tracing::warn!("expired Collector instance heartbeat cleanup failed");
             }
         }
     }
 
     async fn write_instance_status(&self, status: &str) {
-        let result = sqlx::query(
-            "INSERT INTO configuration_runtime_instances (instance_id, service, refresh_status, last_seen_at) VALUES ($1, 'collector', $2, NOW()) ON CONFLICT (instance_id) DO UPDATE SET refresh_status = EXCLUDED.refresh_status, last_seen_at = NOW()",
-        )
-        .bind(&self.instance_id)
-        .bind(status)
-        .execute(&self.pool)
-        .await;
+        let result = self.repository.heartbeat(&self.instance_id, status).await;
         if result.is_err() {
             tracing::warn!("Collector instance heartbeat unavailable");
         }
@@ -413,7 +384,7 @@ mod tests {
         CONFIG_REFRESH_INTERVAL, DatabasePolicy, Identity, Report, STATUS_HEARTBEAT_TTL,
         decode_digest, parse_database_policy, reconcile_snapshot, stored_policy_validator,
     };
-    use crate::config::SiteConfig;
+    use crate::domain::config::SiteConfig;
     use serde_json::Value;
     use std::collections::{HashMap, HashSet};
 
@@ -569,7 +540,7 @@ mod tests {
     fn parses_schema_valid_empty_key_policy_as_fail_closed_runtime_site() {
         let validator = stored_policy_validator().unwrap();
         let document: Value = serde_json::from_str(include_str!(
-            "../../../protocol/contracts/configuration/current/fixtures/environment-policy/valid/empty-ingest-keys.json"
+            "../../../../protocol/contracts/configuration/current/fixtures/environment-policy/valid/empty-ingest-keys.json"
         ))
         .unwrap();
         let policy = parse_database_policy(&validator, "site_playground", "preview", 1, &document)
@@ -591,7 +562,7 @@ mod tests {
     fn rejects_schema_invalid_document_with_startup_validator() {
         let validator = stored_policy_validator().unwrap();
         let document: Value = serde_json::from_str(include_str!(
-            "../../../protocol/contracts/configuration/current/fixtures/environment-policy/valid/production.json"
+            "../../../../protocol/contracts/configuration/current/fixtures/environment-policy/valid/production.json"
         ))
         .unwrap();
         let mut invalid = document;
@@ -697,7 +668,7 @@ mod tests {
     fn schema_unbounded_policy_integers_exceed_collector_i64_range() {
         let validator = stored_policy_validator().unwrap();
         let base: Value = serde_json::from_str(include_str!(
-            "../../../protocol/contracts/configuration/current/fixtures/environment-policy/valid/empty-ingest-keys.json"
+            "../../../../protocol/contracts/configuration/current/fixtures/environment-policy/valid/empty-ingest-keys.json"
         )).unwrap();
         for field in ["version", "rate_limit_per_minute"] {
             let mut document = base.clone();
@@ -718,7 +689,7 @@ mod tests {
     fn rejects_database_identity_and_version_mismatches() {
         let validator = stored_policy_validator().unwrap();
         let mut document: Value = serde_json::from_str(include_str!(
-            "../../../protocol/contracts/configuration/current/fixtures/environment-policy/valid/empty-ingest-keys.json"
+            "../../../../protocol/contracts/configuration/current/fixtures/environment-policy/valid/empty-ingest-keys.json"
         ))
         .unwrap();
         document["site_id"] = Value::String("other_site".to_owned());
@@ -727,7 +698,7 @@ mod tests {
         );
 
         let mut document: Value = serde_json::from_str(include_str!(
-            "../../../protocol/contracts/configuration/current/fixtures/environment-policy/valid/empty-ingest-keys.json"
+            "../../../../protocol/contracts/configuration/current/fixtures/environment-policy/valid/empty-ingest-keys.json"
         ))
         .unwrap();
         document["version"] = Value::from(2);

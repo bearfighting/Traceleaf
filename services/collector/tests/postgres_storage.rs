@@ -1,14 +1,19 @@
 use axum::{body::Body, http::Request};
 use chrono::Utc;
 use collector::{
-    config::{SiteConfig, SiteRegistry},
-    geo::GeoEnrichment,
-    http::router,
-    protocol::{AnalyticsEvent, EventType, PageViewEvent},
-    rate_limit::RateLimiter,
-    security::KeyPolicy,
-    sink::{EventSink, PostgresSink, SinkError, StoredEvent},
-    validation::Validator,
+    application::{
+        event_sink::{EventSink, SinkError, StoredEvent},
+        rate_limit::RateLimiter,
+    },
+    domain::{
+        config::{SiteConfig, SiteRegistry},
+        geo::GeoEnrichment,
+        protocol::{AnalyticsEvent, EventType, PageViewEvent},
+        security::KeyPolicy,
+        validation::Validator,
+    },
+    storage::sink::PostgresSink,
+    transport::http::router,
 };
 use http_body_util::BodyExt;
 use serde_json::json;

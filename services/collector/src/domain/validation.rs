@@ -2,7 +2,7 @@ use jsonschema::{Draft, Retrieve, Uri};
 use serde_json::Value;
 use thiserror::Error;
 
-use crate::protocol::{AnalyticsEvent, CustomEvent, PageViewEvent, WebVitalEvent};
+use crate::domain::protocol::{AnalyticsEvent, CustomEvent, PageViewEvent, WebVitalEvent};
 
 #[derive(Debug, Clone)]
 pub struct ValidatedBatch {
@@ -17,14 +17,15 @@ pub struct ValidatedEvent {
 }
 
 const EVENT_BATCH_SCHEMA: &str =
-    include_str!("../../../protocol/events/schemas/event-batch.schema.json");
+    include_str!("../../../../protocol/events/schemas/event-batch.schema.json");
 const PAGE_VIEW_SCHEMA: &str =
-    include_str!("../../../protocol/events/schemas/page-view-event.schema.json");
+    include_str!("../../../../protocol/events/schemas/page-view-event.schema.json");
 const CUSTOM_EVENT_SCHEMA: &str =
-    include_str!("../../../protocol/events/schemas/custom-event.schema.json");
+    include_str!("../../../../protocol/events/schemas/custom-event.schema.json");
 const WEB_VITAL_SCHEMA: &str =
-    include_str!("../../../protocol/events/schemas/web-vital-event.schema.json");
-const CONTEXT_SCHEMA: &str = include_str!("../../../protocol/contexts/browser-context.schema.json");
+    include_str!("../../../../protocol/events/schemas/web-vital-event.schema.json");
+const CONTEXT_SCHEMA: &str =
+    include_str!("../../../../protocol/contexts/browser-context.schema.json");
 
 #[derive(Debug, Error)]
 pub enum ValidationError {

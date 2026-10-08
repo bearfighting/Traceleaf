@@ -1,22 +1,11 @@
-use std::{net::IpAddr, path::Path, sync::Arc};
-
-use ipnet::IpNet;
 use maxminddb::{Reader, geoip2};
-use serde::Serialize;
+use std::{net::IpAddr, path::Path, sync::Arc};
 use thiserror::Error;
 
-pub const GEO_PARSER_VERSION: &str = "1";
+use crate::domain::geo::{GEO_PARSER_VERSION, GeoEnrichment, valid_country_code};
 
 const MAXMIND_PROVIDER: &str = "maxmind";
 const DBIP_PROVIDER: &str = "db-ip";
-
-#[derive(Debug, Clone, Serialize)]
-pub struct GeoEnrichment {
-    pub country_code: String,
-    pub provider: String,
-    pub dataset_version: String,
-    pub parser_version: String,
-}
 
 #[derive(Debug, Error)]
 pub enum GeoError {
@@ -65,6 +54,12 @@ impl GeoLookup {
     }
 }
 
+impl crate::application::geo_lookup::GeoResolver for GeoLookup {
+    fn lookup(&self, ip: Option<IpAddr>) -> GeoEnrichment {
+        GeoLookup::lookup(self, ip)
+    }
+}
+
 fn provider_for_database_type(database_type: &str) -> Result<&'static str, GeoError> {
     if database_type.starts_with("GeoLite2-Country") {
         Ok(MAXMIND_PROVIDER)
@@ -75,93 +70,14 @@ fn provider_for_database_type(database_type: &str) -> Result<&'static str, GeoEr
     }
 }
 
-pub fn valid_country_code(code: &str) -> bool {
-    code.len() == 2 && code.bytes().all(|byte| byte.is_ascii_uppercase())
-}
-
-pub fn client_ip(
-    peer: Option<IpAddr>,
-    forwarded_for: Option<&str>,
-    trusted_proxies: &[IpNet],
-) -> Option<IpAddr> {
-    let peer = peer?;
-    if !trusted_proxies
-        .iter()
-        .any(|network| network.contains(&peer))
-    {
-        return Some(peer);
-    }
-
-    let forwarded_for = forwarded_for?;
-    let chain = forwarded_for
-        .split(',')
-        .map(str::trim)
-        .map(str::parse::<IpAddr>)
-        .collect::<Result<Vec<_>, _>>();
-    let Ok(chain) = chain else {
-        return None;
-    };
-
-    chain
-        .into_iter()
-        .rev()
-        .find(|ip| !trusted_proxies.iter().any(|network| network.contains(ip)))
-}
-
 #[cfg(test)]
 mod tests {
     use std::{net::IpAddr, path::Path};
 
-    use ipnet::IpNet;
-
-    use super::{GeoError, client_ip, provider_for_database_type, valid_country_code};
+    use super::{GeoError, provider_for_database_type, valid_country_code};
 
     fn ip(value: &str) -> IpAddr {
         value.parse().unwrap()
-    }
-
-    fn networks(values: &[&str]) -> Vec<IpNet> {
-        values.iter().map(|value| value.parse().unwrap()).collect()
-    }
-
-    #[test]
-    fn only_trusted_proxy_forwarding_is_used() {
-        let trusted = networks(&["10.0.0.0/8"]);
-        assert_eq!(
-            client_ip(Some(ip("203.0.113.7")), Some("198.51.100.4"), &trusted),
-            Some(ip("203.0.113.7"))
-        );
-        assert_eq!(
-            client_ip(
-                Some(ip("10.0.0.2")),
-                Some("198.51.100.4, 10.0.0.1"),
-                &trusted
-            ),
-            Some(ip("198.51.100.4"))
-        );
-        assert_eq!(
-            client_ip(Some(ip("10.0.0.2")), Some("not-an-ip"), &trusted),
-            None
-        );
-        assert_eq!(client_ip(Some(ip("10.0.0.2")), None, &trusted), None);
-        assert_eq!(
-            client_ip(Some(ip("10.0.0.2")), Some("10.0.0.1, 10.0.0.3"), &trusted),
-            None
-        );
-    }
-
-    #[test]
-    fn supports_ipv6_and_trusted_proxy_chains() {
-        let trusted = networks(&["10.0.0.0/8", "2001:db8::/32"]);
-        assert_eq!(
-            client_ip(
-                Some(ip("2001:db8::2")),
-                Some("2001:4860::7, 10.0.0.4"),
-                &trusted
-            ),
-            Some(ip("2001:4860::7"))
-        );
-        assert_eq!(client_ip(None, Some("198.51.100.1"), &trusted), None);
     }
 
     #[test]
