@@ -74,10 +74,12 @@ async function json(response, description) {
 
 async function waitForCapabilities(siteId, version) {
   const deadline = Date.now() + 30_000;
+  let lastEffectiveState;
   while (Date.now() < deadline) {
     const response = await request(`/v1/admin/sites/${siteId}/capabilities`);
     if (response.ok) {
       const body = await response.json();
+      lastEffectiveState = body.effective_state;
       const applied = body.effective_state.applied_versions;
       if (
         body.effective_state.status === "current" &&
@@ -87,7 +89,9 @@ async function waitForCapabilities(siteId, version) {
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  throw new Error(`Capability version ${version} did not converge for ${siteId}`);
+  throw new Error(
+    `Capability version ${version} did not converge for ${siteId}: ${JSON.stringify(lastEffectiveState ?? null)}`,
+  );
 }
 
 async function waitForPolicy(siteId, version) {

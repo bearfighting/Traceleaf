@@ -17,6 +17,20 @@ pub struct RouterConfig {
 }
 
 pub fn build_router(config: RouterConfig) -> anyhow::Result<axum::Router> {
+    let (router, _) = build_router_with_runtime(config)?;
+    Ok(router)
+}
+
+/// Build the production router and start periodic capability refreshes.
+pub fn build_server_router(config: RouterConfig) -> anyhow::Result<axum::Router> {
+    let (router, capabilities) = build_router_with_runtime(config)?;
+    capabilities.spawn();
+    Ok(router)
+}
+
+fn build_router_with_runtime(
+    config: RouterConfig,
+) -> anyhow::Result<(axum::Router, configuration_runtime::CapabilityRuntime)> {
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect_lazy(&config.database_url)?;
@@ -31,7 +45,8 @@ pub fn build_router(config: RouterConfig) -> anyhow::Result<axum::Router> {
         registry.clone(),
     )
     .map_err(anyhow::Error::msg)?;
-    let analytics = analytics::state::AnalyticsState::new(analytics_capabilities, analytics_reads);
+    let analytics =
+        analytics::state::AnalyticsState::new(analytics_capabilities.clone(), analytics_reads);
     let site_management_use_cases = Arc::new(
         storage::postgres::PostgresSiteManagementAdapter::new(pool.clone()),
     );
@@ -43,5 +58,5 @@ pub fn build_router(config: RouterConfig) -> anyhow::Result<axum::Router> {
     let health_check = Arc::new(storage::postgres::PostgresHealthCheck(pool));
     let state = application::state::AppState::new(analytics, site_management, health_check)
         .with_admin_tokens(config.admin_tokens);
-    Ok(application::routes::router(state))
+    Ok((application::routes::router(state), analytics_capabilities))
 }

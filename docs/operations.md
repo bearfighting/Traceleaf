@@ -6,16 +6,17 @@ Operational procedures for PostgreSQL and country Geo data. Deployment-specific 
 
 The standalone `db-migrator` owns schema creation and upgrades. Deploy and complete the migration job before starting Collector, Processor or Analytics API versions that require the new schema. Services do not migrate the database during startup.
 
-For local migration and integration testing, create a dedicated test database and use a role allowed to create temporary databases. The migration harness also checks the selected database's migration history; integration tests apply migrations and write data. Do not use the development database. For the default local Compose credentials:
+PostgreSQL tests use a dedicated, loopback-only Compose project and volume. Each command creates a unique `analytics_test_...` database, applies migrations, runs only its selected tests, then drops that database. They ignore `DATABASE_URL`; CI supplies `TEST_POSTGRES_ADMIN_URL` for its PostgreSQL service.
 
 ```bash
-docker compose exec -T postgres createdb -U analytics analytics_test
-export DATABASE_URL=postgres://analytics:analytics@localhost:5432/analytics_test
+pnpm test:postgres:up
+pnpm test:collector:postgres
+pnpm test:processor:postgres
+pnpm test:analytics-api:postgres
 pnpm test:migrations
-pnpm test:integration
 ```
 
-The migration harness requires `psql` and `CREATEDB` privileges to create and clean up its temporary clean-install and upgrade databases. See [Database migration layout](../db/migrations/README.md) for migration ownership and local workflow.
+`pnpm test:integration` runs migration regression and all three components sequentially. `pnpm test:postgres:down` stops only the test service and keeps its volume; `pnpm test:postgres:purge` also removes that volume. `pnpm test:postgres:clean-stale` removes only marked test databases older than 24 hours with no active connections. The commands require Docker Compose and `psql` locally. See [Database migration layout](../db/migrations/README.md) for migration ownership and local workflow.
 
 ## PostgreSQL backup and restore
 

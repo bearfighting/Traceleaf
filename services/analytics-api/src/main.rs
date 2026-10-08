@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use analytics_api::{AdminTokens, RouterConfig, build_router};
+use analytics_api::{AdminTokens, RouterConfig, build_server_router};
 use anyhow::Context;
 use clap::Parser;
 use tracing::info;
@@ -22,7 +22,7 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     let database_url = std::env::var("DATABASE_URL").context("DATABASE_URL must be configured")?;
     let admin_tokens = AdminTokens::from_environment()?;
-    let router = build_router(RouterConfig {
+    let router = build_server_router(RouterConfig {
         database_url,
         definition_version: "1".to_owned(),
         admin_tokens,

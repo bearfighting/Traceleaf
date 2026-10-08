@@ -385,9 +385,7 @@ export async function runReportScenario(context, scenario) {
     const visitorsReport = page
       .locator("section.report-card")
       .filter({ has: page.getByRole("heading", { name: "Visitors", exact: true }) });
-    await expect(
-      visitorsReport.getByText("No analytics data is available for this selection."),
-    ).toHaveCount(1);
+    await expect(visitorsReport.getByText("This report capability is not enabled")).toHaveCount(1);
   }
 
   async function assertAudienceDimensionDashboardEmpty(page) {

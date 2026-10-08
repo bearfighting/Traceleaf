@@ -1,6 +1,6 @@
 import { assertE2EComposeRunner, assertE2EProject } from "./e2e-compose.mjs";
 
-const businessDataResetTables = Object.freeze({
+export const businessDataResetTables = Object.freeze({
   full: [
     "configuration_capability_runtime_instances",
     "configuration_capability_runtime_state",

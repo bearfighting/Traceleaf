@@ -1,4 +1,4 @@
-use analytics_api::{AdminTokens, RouterConfig, build_router};
+use analytics_api::{AdminTokens, RouterConfig, build_router, build_server_router};
 use axum::{
     body::to_bytes,
     http::{Request, StatusCode},

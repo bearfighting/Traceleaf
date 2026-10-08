@@ -81,13 +81,13 @@ jobs:
   integration:
     runs-on: ubuntu-latest
     env:
-      DATABASE_URL: postgres://analytics:analytics@localhost:5432/analytics
+      TEST_POSTGRES_ADMIN_URL: postgres://analytics:analytics@localhost:5432/postgres
 
     services:
       postgres:
         image: postgres:18.6-alpine3.23
         env:
-          POSTGRES_DB: analytics
+          POSTGRES_DB: postgres
           POSTGRES_USER: analytics
           POSTGRES_PASSWORD: analytics
         ports:
@@ -118,9 +118,6 @@ jobs:
 
       - name: Install PostgreSQL client
         run: sudo apt-get update && sudo apt-get install --yes postgresql-client
-
-      - name: Run migration regression
-        run: pnpm test:migrations
 
       - name: Run PostgreSQL integration tests
         run: pnpm test:integration
