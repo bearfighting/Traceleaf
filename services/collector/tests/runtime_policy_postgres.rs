@@ -1,13 +1,14 @@
 use axum::{body::Body, http::Request};
 use chrono::Utc;
 use collector::{
-    config::SiteRegistry,
-    http::router,
-    rate_limit::RateLimiter,
-    runtime_policy::RuntimePolicyManager,
-    security::{AccessError, KeyPolicy},
-    sink::PostgresSink,
-    validation::Validator,
+    application::{rate_limit::RateLimiter, runtime_policy::RuntimePolicyManager},
+    domain::{
+        config::SiteRegistry,
+        security::{AccessError, KeyPolicy},
+        validation::Validator,
+    },
+    storage::{runtime_policy::PostgresRuntimePolicyRepository, sink::PostgresSink},
+    transport::http::router,
 };
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -78,10 +79,10 @@ async fn refresh_uses_only_active_database_policies_and_rejects_missing_or_archi
         .unwrap();
 
     let policy = KeyPolicy::new(SiteRegistry::from_runtime_sites(Vec::new()).unwrap());
-    let manager = RuntimePolicyManager::new(
-        pool.clone(),
+    let manager = RuntimePolicyManager::with_repository(
+        std::sync::Arc::new(PostgresRuntimePolicyRepository::new(pool.clone())),
         policy.clone(),
-        collector::runtime_policy::stored_policy_validator().unwrap(),
+        collector::application::runtime_policy::stored_policy_validator().unwrap(),
     )
     .unwrap();
 

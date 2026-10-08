@@ -144,3 +144,78 @@ async fn capability_runtime_reuses_validator_and_retains_last_good_snapshot_on_i
         .await
         .unwrap();
 }
+
+#[tokio::test]
+#[ignore = "requires DATABASE_URL and migrated PostgreSQL"]
+async fn server_capability_runtime_observes_updated_configuration_versions() {
+    let pool = pool().await;
+    let site = "capability_server_refresh_test";
+    reset(&pool, site).await;
+    sqlx::query("DELETE FROM configuration_capability_runtime_instances")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let token = URL_SAFE_NO_PAD.encode([67_u8; 32]);
+    let admin_tokens = AdminTokens::parse(&format!("[\"{token}\"]")).unwrap();
+    let app = build_server_router(RouterConfig {
+        database_url: env::var("DATABASE_URL").expect("DATABASE_URL is required"),
+        definition_version: "1".to_owned(),
+        admin_tokens: Some(admin_tokens),
+    })
+    .expect("server router should build");
+    let path = format!("/v1/admin/sites/{site}/capabilities");
+    let request = || {
+        Request::get(&path)
+            .header("authorization", format!("Bearer {token}"))
+            .body(axum::body::Body::empty())
+            .unwrap()
+    };
+
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+    loop {
+        let response = app.clone().oneshot(request()).await.unwrap();
+        let state = body(response).await["effective_state"].clone();
+        if state["applied_versions"]["analytics_api"] == 1 {
+            break;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "initial API capability state did not converge: {state}"
+        );
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+
+    let mut capabilities = capability_document(site).1["capabilities"].clone();
+    capabilities["geo"]["enabled"] = serde_json::json!(false);
+    let update = app
+        .clone()
+        .oneshot(
+            Request::put(&path)
+                .header("authorization", format!("Bearer {token}"))
+                .header("if-match", "\"1\"")
+                .header("content-type", "application/json")
+                .body(axum::body::Body::from(
+                    serde_json::json!({"capabilities":capabilities}).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(update.status(), StatusCode::OK);
+    assert_eq!(body(update).await["configuration"]["version"], 2);
+
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+    loop {
+        let response = app.clone().oneshot(request()).await.unwrap();
+        let state = body(response).await["effective_state"].clone();
+        if state["applied_versions"]["analytics_api"] == 2 {
+            break;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "updated API capability state did not converge: {state}"
+        );
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+}

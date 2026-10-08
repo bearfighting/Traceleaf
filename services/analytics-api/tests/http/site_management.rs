@@ -9,21 +9,31 @@ async fn configuration_admin_routes_reject_missing_and_invalid_credentials_befor
         .connect_lazy("postgres://invalid:invalid@127.0.0.1:1/invalid")
         .unwrap();
     let route = "/v1/admin/sites/no_such_site/capabilities";
-    let no_token = router(state(pool.clone()).expect("embedded schemas compile"))
-        .oneshot(Request::get(route).body(axum::body::Body::empty()).unwrap())
-        .await
-        .unwrap();
+    let no_token = build_router(RouterConfig {
+        database_url: "postgres://invalid:invalid@127.0.0.1:1/invalid".into(),
+        definition_version: "1".into(),
+        admin_tokens: None,
+    })
+    .unwrap()
+    .oneshot(Request::get(route).body(axum::body::Body::empty()).unwrap())
+    .await
+    .unwrap();
     assert_eq!(no_token.status(), StatusCode::UNAUTHORIZED);
     assert_eq!(body(no_token).await["error"]["code"], "unauthorized");
 
-    let list_without_token = router(state(pool.clone()).expect("embedded schemas compile"))
-        .oneshot(
-            Request::get("/v1/admin/sites")
-                .body(axum::body::Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
+    let list_without_token = build_router(RouterConfig {
+        database_url: "postgres://invalid:invalid@127.0.0.1:1/invalid".into(),
+        definition_version: "1".into(),
+        admin_tokens: None,
+    })
+    .unwrap()
+    .oneshot(
+        Request::get("/v1/admin/sites")
+            .body(axum::body::Body::empty())
+            .unwrap(),
+    )
+    .await
+    .unwrap();
     assert_eq!(list_without_token.status(), StatusCode::UNAUTHORIZED);
 
     let token = URL_SAFE_NO_PAD.encode([17_u8; 32]);

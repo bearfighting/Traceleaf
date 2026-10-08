@@ -67,6 +67,7 @@ try {
   await runCompose([
     "up",
     "-d",
+    "--force-recreate",
     ...(!managed ? ["--build"] : []),
     "--wait",
     ...(managed ? ["--no-deps"] : []),

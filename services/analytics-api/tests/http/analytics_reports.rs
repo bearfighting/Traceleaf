@@ -497,7 +497,36 @@ async fn phase6_reports_expose_rebuild_state_without_active_generation() {
         .await
         .unwrap();
     assert_eq!(response.status(), 200);
-    assert_eq!(body(response).await["freshness_status"], "rebuilding");
+    let visitor_report = body(response).await;
+    assert_eq!(visitor_report["from"], "2026-09-18");
+    assert_eq!(visitor_report["to"], "2026-09-18");
+    assert_eq!(visitor_report["page_views"], 0);
+    assert_eq!(visitor_report["unique_visitors"], 0);
+    assert_eq!(visitor_report["sessions"], 0);
+    assert_eq!(visitor_report["items"], serde_json::json!([]));
+    assert_eq!(visitor_report["data_as_of"], serde_json::Value::Null);
+    assert_eq!(visitor_report["freshness_status"], "rebuilding");
+    assert_eq!(visitor_report["aggregation_version"], 1);
+
+    let response = app(pool.clone())
+        .oneshot(
+            Request::get(format!(
+                "/v1/sites/{site}/reports/2026-09-18/2026-09-19/dimensions/browser"
+            ))
+            .body(axum::body::Body::empty())
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 200);
+    let dimension_report = body(response).await;
+    assert_eq!(dimension_report["from"], "2026-09-18");
+    assert_eq!(dimension_report["to"], "2026-09-19");
+    assert_eq!(dimension_report["dimension"], "browser");
+    assert_eq!(dimension_report["items"], serde_json::json!([]));
+    assert_eq!(dimension_report["data_as_of"], serde_json::Value::Null);
+    assert_eq!(dimension_report["freshness_status"], "rebuilding");
+    assert_eq!(dimension_report["aggregation_version"], 1);
 
     sqlx::query(
         "UPDATE analytics_generations SET status = 'failed' WHERE generation_id = $1::uuid",
@@ -506,7 +535,7 @@ async fn phase6_reports_expose_rebuild_state_without_active_generation() {
     .execute(&pool)
     .await
     .unwrap();
-    let response = app(pool)
+    let response = app(pool.clone())
         .oneshot(
             Request::get(format!(
                 "/v1/sites/{site}/reports/2026-09-18/2026-09-18/visitors"
@@ -517,7 +546,36 @@ async fn phase6_reports_expose_rebuild_state_without_active_generation() {
         .await
         .unwrap();
     assert_eq!(response.status(), 200);
-    assert_eq!(body(response).await["freshness_status"], "failed");
+    let visitor_report = body(response).await;
+    assert_eq!(visitor_report["from"], "2026-09-18");
+    assert_eq!(visitor_report["to"], "2026-09-18");
+    assert_eq!(visitor_report["page_views"], 0);
+    assert_eq!(visitor_report["unique_visitors"], 0);
+    assert_eq!(visitor_report["sessions"], 0);
+    assert_eq!(visitor_report["items"], serde_json::json!([]));
+    assert_eq!(visitor_report["data_as_of"], serde_json::Value::Null);
+    assert_eq!(visitor_report["freshness_status"], "failed");
+    assert_eq!(visitor_report["aggregation_version"], 1);
+
+    let response = app(pool)
+        .oneshot(
+            Request::get(format!(
+                "/v1/sites/{site}/reports/2026-09-18/2026-09-19/dimensions/browser"
+            ))
+            .body(axum::body::Body::empty())
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 200);
+    let dimension_report = body(response).await;
+    assert_eq!(dimension_report["items"], serde_json::json!([]));
+    assert_eq!(dimension_report["from"], "2026-09-18");
+    assert_eq!(dimension_report["to"], "2026-09-19");
+    assert_eq!(dimension_report["dimension"], "browser");
+    assert_eq!(dimension_report["data_as_of"], serde_json::Value::Null);
+    assert_eq!(dimension_report["freshness_status"], "failed");
+    assert_eq!(dimension_report["aggregation_version"], 1);
 }
 
 #[tokio::test]

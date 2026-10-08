@@ -17,13 +17,16 @@ struct Import {
     path: Vec<String>,
     alias: Option<String>,
     module: ModulePath,
+    glob: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Owner {
     Analytics,
+    Transport,
     SiteManagement,
     Application,
+    Storage,
     Unowned,
 }
 
@@ -35,6 +38,9 @@ fn owner_for(relative: &Path) -> Owner {
     match components.first().copied() {
         Some("analytics") => Owner::Analytics,
         Some("site_management") => Owner::SiteManagement,
+        Some("application") => Owner::Application,
+        Some("storage") => Owner::Storage,
+        Some("transport") => Owner::Transport,
         _ if matches!(
             relative.to_str(),
             Some("lib.rs" | "routes.rs" | "state.rs" | "main.rs")
@@ -75,6 +81,7 @@ fn push_imports(tree: &UseTree, prefix: &[String], module: &[String], output: &m
                 path,
                 alias: None,
                 module: module.to_vec(),
+                glob: false,
             });
         }
         UseTree::Rename(rename) => {
@@ -84,12 +91,14 @@ fn push_imports(tree: &UseTree, prefix: &[String], module: &[String], output: &m
                 path,
                 alias: Some(rename.rename.to_string()),
                 module: module.to_vec(),
+                glob: false,
             });
         }
         UseTree::Glob(_) => output.push(Import {
             path: prefix.to_vec(),
             alias: None,
             module: module.to_vec(),
+            glob: true,
         }),
         UseTree::Group(group) => {
             for item in &group.items {
@@ -107,6 +116,9 @@ struct ImportCollector {
 
 impl<'ast> Visit<'ast> for ImportCollector {
     fn visit_item_mod(&mut self, item: &'ast syn::ItemMod) {
+        if item.attrs.iter().any(|attr| matches!(&attr.meta, syn::Meta::List(list) if list.tokens.to_string().contains("test"))) {
+            return;
+        }
         if let Some((_, items)) = &item.content {
             self.module.push(item.ident.to_string());
             for item in items {
@@ -128,6 +140,7 @@ impl<'ast> Visit<'ast> for ImportCollector {
                 path: vec!["crate".to_owned()],
                 alias: Some(rename.to_string()),
                 module: self.module.clone(),
+                glob: false,
             });
         }
     }
@@ -136,7 +149,7 @@ impl<'ast> Visit<'ast> for ImportCollector {
 fn aliases_for(imports: &[Import]) -> AliasTable {
     let mut aliases = AliasTable::new();
     for import in imports {
-        if import.path.is_empty() {
+        if import.path.is_empty() || import.glob {
             continue;
         }
         let alias = import
@@ -205,35 +218,103 @@ fn resolve_paths(
 fn is_forbidden_path(owner: Owner, relative: &Path, path: &[String]) -> bool {
     let domain = path.first().map(String::as_str);
     match owner {
-        Owner::Analytics => domain == Some("site_management"),
-        Owner::SiteManagement => domain == Some("analytics"),
+        Owner::Analytics => {
+            matches!(domain, Some("site_management" | "storage"))
+                || path.iter().any(|segment| segment == "sqlx")
+        }
+        Owner::SiteManagement => {
+            matches!(domain, Some("analytics" | "storage"))
+                || path
+                    .iter()
+                    .any(|segment| matches!(segment.as_str(), "config_store" | "site_store"))
+                || path
+                    .iter()
+                    .any(|segment| matches!(segment.as_str(), "sqlx" | "axum"))
+        }
         Owner::Unowned => matches!(domain, Some("analytics" | "site_management")),
         Owner::Application => {
-            matches!(domain, Some("analytics" | "site_management"))
-                && !application_path_is_allowed(relative, path)
+            (path.iter().any(|segment| segment == "sqlx") && relative.to_str() != Some("lib.rs"))
+                || (domain == Some("storage") && relative.to_str() != Some("lib.rs"))
+                || (matches!(domain, Some("analytics" | "site_management"))
+                    && !application_path_is_allowed(relative, path))
+        }
+        Owner::Storage => {
+            (domain == Some("application") && !storage_application_path_is_allowed(relative, path))
+                || (domain == Some("site_management")
+                    && !matches!(path.get(1).map(String::as_str), Some("site" | "sites")))
+                || (domain == Some("analytics")
+                    && !matches!(
+                        path.get(1).map(String::as_str),
+                        Some("models" | "definition_catalog" | "freshness") | Some("errors")
+                    ))
+        }
+        Owner::Transport => {
+            path.iter().any(|segment| segment == "sqlx") || domain == Some("storage")
         }
     }
 }
 
+fn storage_application_path_is_allowed(relative: &Path, path: &[String]) -> bool {
+    let allowed: &[&[&str]] = match relative.to_str() {
+        Some("storage/postgres/analytics_read_adapter.rs") => &[
+            &["application", "analytics_queries"],
+            &["application", "errors", "AnalyticsApplicationError"],
+        ],
+        Some("storage/postgres/report_transactions.rs") => {
+            &[&["application", "errors"], &["analytics", "models"]]
+        }
+        Some("storage/postgres/mod.rs") => &[&["application", "state", "HealthCheck"]],
+        Some("storage/postgres/site_management_adapter.rs") => &[
+            &["application", "site_management"],
+            &["application", "site"],
+        ],
+        Some("storage/postgres/site_creation.rs") => &[&["application", "site"]],
+        _ => &[],
+    };
+    allowed.iter().any(|prefix| {
+        path.len() >= prefix.len()
+            && path
+                .iter()
+                .zip(prefix.iter())
+                .all(|(segment, expected)| segment == expected)
+    })
+}
+
 fn application_path_is_allowed(relative: &Path, path: &[String]) -> bool {
     let allowed: &[&[&str]] = match relative.to_str() {
-        Some("routes.rs") => &[
+        Some("application/analytics_queries.rs") => &[
+            &["analytics", "definition_catalog"],
+            &["analytics", "models"],
+            &["application", "errors", "AnalyticsApplicationError"],
+        ],
+        Some("routes.rs" | "application/routes.rs") => &[
             &["analytics", "routes"],
             &["site_management", "routes"],
             &["state"],
         ],
-        Some("state.rs") => &[
+        Some("state.rs" | "application/state.rs") => &[
             &["analytics", "state"],
-            &["site_management", "state"],
             &["site_management", "auth"],
+            &["application", "site_management_state"],
+        ],
+        Some("application/site_management_state.rs") => &[
+            &["application", "site_management"],
+            &["site_management", "auth"],
+            &["application", "site_management_validation"],
         ],
         Some("lib.rs") => &[
             &["analytics", "validation"],
             &["analytics", "errors"],
             &["site_management", "auth"],
             &["state"],
+            &["application", "state"],
         ],
         Some("main.rs") => &[],
+        Some("storage/postgres/analytics_queries.rs") => &[&["analytics", "models"]],
+        Some("application/site_management.rs") => &[
+            &["application", "site"],
+            &["application", "site_management_validation"],
+        ],
         _ => &[],
     };
     allowed.iter().any(|prefix| {
@@ -291,6 +372,9 @@ struct PathChecker<'a> {
 
 impl<'ast> Visit<'ast> for PathChecker<'_> {
     fn visit_item_mod(&mut self, item: &'ast syn::ItemMod) {
+        if item.attrs.iter().any(|attr| matches!(&attr.meta, syn::Meta::List(list) if list.tokens.to_string().contains("test"))) {
+            return;
+        }
         if let Some((_, items)) = &item.content {
             self.module.push(item.ident.to_string());
             for item in items {
@@ -317,6 +401,18 @@ impl<'ast> Visit<'ast> for PathChecker<'_> {
         }
         visit::visit_path(self, path);
     }
+
+    fn visit_expr_field(&mut self, field: &'ast syn::ExprField) {
+        if self.owner == Owner::Transport
+            && matches!(&field.member, syn::Member::Named(member) if member == "pool")
+        {
+            self.errors.push(format!(
+                "{}: transport accesses the application database pool",
+                self.source_path
+            ));
+        }
+        visit::visit_expr_field(self, field);
+    }
 }
 
 fn check_source(relative: &Path, source: &str) -> Vec<String> {
@@ -325,7 +421,16 @@ fn check_source(relative: &Path, source: &str) -> Vec<String> {
         Ok(file) => file,
         Err(error) => return vec![format!("{source_path}: failed to parse Rust: {error}")],
     };
-    check_imports(relative, &file, &source_path)
+    let mut errors = check_imports(relative, &file, &source_path);
+    if owner_for(relative) == Owner::Analytics
+        && source.contains("pub use")
+        && source.contains("storage")
+    {
+        errors.push(format!(
+            "{source_path}: analytics re-exports storage implementation"
+        ));
+    }
+    errors
 }
 
 fn rust_files(directory: &Path, root: &Path, output: &mut Vec<PathBuf>) {
@@ -374,6 +479,34 @@ fn boundary_checker_covers_absolute_grouped_relative_and_aliased_imports() {
             true,
         ),
         (
+            "site_management/a.rs",
+            "use crate::storage::postgres::site_creation as persistence;",
+            true,
+        ),
+        (
+            "site_management/a.rs",
+            "use crate::storage as persistence; fn f() { persistence::postgres::load(); }",
+            true,
+        ),
+        (
+            "site_management/a.rs",
+            "use crate::{storage::postgres};",
+            true,
+        ),
+        ("site_management/a.rs", "use crate::storage::*;", true),
+        (
+            "site_management/sub/a.rs",
+            "use super::super::super::storage::postgres::site_creation;",
+            true,
+        ),
+        (
+            "site_management/a.rs",
+            "fn f() { let _: crate::storage::postgres::Site; }",
+            true,
+        ),
+        ("site_management/a.rs", "use sqlx::PgPool;", true),
+        ("site_management/a.rs", "use axum::Router;", true),
+        (
             "analytics/handlers/a.rs",
             "use super::super::super::site_management::config_store;",
             true,
@@ -415,10 +548,16 @@ fn boundary_checker_covers_absolute_grouped_relative_and_aliased_imports() {
         ),
         ("infra.rs", "use crate::analytics::queries;", true),
         ("analytics/a.rs", "use crate::analytics::queries;", false),
+        ("analytics/state.rs", "use sqlx::PgPool;", true),
+        (
+            "analytics/a.rs",
+            "use crate::storage::postgres::analytics_queries;",
+            true,
+        ),
         (
             "site_management/a.rs",
             "use crate::site_management::config_store;",
-            false,
+            true,
         ),
         (
             "routes.rs",
@@ -433,11 +572,84 @@ fn boundary_checker_covers_absolute_grouped_relative_and_aliased_imports() {
         ),
         ("state.rs", "use crate::analytics::queries;", true),
         (
+            "application/analytics_queries.rs",
+            "use crate::storage::postgres::analytics_queries;",
+            true,
+        ),
+        ("lib.rs", "use crate::storage::postgres;", false),
+        (
             "lib.rs",
             "pub use crate::site_management as management;",
             true,
         ),
         ("main.rs", "use crate::analytics::queries;", true),
+        ("application/state.rs", "use sqlx::PgPool;", true),
+        (
+            "storage/postgres/site_creation.rs",
+            "use crate::site_management::site::Site;",
+            false,
+        ),
+        (
+            "storage/postgres/site_creation.rs",
+            "use crate::site_management::configuration;",
+            true,
+        ),
+        (
+            "storage/postgres/other_adapter.rs",
+            "use crate::application::analytics_queries::AnalyticsReadUseCases;",
+            true,
+        ),
+        (
+            "storage/postgres/analytics_read_adapter.rs",
+            "use crate::application::analytics_queries::{AnalyticsReadUseCases, AnalyticsReportRequest};",
+            false,
+        ),
+        (
+            "storage/postgres/site_management_adapter.rs",
+            "use crate::application::site_management::SiteManagementUseCases;",
+            false,
+        ),
+        (
+            "storage/postgres/mod.rs",
+            "impl crate::application::state::HealthCheck for PostgresHealthCheck {}",
+            false,
+        ),
+        ("transport/http/a.rs", "use sqlx::PgPool;", true),
+        (
+            "transport/http/a.rs",
+            "fn f(state: &State) { state.pool.execute(); }",
+            true,
+        ),
+        (
+            "transport/http/a.rs",
+            "fn f(state: &State) { state . pool . execute(); }",
+            true,
+        ),
+        (
+            "transport/http/site_management/a.rs",
+            "fn f(state: &State) { state.pool.acquire(); }",
+            true,
+        ),
+        (
+            "transport/http/a.rs",
+            "use crate::storage::postgres::analytics_queries;",
+            true,
+        ),
+        (
+            "transport/http/a.rs",
+            "use crate::storage as database; fn f() { database::postgres::run(); }",
+            true,
+        ),
+        (
+            "transport/http/a.rs",
+            "fn f() { crate::storage::postgres::run(); }",
+            true,
+        ),
+        (
+            "analytics/mod.rs",
+            "pub use crate::storage::postgres::analytics_queries as queries;",
+            true,
+        ),
     ];
 
     for (file, source, expected_violation) in cases {

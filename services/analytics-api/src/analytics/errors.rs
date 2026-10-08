@@ -1,3 +1,4 @@
+use crate::application::errors::RequestError;
 use axum::{
     Json,
     http::StatusCode,
@@ -16,16 +17,6 @@ struct ErrorResponse {
 struct ErrorBody {
     code: &'static str,
     message: &'static str,
-}
-
-#[derive(Debug)]
-pub(crate) enum RequestError {
-    InvalidDateRange(&'static str),
-    DateRangeTooLarge,
-    InvalidLimit,
-    InvalidDimension,
-    InvalidEventName,
-    InvalidDefinitionVersion,
 }
 
 impl IntoResponse for RequestError {
@@ -61,8 +52,8 @@ impl IntoResponse for RequestError {
 pub(crate) struct ApiError;
 
 impl ApiError {
-    pub(crate) fn database(error: sqlx::Error) -> Self {
-        tracing::error!(%error, "analytics database query failed");
+    pub(crate) fn application(error: impl std::fmt::Display) -> Self {
+        tracing::error!(%error, "analytics application use case failed");
         Self
     }
 }

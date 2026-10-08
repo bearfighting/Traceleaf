@@ -1,4 +1,4 @@
-use analytics_api::{AdminTokens, router, state, state_with_admin_tokens};
+use analytics_api::{AdminTokens, RouterConfig, build_router, build_server_router};
 use axum::{
     body::to_bytes,
     http::{Request, StatusCode},
@@ -131,7 +131,14 @@ async fn reset_phase6(pool: &PgPool, site_id: &str) {
 }
 
 fn app(pool: PgPool) -> axum::Router {
-    router(state(pool).expect("embedded schemas compile"))
+    drop(pool);
+    build_router(RouterConfig {
+        database_url: env::var("DATABASE_URL")
+            .unwrap_or_else(|_| "postgres://invalid:invalid@127.0.0.1:1/invalid".to_owned()),
+        definition_version: "1".to_owned(),
+        admin_tokens: None,
+    })
+    .expect("router should build")
 }
 
 async fn assert_historical_overview(pool: &PgPool, site: &str) {
@@ -148,11 +155,15 @@ async fn assert_historical_overview(pool: &PgPool, site: &str) {
 }
 
 fn admin_app(pool: PgPool, token: &str) -> axum::Router {
+    drop(pool);
     let configured = AdminTokens::parse(&format!("[\"{token}\"]")).unwrap();
-    router(state_with_admin_tokens(
-        state(pool).expect("embedded schemas compile"),
-        Some(configured),
-    ))
+    build_router(RouterConfig {
+        database_url: env::var("DATABASE_URL")
+            .unwrap_or_else(|_| "postgres://invalid:invalid@127.0.0.1:1/invalid".to_owned()),
+        definition_version: "1".to_owned(),
+        admin_tokens: Some(configured),
+    })
+    .expect("router should build")
 }
 
 fn site_creation_request(

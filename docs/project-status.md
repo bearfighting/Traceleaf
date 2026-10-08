@@ -29,6 +29,10 @@
 - 根据实际构建与 CI 数据评估缓存优化。
 - 从独立消费者验证 Browser SDK 发布方式，再决定是否发布到外部 registry。
 
+## PostgreSQL 测试隔离
+
+- 后端 PostgreSQL 集成测试使用专用测试 Compose 项目和独立临时数据库；组件命令、生命周期与清理方式见 [PostgreSQL 测试隔离设计](testing/postgres-test-isolation-plan.md) 和 [运维指南](operations.md#database-migrations-and-tests)。
+
 ## 暂缺能力与范围边界
 
 - 多用户身份、角色和 Site 级授权未实现。若管理界面不能保持在受信任网络或受访问代理保护的环境，此项转为发布阻塞项。

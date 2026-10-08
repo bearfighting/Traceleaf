@@ -1,8 +1,36 @@
 import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { assertE2EProject, e2ePort } from "./e2e-compose.mjs";
-import { businessDataResetSql, resetE2EBusinessData } from "./e2e-database.mjs";
+import {
+  businessDataResetSql,
+  businessDataResetTables,
+  resetE2EBusinessData,
+} from "./e2e-database.mjs";
+
+test("full E2E reset covers every table created by a database migration", () => {
+  const migrationDirectory = resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "../../..",
+    "db/migrations",
+  );
+  const createdTables = new Set();
+  for (const filename of readdirSync(migrationDirectory).filter((name) => name.endsWith(".sql"))) {
+    const sql = readFileSync(resolve(migrationDirectory, filename), "utf8");
+    for (const match of sql.matchAll(
+      /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-z_][a-z0-9_]*)/gi,
+    )) {
+      createdTables.add(match[1]);
+    }
+  }
+  assert.deepEqual(
+    [...createdTables].filter((table) => !businessDataResetTables.full.includes(table)),
+    [],
+  );
+});
 
 test("E2E reset scopes contain only their approved business tables", () => {
   assert.match(
