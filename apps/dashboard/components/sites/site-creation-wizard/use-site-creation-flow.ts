@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { createClientRequestId } from "../../../lib/client-request-id";
 import {
   createSite,
   issueReplacementKey,
@@ -147,7 +148,7 @@ export function useSiteCreationFlow(manifest: Capability[]) {
     setCreating(true);
     const payload = createSitePayload(values, manifest, enabledCapabilities, allowedOrigins);
     const serialized = JSON.stringify(payload);
-    const key = idempotency?.payload === serialized ? idempotency.key : crypto.randomUUID();
+    const key = idempotency?.payload === serialized ? idempotency.key : createClientRequestId();
     setIdempotency({ payload: serialized, key });
     setError("");
     setFieldErrors({});
