@@ -68,6 +68,7 @@ flowchart LR
 - [Feature Freeze and Deployment Follow-up](docs/project-status.md)
 - [MVP Scope](docs/mvp-scope.md)
 - [Getting Started](docs/getting-started.md)
+- [Raspberry Pi LAN Deployment](docs/deployment-raspberry-pi.md)
 - [Event Protocol](docs/event-protocol.md)
 
 ## 开发与验证

@@ -8,6 +8,7 @@
 - 最近一次功能基线提交：`2cdbc87`。发布时应以实际选定的 release commit/tag 为准。
 - Dashboard 本地类型检查、lint、单测、构建及格式检查通过；完整仓库 `pnpm check` 和格式检查通过。已记录的 CI 与 E2E 通过结果见历史归档。
 - 最近一次重新启动 `pnpm e2e:dashboard` 未完成：卡在容器依赖安装阶段后中止；这次尝试不作为发布版本的 E2E 通过证据。
+- Raspberry Pi 4B 局域网部署的 production Compose、环境模板和操作说明已建立；尚未在 Pi 上完成 ARM64 镜像构建、端到端运行、备份恢复演练和正式发布验收。
 
 ## 发布前必须完成
 
