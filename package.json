@@ -54,7 +54,12 @@
     "test:geo-mmdb-local": "cargo test -p collector operator_dbip_city_lite_mmdb_smoke -- --ignored --nocapture",
     "format:check:docs": "bash ./tooling/ci/format-docs-check.sh",
     "dev:up": "node ./tooling/dev/dev-compose.mjs full",
-    "dev:down": "docker compose -f compose.yaml -f compose.dev.yaml down"
+    "dev:down": "docker compose -f compose.yaml -f compose.dev.yaml down",
+    "deploy:build": "docker compose -p web-analytics-deploy --env-file .env.deploy -f compose.deploy.yaml build",
+    "deploy:up": "docker compose -p web-analytics-deploy --env-file .env.deploy -f compose.deploy.yaml up -d --build",
+    "deploy:down": "docker compose -p web-analytics-deploy --env-file .env.deploy -f compose.deploy.yaml down",
+    "deploy:ps": "docker compose -p web-analytics-deploy --env-file .env.deploy -f compose.deploy.yaml ps",
+    "deploy:logs": "docker compose -p web-analytics-deploy --env-file .env.deploy -f compose.deploy.yaml logs -f"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

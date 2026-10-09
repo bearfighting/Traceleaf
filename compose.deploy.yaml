@@ -1,0 +1,129 @@
+services:
+  postgres:
+    image: postgres:18.6-alpine3.23
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: analytics
+      POSTGRES_USER: analytics
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.deploy}
+    volumes:
+      - postgres_data_v18:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  db-migrate:
+    build:
+      context: .
+      dockerfile: docker/rust-workspace.Dockerfile
+      target: db-migrator-release
+    restart: "no"
+    environment:
+      DATABASE_URL: postgres://analytics:${POSTGRES_PASSWORD}@postgres:5432/analytics
+      RUST_LOG: db_migrator=info
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  db-audit-purger:
+    build:
+      context: .
+      dockerfile: docker/rust-workspace.Dockerfile
+      target: db-migrator-release
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "while true; do if /usr/local/bin/db-migrator --purge-expired-configuration-audit; then sleep 86400; else sleep 3600; fi; done"
+    environment:
+      DATABASE_URL: postgres://analytics:${POSTGRES_PASSWORD}@postgres:5432/analytics
+      RUST_LOG: db_migrator=info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
+
+  collector:
+    build:
+      context: .
+      dockerfile: docker/rust-workspace.Dockerfile
+      target: collector-release
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://analytics:${POSTGRES_PASSWORD}@postgres:5432/analytics
+      GEOIP_DATABASE_PATH: /workspace/data/GeoLite2-Country.mmdb
+      GEOIP_TRUSTED_PROXIES: ${GEOIP_TRUSTED_PROXIES:-}
+      RUST_LOG: collector=info
+    ports:
+      - "${PI_LAN_IP:?Set PI_LAN_IP to the Raspberry Pi LAN address}:4001:4001"
+    volumes:
+      - ./data:/workspace/data:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
+
+  processor:
+    build:
+      context: .
+      dockerfile: docker/rust-workspace.Dockerfile
+      target: processor-release
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://analytics:${POSTGRES_PASSWORD}@postgres:5432/analytics
+      PROCESSOR_POLL_INTERVAL_MS: ${PROCESSOR_POLL_INTERVAL_MS:-1000}
+      RUST_LOG: processor=info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
+
+  analytics-api:
+    build:
+      context: .
+      dockerfile: docker/rust-workspace.Dockerfile
+      target: analytics-api-release
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://analytics:${POSTGRES_PASSWORD}@postgres:5432/analytics
+      CONFIG_ADMIN_TOKENS: ${CONFIG_ADMIN_TOKENS:?Set CONFIG_ADMIN_TOKENS in .env.deploy}
+      RUST_LOG: analytics_api=info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/dashboard-deploy.Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      ANALYTICS_API_URL: http://analytics-api:4002
+      SITE_MANAGEMENT_API_URL: http://analytics-api:4002
+      DASHBOARD_DEFAULT_ENVIRONMENT: ${DASHBOARD_DEFAULT_ENVIRONMENT:-production}
+      DASHBOARD_CONFIG_ADMIN_TOKEN: ${DASHBOARD_CONFIG_ADMIN_TOKEN:?Set DASHBOARD_CONFIG_ADMIN_TOKEN in .env.deploy}
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+    ports:
+      - "${PI_LAN_IP:?Set PI_LAN_IP to the Raspberry Pi LAN address}:${DASHBOARD_PORT:-13000}:3000"
+    depends_on:
+      analytics-api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/dashboard').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      start_period: 90s
+      retries: 6
+
+volumes:
+  postgres_data_v18:

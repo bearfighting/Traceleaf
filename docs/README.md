@@ -5,6 +5,7 @@
 - [功能冻结与部署待办](project-status.md)：唯一的未完成、计划中和暂缺事项清单。
 - [MVP 功能范围](mvp-scope.md)：冻结的产品范围与已交付基线。
 - [开始使用](getting-started.md)：本地环境配置与运行。
+- [Raspberry Pi LAN Deployment](deployment-raspberry-pi.md)：Pi 上的生产构建、局域网访问与日常操作。
 - [运维指南](operations.md)：PostgreSQL 备份恢复、migration 部署和 Geo 数据库操作。
 - [PostgreSQL 测试隔离设计](testing/postgres-test-isolation-plan.md)：后端 PostgreSQL 集成测试的隔离模型、组件命令和验收目标。
 - [事件协议](event-protocol.md)：事件语义摘要；机器可读契约以 `protocol/` 为准。
