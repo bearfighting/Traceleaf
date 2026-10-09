@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { createClientRequestId } from "../../../lib/client-request-id";
 import {
   createIngestKey,
   fetchIngestPolicy,
@@ -105,7 +106,7 @@ export function useIngestKeysFlow(
 
               return;
             }
-            requestMarker = crypto.randomUUID();
+            requestMarker = createClientRequestId();
             window.localStorage.setItem(key, requestMarker);
             setReview(true);
           } catch {
