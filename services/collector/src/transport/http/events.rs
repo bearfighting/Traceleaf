@@ -7,7 +7,7 @@ use crate::{
     application::{
         capabilities::CapabilityState,
         event_sink::SinkError,
-        ingestion::{IngestionError, batch_site_id, ingest_batch},
+        ingestion::{BatchSiteIdError, IngestionError, batch_site_id, ingest_batch},
     },
     domain::{geo::GeoEnrichment, security::AccessError},
 };
@@ -107,7 +107,7 @@ pub(super) async fn events(State(state): State<AppState>, request: Request<Body>
             )
             .await;
         }
-        Err(()) => {
+        Err(BatchSiteIdError::ConflictingSiteIds) => {
             return with_cors(
                 ApiError::invalid_event_batch().into_response(),
                 has_origin,
