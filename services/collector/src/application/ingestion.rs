@@ -28,6 +28,12 @@ pub enum IngestionError {
     Sink(#[from] SinkError),
 }
 
+#[derive(Debug, Error, Clone, Copy, PartialEq, Eq)]
+pub enum BatchSiteIdError {
+    #[error("event batch contains multiple site IDs")]
+    ConflictingSiteIds,
+}
+
 pub async fn ingest_batch(
     validator: &Validator,
     sink: &dyn EventSink,
@@ -70,7 +76,7 @@ pub async fn ingest_batch(
     Ok(accepted)
 }
 
-pub fn batch_site_id(value: &Value) -> Result<Option<&str>, ()> {
+pub fn batch_site_id(value: &Value) -> Result<Option<&str>, BatchSiteIdError> {
     let Some(events) = value.get("events").and_then(Value::as_array) else {
         return Ok(None);
     };
@@ -82,7 +88,7 @@ pub fn batch_site_id(value: &Value) -> Result<Option<&str>, ()> {
         match site_id {
             None => site_id = Some(current),
             Some(expected) if expected == current => {}
-            Some(_) => return Err(()),
+            Some(_) => return Err(BatchSiteIdError::ConflictingSiteIds),
         }
     }
     Ok(site_id)

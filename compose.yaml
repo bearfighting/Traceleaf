@@ -184,6 +184,9 @@ services:
       SITE_MANAGEMENT_API_URL: ${DASHBOARD_SITE_MANAGEMENT_API_URL:-${DASHBOARD_ANALYTICS_API_URL:-http://analytics-api:4002}}
       DASHBOARD_DEFAULT_ENVIRONMENT: ${DASHBOARD_DEFAULT_ENVIRONMENT:-production}
       DASHBOARD_CONFIG_ADMIN_TOKEN: ${DASHBOARD_CONFIG_ADMIN_TOKEN:-}
+    command: >-
+      sh -c "pnpm install --filter @web-analytics/dashboard --frozen-lockfile && exec pnpm --filter
+      @web-analytics/dashboard dev --hostname 0.0.0.0"
     ports:
       - "${DASHBOARD_PORT:-13000}:3000"
     depends_on:
