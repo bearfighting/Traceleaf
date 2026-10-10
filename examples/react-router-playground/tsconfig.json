@@ -19,12 +19,8 @@
       "@web-analytics/analytics-core": ["../../packages/analytics-core/src/index.ts"],
       "@web-analytics/protocol-ts": ["../../packages/protocol-ts/src/index.ts"],
       "@web-analytics/transport": ["../../packages/transport/src/index.ts"],
-      "@web-analytics/analytics-browser": ["../../packages/analytics-browser/src/index.ts"],
+      "@traceleaf/browser": ["../../packages/analytics-browser/src/index.ts"],
       "@web-analytics/observer-core": ["../../packages/observer-core/src/index.ts"],
-      "@web-analytics/observer-react-router": ["../../packages/observer-react-router/src/index.ts"],
-      "@web-analytics/router-adapters/react-router": [
-        "../../packages/router-adapters/src/react-router.tsx"
-      ],
       "@web-analytics/playground-support": ["../../packages/playground-support/src/index.ts"]
     }
   },

@@ -17,3 +17,6 @@ target/
 !.env.example
 !.env.deploy.example
 **/next-env.d.ts
+**/.angular/
+**/.astro/
+**/.svelte-kit/

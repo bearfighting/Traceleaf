@@ -1,8 +1,3 @@
-export { createAnalytics } from "./analytics";
-export { createBrowserContextProvider } from "./browser-context";
-
-export type { Analytics, AnalyticsOptions } from "./analytics";
-export type { BrowserContextProvider } from "./browser-context";
-export { createVisitorIdStore, isCanonicalVisitorId } from "./visitor-id";
-export type { VisitorIdStore } from "./visitor-id";
-export type { AnalyticsConsent } from "./analytics";
+export { createBrowserAnalytics } from "./browser-analytics";
+export type { Analytics, AnalyticsConsent } from "./analytics";
+export type { BrowserAnalyticsOptions } from "./browser-analytics";

@@ -1,15 +1,21 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "composite": true,
-    "rootDir": "src",
-    "outDir": "dist"
+    "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
+    "paths": {
+      "@web-analytics/analytics-core": ["../analytics-core/src/index.ts"],
+      "@web-analytics/observer-core": ["../observer-core/src/index.ts"],
+      "@web-analytics/protocol-ts": ["../protocol-ts/src/index.ts"],
+      "@web-analytics/transport": ["../transport/src/index.ts"]
+    }
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts"],
   "references": [
     { "path": "../protocol-ts" },
     { "path": "../observer-core" },
-    { "path": "../analytics-core" }
+    { "path": "../analytics-core" },
+    { "path": "../transport" }
   ]
 }

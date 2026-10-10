@@ -11,8 +11,8 @@ MVP 功能已冻结，暂不增加新功能。唯一的未完成与部署待办�
 ```mermaid
 flowchart LR
     subgraph Browser[网站与浏览器]
-        Website[Next.js 网站]
-        Observer[Router Adapter<br/>观察页面加载与客户端导航]
+        Website[网站]
+        Observer[Navigation API Observer<br/>观察页面加载与已提交导航]
         SDK[Browser SDK<br/>采集上下文并组装事件]
         Protocol[Event Protocol]
         Website --> Observer --> SDK --> Protocol
@@ -54,7 +54,7 @@ flowchart LR
     API -->|读写站点配置与审计| Config
 ```
 
-常规数据流从网站导航开始：Router Adapter 观察导航，Browser SDK 根据 Event Protocol 发送事件；Collector 校验并写入原始事件；Processor 轮询原始事件并生成分析结果；Dashboard 通过 Analytics API 查询结果。站点配置和定义由管理 API 写入，Collector 读取接收策略，Processor 按配置处理事件。显式 rebuild 命令用于重建整站 generation 或指定派生事实。
+常规数据流从网站导航开始：Navigation API observer 观察已提交导航，Browser SDK 根据 Event Protocol 发送事件；Collector 校验并写入原始事件；Processor 轮询原始事件并生成分析结果；Dashboard 通过 Analytics API 查询结果。站点配置和定义由管理 API 写入，Collector 读取接收策略，Processor 按配置处理事件。显式 rebuild 命令用于重建整站 generation 或指定派生事实。
 
 当前 MVP 包含页面浏览、访客与会话分析、Browser Context、Custom Events、Web Vitals、Conversion/Funnel、country Geo，以及站点 capability 和 ingest policy 配置。完整范围见 [MVP Scope](docs/mvp-scope.md)。
 

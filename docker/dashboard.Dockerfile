@@ -13,7 +13,6 @@ COPY examples/nextjs-router-playground/package.json examples/nextjs-router-playg
 COPY packages/analytics-browser/package.json packages/analytics-browser/package.json
 COPY packages/analytics-core/package.json packages/analytics-core/package.json
 COPY packages/observer-core/package.json packages/observer-core/package.json
-COPY packages/observer-next/package.json packages/observer-next/package.json
 COPY packages/protocol-ts/package.json packages/protocol-ts/package.json
 COPY packages/transport/package.json packages/transport/package.json
 

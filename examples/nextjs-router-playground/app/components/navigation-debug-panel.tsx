@@ -1,12 +1,10 @@
 "use client";
 
-import { createAnalytics } from "@web-analytics/analytics-browser";
+import { createBrowserAnalytics, type AnalyticsConsent } from "@traceleaf/browser";
 import { createPlaygroundTransport } from "@web-analytics/playground-support";
-import { RouterAnalyticsBridge } from "@web-analytics/router-adapters/next";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { Analytics } from "@web-analytics/analytics-browser";
 import type { Transport } from "@web-analytics/analytics-core";
 import type { NavigationEvent } from "@web-analytics/observer-core";
 import type { AnalyticsEvent } from "@web-analytics/protocol-ts";
@@ -22,6 +20,7 @@ interface WorkflowState {
   bufferedEvents: number;
   sentBatches: number;
   sentEvents: number;
+  sentPageViews: number;
   lastBatchSize: number | null;
   lastSentAt: string | null;
   lastError: string | null;
@@ -31,6 +30,7 @@ const initialWorkflowState: WorkflowState = {
   bufferedEvents: 0,
   sentBatches: 0,
   sentEvents: 0,
+  sentPageViews: 0,
   lastBatchSize: null,
   lastSentAt: null,
   lastError: null,
@@ -39,12 +39,20 @@ const initialWorkflowState: WorkflowState = {
 export function NavigationDebugPanel() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const sdkE2EMode = searchParams.get("sdk-e2e");
   const [hash, setHash] = useState("");
   const [documentTitle, setDocumentTitle] = useState("");
   const [currentUrl, setCurrentUrl] = useState("");
   const [logs, setLogs] = useState<NavigationLogEntry[]>([]);
   const [workflow, setWorkflow] = useState(initialWorkflowState);
-  const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const initialConsent: AnalyticsConsent =
+    process.env.NEXT_PUBLIC_ANALYTICS_CONSENT === "denied" ? "denied" : "granted";
+  const [consent, setConsent] = useState<AnalyticsConsent>(initialConsent);
+  const analyticsRef = useRef<ReturnType<typeof createBrowserAnalytics> | null>(null);
+  const reportE2EErrors = useCallback((error: unknown) => {
+    window.sessionStorage.setItem("__sdk_e2e_on_error_called", "true");
+    throw new Error(`SDK E2E diagnostic callback: ${String(error)}`);
+  }, []);
 
   const handleNavigation = useCallback((event: NavigationEvent) => {
     setCurrentUrl(event.url);
@@ -74,14 +82,30 @@ export function NavigationDebugPanel() {
     window.addEventListener("hashchange", updateHash);
 
     return () => window.removeEventListener("hashchange", updateHash);
-  }, []);
+  }, [sdkE2EMode]);
 
   useEffect(() => {
+    if (sdkE2EMode === "invalid-config") {
+      const analytics = createBrowserAnalytics({
+        siteId: process.env.NEXT_PUBLIC_ANALYTICS_SITE_ID || "site_playground",
+        endpoint: `${window.location.origin}/invalid-endpoint`,
+        ingestKey: "e2e-invalid-config-key",
+        onError: reportE2EErrors,
+      });
+      analyticsRef.current = analytics;
+      return () => {
+        analyticsRef.current = null;
+        analytics.destroy();
+      };
+    }
+
     const onSend = (events: readonly AnalyticsEvent[]) => {
       setWorkflow((current) => ({
         ...current,
         sentBatches: current.sentBatches + 1,
         sentEvents: current.sentEvents + events.length,
+        sentPageViews:
+          current.sentPageViews + events.filter((event) => event.type === "page_view").length,
         lastBatchSize: events.length,
         lastSentAt: new Date().toISOString(),
       }));
@@ -106,33 +130,43 @@ export function NavigationDebugPanel() {
       return;
     }
 
-    const analytics = createAnalytics({
-      consent: "granted",
+    const analytics = createBrowserAnalytics({
+      consent: initialConsent,
       siteId: process.env.NEXT_PUBLIC_ANALYTICS_SITE_ID || "site_playground",
       transport,
+      onNavigation: handleNavigation,
+      bufferSize: 1,
       onBufferChange: (bufferedEvents) =>
         setWorkflow((current) => ({ ...current, bufferedEvents })),
-      onError: (error) =>
-        setWorkflow((current) => ({
-          ...current,
-          lastError: error instanceof Error ? error.message : String(error),
-        })),
+      onError:
+        sdkE2EMode === "throw-on-error"
+          ? reportE2EErrors
+          : (error) =>
+              setWorkflow((current) => ({
+                ...current,
+                lastError: error instanceof Error ? error.message : String(error),
+              })),
     });
-    setAnalytics(analytics);
-
+    analyticsRef.current = analytics;
     return () => {
+      analyticsRef.current = null;
       analytics.destroy();
-      setAnalytics(null);
     };
-  }, []);
+  }, [handleNavigation, reportE2EErrors, sdkE2EMode]);
+
+  const toggleConsent = () => {
+    const nextConsent = consent === "granted" ? "denied" : "granted";
+    analyticsRef.current?.setConsent(nextConsent);
+    setConsent(nextConsent);
+  };
 
   return (
     <>
-      {analytics ? (
-        <RouterAnalyticsBridge analytics={analytics} onNavigation={handleNavigation} />
-      ) : null}
       <section aria-label="Navigation debug panel">
         <h2>Navigation Debug Panel</h2>
+        <button type="button" data-testid="consent-toggle" onClick={toggleConsent}>
+          Consent: {consent}
+        </button>
         <dl>
           <dt>Current URL</dt>
           <dd>{currentUrl || "Loading..."}</dd>
@@ -173,6 +207,8 @@ export function NavigationDebugPanel() {
           <dd>{workflow.sentBatches}</dd>
           <dt>Sent events</dt>
           <dd>{workflow.sentEvents}</dd>
+          <dt>Sent page views</dt>
+          <dd data-testid="analytics-page-views">{workflow.sentPageViews}</dd>
           <output data-testid="analytics-events">{workflow.sentEvents}</output>
           <dt>Last batch size</dt>
           <dd>{workflow.lastBatchSize ?? "(none)"}</dd>

@@ -30,8 +30,14 @@ export const suiteRegistry = Object.freeze({
     reset: "full",
     shared: true,
   },
-  "router-adapters": {
-    script: "e2e-router-adapters.mjs",
+  "browser-sdk": {
+    script: "e2e-browser-sdk.mjs",
+    services: ["collector", "processor", "analytics-api", "dashboard", "playground-next"],
+    reset: "full",
+    shared: true,
+  },
+  "navigation-api": {
+    script: "e2e-navigation-api.mjs",
     services: [],
     reset: null,
     shared: false,
@@ -46,7 +52,7 @@ export const suiteRegistry = Object.freeze({
 
 const groups = Object.freeze({
   api: ["analytics", "configuration", "site-management"],
-  router: ["router-adapters", "router-compose"],
+  router: ["navigation-api", "router-compose"],
   onboarding: ["site-onboarding"],
 });
 

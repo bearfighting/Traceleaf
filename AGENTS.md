@@ -2,12 +2,12 @@
 
 ## 项目目标
 
-本项目第一阶段只实现浏览器端的 Web Navigation Analytics，首个一等集成是 Next.js App Router。
+本项目第一阶段只实现浏览器端的 Web Navigation Analytics；导航观察使用框架无关的浏览器 Navigation API。
 
 核心 Workflow：
 
 ```text
-Next.js Website
+Website
   → Browser SDK
   → Navigation Observer
   → Event Protocol
@@ -41,7 +41,7 @@ Rust / Cargo workspace、`rust-toolchain.toml` 和 `crates/` 不属于 Phase 0�
 - `analytics-core`
 - `analytics-browser`
 - `observer-core`
-- `observer-next`
+- 通用 Navigation API observer
 - 基础 HTTP / Beacon transport
 - 使用已在 Phase 0 完成的 Event Protocol V1；不提前创建 Protocol TypeScript package
 - Collector
@@ -50,7 +50,7 @@ Rust / Cargo workspace、`rust-toolchain.toml` 和 `crates/` 不属于 Phase 0�
 - Analytics Query API
 - Dashboard：Page Views、Timeline、Top Pages
 
-Router Playground 不属于 Analytics 模块，不实现正式 SDK、事件发送或统计逻辑；它只作为后续 `observer-next` 的测试目标。
+Router Playground 不属于 Analytics 模块，不实现正式 SDK、事件发送或统计逻辑；它们只用于验证同一个 Navigation API observer，不实现 Router 专用 adapter 或 bridge。
 
 ## Docker 开发环境
 
@@ -97,8 +97,8 @@ Client SDK → Backend Collector → Storage / Processor / API → Dashboard
 
 ## 不可破坏的架构边界
 
-1. Analytics Core 不依赖 Next.js、React Router 或其他具体 Router。
-2. Router Adapter 只负责观察导航，不实现统计、Session 或 Transport 逻辑。
+1. Analytics Core 和 Browser SDK 不依赖 Next.js、React Router 或其他具体 Router。
+2. Navigation Observer 只观察浏览器提交的导航，不实现统计、Session 或 Transport 逻辑。
 3. Client 与 Backend 通过版本化、language-neutral 的 Event Protocol 通信。
 4. Collector 负责接收、基础校验和持久化，不承担复杂统计。
 5. Processor 负责基础归一化和统计转换。
@@ -106,9 +106,9 @@ Client SDK → Backend Collector → Storage / Processor / API → Dashboard
 7. Storage 通过接口与领域逻辑隔离；第一阶段只实现 PostgreSQL。
 8. 安全策略必须可替换：Origin 白名单为主要控制手段，Public Ingest Key 和限流为辅助措施。
 
-## Router Adapter 接口
+## Navigation Observer 契约
 
-所有 Adapter 都应实现同一观察契约：
+Browser SDK 使用浏览器 Navigation API 实现以下观察契约，不按 Router library 增加实现：
 
 ```ts
 export type NavigationType = "initial" | "push" | "replace" | "pop" | "unknown";
@@ -127,7 +127,7 @@ export interface NavigationObserver {
 }
 ```
 
-第一阶段只实现 `observer-next`。未来增加其他 Router 时新增 package，不修改 Analytics Core。
+所有网站和 Router 共用通用 Navigation API observer，不创建 Router 专用 package 或 bridge。
 
 `route_pattern` 是可选扩展字段；第一阶段至少保证 `path`、`url` 和 `title`。
 

@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "newProjectRoot": "projects",
+  "projects": {
+    "angular-playground": {
+      "projectType": "application",
+      "root": "",
+      "sourceRoot": "src",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "src/main.ts",
+            "index": "src/index.html",
+            "polyfills": ["zone.js"],
+            "tsConfig": "tsconfig.app.json"
+          }
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "options": { "buildTarget": "angular-playground:build" }
+        }
+      }
+    }
+  }
+}

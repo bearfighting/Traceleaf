@@ -1,0 +1,22 @@
+{
+  "name": "@web-analytics/astro-playground",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "typecheck": "astro check",
+    "format": "prettier --plugin prettier-plugin-astro --write src astro.config.mjs tsconfig.json package.json",
+    "format:check": "prettier --plugin prettier-plugin-astro --check src astro.config.mjs tsconfig.json package.json"
+  },
+  "dependencies": {
+    "@traceleaf/browser": "workspace:*",
+    "astro": "^5.0.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.0",
+    "prettier-plugin-astro": "^0.14.0",
+    "typescript": "^6.0.0"
+  }
+}

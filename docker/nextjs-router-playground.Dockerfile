@@ -7,10 +7,6 @@ RUN npm install --global pnpm@12.6.0
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
 COPY packages/protocol-ts/package.json packages/protocol-ts/package.json
 COPY packages/observer-core/package.json packages/observer-core/package.json
-COPY packages/observer-next/package.json packages/observer-next/package.json
-COPY packages/observer-react-router/package.json packages/observer-react-router/package.json
-COPY packages/observer-tanstack-router/package.json packages/observer-tanstack-router/package.json
-COPY packages/router-adapters/package.json packages/router-adapters/package.json
 COPY packages/playground-support/package.json packages/playground-support/package.json
 COPY packages/analytics-core/package.json packages/analytics-core/package.json
 COPY packages/analytics-browser/package.json packages/analytics-browser/package.json

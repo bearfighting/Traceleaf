@@ -255,7 +255,7 @@ jobs:
         if: always()
         run: pnpm e2e:down
 
-  router-adapters-e2e:
+  navigation-api-e2e:
     if: inputs.full_suite
     runs-on: ubuntu-latest
 
@@ -283,15 +283,15 @@ jobs:
       - name: Build workspace packages
         run: pnpm build:packages
 
-      - name: Run Router Adapter E2E
-        run: node tooling/ci/measure-ci-e2e.mjs router-adapters pnpm e2e:router-adapters
+      - name: Run Navigation API E2E
+        run: node tooling/ci/measure-ci-e2e.mjs navigation-api pnpm e2e:navigation-api
 
-      - name: Upload Router Adapter CI measurement
+      - name: Upload Navigation API CI measurement
         if: always()
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: router-adapters-ci-measurement
-          path: artifacts/ci-docker-cache/router-adapters
+          name: navigation-api-ci-measurement
+          path: artifacts/ci-docker-cache/navigation-api
           if-no-files-found: warn
 
       - name: Clean up E2E environment
