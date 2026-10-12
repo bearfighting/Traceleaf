@@ -33,7 +33,7 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "analytics-api"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -417,7 +417,7 @@ checksum = "0c9ea0ac24bc397ab3c98583a3c9ba74fa56b09a4449bbe172b9b1ddb016027a"
 
 [[package]]
 name = "collector"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -464,7 +464,7 @@ dependencies = [
 
 [[package]]
 name = "configuration-runtime"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "jsonschema",
@@ -581,7 +581,7 @@ checksum = "4583a4551df46e2792f82ceeac45e850d2e2d5debba0b91f102385cda5b11f06"
 
 [[package]]
 name = "db-migrator"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "sqlx",
@@ -1659,7 +1659,7 @@ dependencies = [
 
 [[package]]
 name = "processor"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2198,7 +2198,7 @@ checksum = "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e"
 
 [[package]]
 name = "site-registry-importer"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "clap",

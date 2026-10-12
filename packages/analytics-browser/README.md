@@ -1,14 +1,15 @@
 # `@traceleaf/browser`
 
-After registry publication, install the package in your application:
+Download `traceleaf-browser-1.0.0.tgz` from the
+[Browser SDK 1.0.0 GitHub Release](https://github.com/bearfighting/web-analytics-platform/releases/download/browser-sdk-v1.0.0/traceleaf-browser-1.0.0.tgz)
+and install it in your application:
 
 ```sh
-npm install @traceleaf/browser
+npm install ./traceleaf-browser-1.0.0.tgz
 ```
 
-The package is currently private and has not been published to a registry. To
-create a local tarball from a clean checkout, build the package first, then pack
-it from its directory:
+To create a local tarball from a clean checkout, build the package first, then
+pack it from its directory:
 
 ```sh
 pnpm --filter @traceleaf/browser build

@@ -71,7 +71,7 @@ try {
     throw new Error(`Unexpected runtime dependencies: ${runtimeDependencies.join(", ")}`);
   }
   if (packedManifest.private !== true)
-    throw new Error("SDK package must remain private until all release acceptance is complete");
+    throw new Error("SDK tarball must remain private; distribute it through GitHub Releases");
 
   writeFileSync(
     join(temporaryDirectory, "package.json"),
