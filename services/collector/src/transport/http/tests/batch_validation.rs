@@ -71,17 +71,39 @@ async fn rejects_missing_required_field_and_wrong_event_type() {
 
 #[tokio::test]
 async fn rejects_invalid_occurred_at() {
-    let body = r#"{"schema_version":1,"events":[{"schema_version":1,"event_id":"01J00000000000000000000000","type":"page_view","site_id":"site_example","occurred_at":-1,"path":"/about"}]}"#;
+    let occurred_at =
+        chrono::Utc::now().timestamp_millis() + chrono::Duration::days(1).num_milliseconds();
+    let body = format!(
+        r#"{{"schema_version":1,"events":[{{"schema_version":1,"event_id":"01J00000000000000000000000","type":"page_view","site_id":"site_example","occurred_at":{occurred_at},"path":"/about"}}]}}"#
+    );
     let response = app(InMemorySink::new())
-        .oneshot(request(body))
+        .oneshot(request(&body))
         .await
         .expect("request should complete");
 
     assert_eq!(response.status(), 400);
+    let error = response_json(response).await["error"].clone();
+    assert_eq!(error["code"], "invalid_occurred_at");
     assert_eq!(
-        response_json(response).await["error"]["code"],
-        "invalid_event_batch"
+        error["message"],
+        "Event occurred_at is outside the supported range"
     );
+}
+
+#[tokio::test]
+async fn rejects_mixed_site_ids_with_invalid_event_batch() {
+    let body = format!(
+        r#"{{"schema_version":1,"events":[{VALID_EVENT},{{"schema_version":1,"event_id":"01J00000000000000000000002","type":"page_view","site_id":"site_other","occurred_at":1760000000000,"path":"/about"}}]}}"#
+    );
+    let response = app(InMemorySink::new())
+        .oneshot(request(&body))
+        .await
+        .expect("request should complete");
+
+    assert_eq!(response.status(), 400);
+    let error = response_json(response).await["error"].clone();
+    assert_eq!(error["code"], "invalid_event_batch");
+    assert_eq!(error["message"], "Event batch validation failed");
 }
 
 #[tokio::test]

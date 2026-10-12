@@ -16,6 +16,7 @@ import { seedE2EIngestPolicies } from "../support/e2e-ingest-policies.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const project = process.env.E2E_SHARED_PROJECT ?? `web-analytics-browser-sdk-e2e-${process.pid}`;
 const collectorUrl = `http://localhost:${e2ePort("E2E_COLLECTOR_PORT", 14001)}`;
+const browserCollectorUrl = `http://127.0.0.1:${e2ePort("E2E_COLLECTOR_PORT", 14001)}`;
 const analyticsUrl = `http://localhost:${e2ePort("E2E_ANALYTICS_API_PORT", 14002)}`;
 const dashboardUrl = `http://localhost:${e2ePort("DASHBOARD_PORT", 13000)}`;
 const playgroundUrl = `http://localhost:${e2ePort("PLAYGROUND_NEXT_PORT", 13001)}`;
@@ -31,6 +32,7 @@ const { runCompose } = createE2EComposeRunner({
 let browser;
 let context;
 let page;
+let cdpSession;
 let processorOutput = "";
 
 try {
@@ -51,7 +53,7 @@ try {
     {
       env: {
         NEXT_PUBLIC_ANALYTICS_TRANSPORT: "fetch",
-        NEXT_PUBLIC_ANALYTICS_ENDPOINT: `${collectorUrl}/v1/events`,
+        NEXT_PUBLIC_ANALYTICS_ENDPOINT: `${browserCollectorUrl}/v1/events`,
         NEXT_PUBLIC_ANALYTICS_INGEST_KEY: ingestKey,
         NEXT_PUBLIC_ANALYTICS_SITE_ID: siteId,
         DASHBOARD_DEFAULT_ENVIRONMENT: "e2e",
@@ -63,12 +65,24 @@ try {
   await waitForHttpService("Dashboard", `${dashboardUrl}/dashboard`);
   await waitForHttpService("Next.js playground", playgroundUrl);
 
-  browser = await chromium.launch({ headless: true });
+  browser = await chromium.launch({ headless: true, args: ["--enable-web-security"] });
   context = await browser.newContext();
   await context.tracing.start({ screenshots: true, snapshots: true });
   page = await context.newPage();
   const pageErrors = [];
+  const browserRequests = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
+  cdpSession = await context.newCDPSession(page);
+  await cdpSession.send("Network.enable");
+  cdpSession.on("Network.requestWillBeSent", (event) => {
+    if (new URL(event.request.url).pathname === "/v1/events") {
+      browserRequests.push({ requestId: event.requestId, request: event.request });
+    }
+  });
+  cdpSession.on("Network.responseReceived", (event) => {
+    const request = browserRequests.find(({ requestId }) => requestId === event.requestId);
+    if (request) request.response = event.response;
+  });
 
   console.log("[data-pipeline] Chromium / real @traceleaf/browser entry / isolated E2E Compose");
   const initialDocument = await page.goto(playgroundUrl, { waitUntil: "domcontentloaded" });
@@ -88,6 +102,43 @@ try {
     const log = document.querySelector('[data-testid="events-json"]')?.textContent ?? "[]";
     return log.includes('"path":"/about"');
   });
+
+  const browserCollectorEndpoint = browserRequests.find(({ request }) => request.method === "POST")
+    ?.request.url;
+  const collectorPreflight = browserRequests.find(
+    ({ request }) =>
+      request.method === "OPTIONS" &&
+      request.url === browserCollectorEndpoint &&
+      headerValue(request.headers, "access-control-request-method")?.toUpperCase() === "POST",
+  );
+  assert(collectorPreflight, "Browser did not send a Collector CORS preflight for POST");
+  const preflightResponse = collectorPreflight.response;
+  assert(preflightResponse, "Collector CORS preflight did not receive a response");
+  const preflightHeaders = Object.fromEntries(
+    Object.entries(preflightResponse.headers).map(([name, value]) => [name.toLowerCase(), value]),
+  );
+  const allowedHeaderNames = (preflightHeaders["access-control-allow-headers"] ?? "")
+    .split(",")
+    .map((header) => header.trim().toLowerCase());
+  const allowedMethods = (preflightHeaders["access-control-allow-methods"] ?? "")
+    .split(",")
+    .map((method) => method.trim().toUpperCase());
+  assert(
+    preflightResponse.status === 204,
+    `Collector CORS preflight returned ${preflightResponse.status}, expected 204`,
+  );
+  assert(
+    preflightHeaders["access-control-allow-origin"] === new URL(page.url()).origin,
+    `Collector allowed Origin ${preflightHeaders["access-control-allow-origin"]}, expected ${new URL(page.url()).origin}`,
+  );
+  assert(allowedMethods.includes("POST"), "Collector CORS preflight did not allow POST");
+  assert(
+    ["content-type", "x-ingest-key"].every((header) => allowedHeaderNames.includes(header)),
+    `Collector CORS preflight did not allow Content-Type and X-Ingest-Key: ${allowedHeaderNames.join(", ")}`,
+  );
+  console.log(
+    "PASS Chromium Collector CORS preflight: 204, matching Origin, POST, Content-Type, X-Ingest-Key",
+  );
 
   const pageViews = queryJson(
     `SELECT path, COUNT(*)::int AS count FROM raw_events WHERE site_id='${siteId}' AND event_type='page_view' GROUP BY path ORDER BY path`,
@@ -183,7 +234,7 @@ try {
   );
 
   let serviceErrorAttempts = 0;
-  await page.route(`${collectorUrl}/v1/events`, (route) => {
+  await page.route(`${browserCollectorUrl}/v1/events`, (route) => {
     serviceErrorAttempts += 1;
     return route.fulfill({
       status: 503,
@@ -204,7 +255,7 @@ try {
   await page.unrouteAll();
   await page.evaluate(() => sessionStorage.removeItem("__sdk_e2e_on_error_called"));
   let unavailableAttempts = 0;
-  await page.route(`${collectorUrl}/v1/events`, (route) => {
+  await page.route(`${browserCollectorUrl}/v1/events`, (route) => {
     unavailableAttempts += 1;
     return route.abort("failed");
   });
@@ -239,7 +290,7 @@ try {
   await page.getByTestId("events-json").waitFor();
   await page.evaluate(() => sessionStorage.removeItem("__sdk_e2e_on_error_called"));
   let rejectedOriginStatus;
-  await page.route(`${collectorUrl}/v1/events`, async (route) => {
+  await page.route(`${browserCollectorUrl}/v1/events`, async (route) => {
     const response = await fetch(route.request().url(), {
       method: "POST",
       headers: {
@@ -306,6 +357,7 @@ try {
   console.error(`Browser SDK E2E diagnostics saved in ${artifactDirectory}`);
   process.exitCode = 1;
 } finally {
+  if (cdpSession) await cdpSession.detach();
   if (context) await context.close();
   if (browser) await browser.close();
 }
@@ -334,4 +386,10 @@ function queryJson(sql) {
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+function headerValue(headers, expectedName) {
+  const normalizedName = expectedName.toLowerCase();
+  const entry = Object.entries(headers).find(([name]) => name.toLowerCase() === normalizedName);
+  return entry?.[1];
 }

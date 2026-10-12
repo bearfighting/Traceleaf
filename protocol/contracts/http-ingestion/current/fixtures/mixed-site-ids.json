@@ -20,6 +20,6 @@
       "access-control-allow-origin": "https://www.example.com",
       "vary": "Origin"
     },
-    "body": "{\"error\":{\"code\":\"invalid_event_batch\",\"message\":\"All events in a batch must use the same site_id\"}}"
+    "body": "{\"error\":{\"code\":\"invalid_event_batch\",\"message\":\"Event batch validation failed\"}}"
   }
 }

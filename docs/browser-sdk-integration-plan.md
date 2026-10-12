@@ -1,9 +1,9 @@
 # Browser SDK 对外接入与发布计划
 
-> 状态：已获准完成并发布现有 Browser SDK。发布准备进行中；包仍为 `private`，尚未通过独立安装与发布验收，也未授权立即推送 registry。授权不包含新增 Analytics 功能或扩大产品范围，MVP 其他功能继续冻结。导航观察范围按 [ADR-022](decisions/ADR-022-navigation-api-only-browser-sdk.md) 执行；History API 检测与 fallback 不在本轮范围。
+> 状态：已获准完成并发布现有 Browser SDK。tarball 独立消费者 smoke test 已通过，但完整发布验收尚未完成；包仍为 `private`，尚未授权立即推送 registry。授权不包含新增 Analytics 功能或扩大产品范围，MVP 其他功能继续冻结。导航观察范围按 [ADR-022](decisions/ADR-022-navigation-api-only-browser-sdk.md) 执行；History API 检测与 fallback 不在本轮范围。
 > 目标：提供不依赖具体 Router 或 UI 框架的通用 Browser SDK，让目标网站通过同一套浏览器级导航观察实现页面浏览分析；SDK 故障不得影响目标应用。Chromium observer 验收目标现在包含 Next.js、React Router、TanStack Router、Vanilla、Vue、SvelteKit、Solid、Angular 和 Astro Playground。测试结果只作为受测 Chromium 与依赖版本的兼容性证据，不代表完整浏览器矩阵或对外支持承诺。首发设计不包含 Router 专用代码。
 
-> 浏览器范围：本轮 Navigation API 验证只在 Chromium 中进行。Firefox 与 Safari/WebKit 的兼容性验证明确安排在 Browser SDK 功能完成后，作为发布支持矩阵的后续任务；它们不属于当前 observer 验收条件。验证时再决定最低支持版本，以及缺少 Navigation API 时的行为或替代方案；不预先承诺 History API fallback。
+> 浏览器范围：本轮 Navigation API 验证只在 Chromium 中进行。维护者于 2026-10-11 明确暂缓 Firefox 与 Safari/WebKit 的兼容性和支持范围验收；当前不安排执行，且不代表通过或作出兼容性承诺。恢复时再决定最低支持版本，以及缺少 Navigation API 时的行为或替代方案；不预先承诺 History API fallback。
 
 > Framework smoke-test 范围：在原有 Next.js、React Router、TanStack Router 与 Vanilla 基线之外，新增 Vue、SvelteKit、Solid、Angular 和 Astro playground。E2E 只证明本次锁定的依赖版本可在 Chromium 中初始化 SDK、收到 initial 事件并观察一次 push 导航。这不是浏览器兼容矩阵，也不自动形成框架支持或发布承诺。
 
@@ -121,18 +121,18 @@ Vanilla JavaScript Playground 是通用 Navigation API observer 的浏览器基�
 
 ### 当前计划状态审计
 
-| 阶段                       | 状态                                                                                                                                                                   | 尚未完成 / 应调整                                                                                                                      |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| 0. 授权与契约盘点          | 授权范围已记录；[契约审计](browser-sdk-ingestion-contract-audit.md) 已记录请求格式、CORS/Origin、批次限制和错误映射                                                    | Collector fixtures 与部分错误消息/代码仍有差异；部署兼容顺序和完整端到端链路仍需验证。授权仅限现有 Browser SDK 的发布准备与发布。      |
-| 1. Navigation API observer | 基础实现完成，已纳入 Browser SDK 初始化入口；Chromium E2E 覆盖九个 Playground，含无 `navigate` 对应事件时的 `currententrychange` 提交观察；observer-core 11 条单测通过 | 无 API 时仅 initial 的行为目前由单测覆盖；Firefox/Safari 延后到 SDK 完成后。不包装 History API，不实现 fallback。                      |
-| 2. 公开 API 与失败语义     | 接入入口已定稿                                                                                                                                                         | `@traceleaf/browser`、`createBrowserAnalytics()` 和调用方显式传配置已确定；SSR/hydration、日志和完整 fail-open 验收仍待完成。          |
-| 3. 通用 SDK 边界           | 部分完成                                                                                                                                                               | `createBrowserAnalytics()`、显式配置和 observer 清理已落地；SSR/hydration 与完整 fail-open 契约仍需验收。                              |
-| 4. 默认 HTTP 与 fail-open  | 默认 Fetch transport 已接入                                                                                                                                            | 需完成 Browser SDK 到 Collector 的端到端验证及失败隔离验收；不提前加持久化队列或复杂重试。                                             |
-| 5. 公共包与文档            | SDK 包入口、README、LICENSE 和 tarball 内容检查已通过；包保持 private                                                                                                  | 浏览器兼容矩阵和产品端到端验收仍未完成。                                                                                               |
-| 6. 端到端验证              | 未完成；九种 Playground 的 Navigation API E2E 已通过；SDK → Collector 及目标存储/Processor/API/Dashboard 链路、SSR/hydration、fail-open 和跨浏览器支持范围仍待验收     | 需验收端到端数据链路、SSR/hydration、fail-open；另验证 Firefox/Safari 支持范围。                                                       |
-| 7. 独立安装与发布          | Tarball 独立消费者验收通过；未发布                                                                                                                                     | 内部运行时代码打入 SDK；`ulid` 与 `web-vitals` 为外部运行时依赖。Registry 发布流程、权限、版本策略和回滚仍待确定；包继续保持 private。 |
+| 阶段                       | 状态                                                                                                                                                                                           | 尚未完成 / 应调整                                                                                                                                                 |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0. 授权与契约盘点          | 授权范围已记录；[契约审计](browser-sdk-ingestion-contract-audit.md) 已记录请求格式、CORS/Origin、批次限制和错误映射                                                                            | 已修正三处错误 fixture 差异；目标部署 Collector 对当前 Protocol V1 的兼容性确认暂缓，仓库内同提交 E2E 不替代部署验证。授权仅限现有 Browser SDK 的发布准备与发布。 |
+| 1. Navigation API observer | 基础实现完成，已纳入 Browser SDK 初始化入口；Chromium E2E 覆盖九个 Playground，含无 `navigate` 对应事件时的 `currententrychange` 提交观察；observer-core 11 条单测通过                         | 无 API 时仅 initial 的行为目前由单测覆盖；Firefox/Safari/WebKit 验收已暂缓。不包装 History API，不实现 fallback。                                                 |
+| 2. 公开 API 与失败语义     | 接入入口已定稿；Chromium E2E 已验收 SSR/hydration、无效配置和错误回调异常隔离                                                                                                                  | Firefox/Safari/WebKit 支持范围及缺 Navigation API 时的真实浏览器行为已暂缓，尚未验收。                                                                            |
+| 3. 通用 SDK 边界           | SSR/hydration、缺少/无效配置及宿主导航 fail-open 已由 Chromium E2E 覆盖；日志通过 `onError` 回调，正常与 transport 失败路径不写 console（2026-10-11）                                          | 完整运行时异常矩阵仍待验收；跨浏览器验证已暂缓。                                                                                                                  |
+| 4. 默认 HTTP 与 fail-open  | 隔离 E2E 验证真实 SDK 请求进入 Collector，覆盖 503、连接失败、拒绝 Origin 的 fail-open 和 Chromium CORS 预检；批次及有限缓冲/flush 单测通过（2026-10-11）                                      | 不增加持久化队列或复杂重试；跨浏览器验证已暂缓。                                                                                                                  |
+| 5. 公共包与文档            | SDK 包入口、README、LICENSE 和 tarball 内容检查已通过；包保持 private                                                                                                                          | 浏览器兼容矩阵与剩余发布验收仍未完成。                                                                                                                            |
+| 6. 端到端验证              | 部分完成；九种 Playground Navigation API E2E 及隔离的 SDK → Collector → PostgreSQL → Processor → API → Dashboard 链路、Chromium CORS 预检、SSR/hydration、空数据和失败状态均通过（2026-10-11） | Firefox/Safari 支持范围验证已暂缓；本记录不代表 Raspberry Pi 或生产部署验收。                                                                                     |
+| 7. 独立安装与发布          | Tarball 独立消费者验收通过；未发布                                                                                                                                                             | 内部运行时代码打入 SDK；`ulid` 与 `web-vitals` 为外部运行时依赖。Registry 发布流程、权限、版本策略和回滚仍待确定；包继续保持 private。                            |
 
-当前明确的顺序调整：Browser SDK 默认使用通用 Navigation API observer，并移除 Router 专用代码。Firefox 与 Safari/WebKit 兼容性验证列为 SDK 功能完成后的后续工作，在对外公布浏览器支持范围前完成。若 Navigation API 覆盖发现缺口，先记录证据并单独评审，不自动加入 History API fallback 或 Router 专用代码。
+当前明确的顺序调整：Browser SDK 默认使用通用 Navigation API observer，并移除 Router 专用代码。Firefox 与 Safari/WebKit 兼容性验证由维护者于 2026-10-11 明确暂缓，恢复工作需维护者明确提出。若之后验证发现 Navigation API 覆盖缺口，先记录证据并单独评审，不自动加入 History API fallback 或 Router 专用代码。
 
 ### 待完成工作 Checklist
 
@@ -155,12 +155,15 @@ Vanilla JavaScript Playground 是通用 Navigation API observer 的浏览器基�
 #### SDK 实施前置与实现
 
 - [x] 记录维护者对现有 Browser SDK 发布准备与发布的限范围授权，并同步更新 MVP Scope 与项目状态；MVP 其他功能继续冻结。
-- [x] 记录 Protocol、Collector HTTP contract、Origin/CORS、batch limits、错误语义和 fixtures 的现状；兼容部署顺序和错误 fixture 差异仍待处理。
+- [x] 记录 Protocol、Collector HTTP contract、Origin/CORS、batch limits、错误语义和 fixtures 的现状；修正错误 fixture，并记录 Collector 优先于依赖新协议的 SDK 部署的兼容顺序。
 - [x] 定稿仓库内初始化 API、包名和配置来源：`@traceleaf/browser` 根入口只提供 `createBrowserAnalytics()` 及其调用类型；调用方显式传配置，SDK 不读宿主环境变量。
-- [ ] 完成 SSR/hydration、缺配置行为、日志及完整 fail-open 契约验收。
+- [x] Chromium E2E 验证 Next.js SSR/hydration、无效 SDK 配置、抛错的错误回调，以及 503、Collector 连接失败、拒绝 Origin 时宿主导航继续且无未处理页面异常（2026-10-11；详见下方隔离链路记录）。
+- [x] 完成日志策略与默认 transport 有限缓冲/flush 的专项验收；transport 和 Browser SDK 单测通过（2026-10-11）。完整运行时异常矩阵仍待完成；跨浏览器验证已暂缓。
 - [ ] 明确 Browser SDK、observer、Page View、身份/consent、buffer 与 transport 的边界和职责。
 - [x] 复用现有 Fetch transport；`createBrowserAnalytics()` 根据显式传入的 `siteId`、`endpoint` 和 `ingestKey` 创建默认 transport。
-- [ ] 完成默认 transport、有限缓冲/flush 与失败隔离的端到端验收。
+- [x] 默认 Fetch transport 的真实 Collector 发送和 503、Collector 不可用、拒绝 Origin 的失败隔离由 Chromium E2E 验证（2026-10-11）。
+- [x] 在隔离 Browser SDK E2E 验证 Chromium 发出的 Collector CORS 预检：204、匹配 Playground Origin、允许 POST 和 Content-Type/X-Ingest-Key（2026-10-11；详见下方预检验收记录）。
+- [x] 完成有限缓冲/flush 和批次限制专项验收：Browser SDK 定时/容量触发/手动 flush、失败不重试及销毁清空；transport 100-event、UTF-8 字节拆分、超限拒绝和 keepalive 预算（2026-10-11）。
 - [x] 实现内部通用 Browser SDK 初始化入口，由 SDK 默认创建并清理 Navigation API observer。
 - [x] 定稿并实现通用根入口；React 组件入口不纳入当前范围，不增加 Router 专用 adapter。
 - [x] 更新 vanilla JavaScript 接入示例、包名引用和当前接入计划/契约审计；SDK 保持 private，未进行独立发布。
@@ -168,16 +171,51 @@ Vanilla JavaScript Playground 是通用 Navigation API observer 的浏览器基�
 
 #### SDK 发布验收与发布准备
 
-- [ ] 验证 Browser SDK 到 Collector 的事件格式、配置、Origin/CORS、错误响应及服务不可用行为。
-- [ ] 验证 browser → Collector → storage/Processor → Analytics API/Dashboard 的目标链路和失败/空数据状态；与 Raspberry Pi/生产部署验收分开记录。
-- [ ] 验收 SSR/hydration、配置错误时 fail-open、日志/错误回调及运行时异常隔离。
-- [ ] 完成相关单元、集成、E2E、构建与格式检查，并记录命令、环境和结果。
+- [x] 在隔离 E2E Compose 验证 Browser SDK 事件写入当前仓库 Collector/PostgreSQL，Processor 处理后由 Analytics API 和 Dashboard 展示；验证 initial 与客户端导航 Page View（2026-10-11）。
+- [x] 在隔离 E2E Compose 验证 SSR/hydration、空日期成功响应和 Dashboard 空状态、Collector 503、连接失败、无效配置、抛错错误回调及 Origin 403 的 fail-open（2026-10-11）。
+- [x] 在 Chromium 隔离 E2E 验收真实 Collector CORS 预检；日志策略、有限缓冲/flush 和批次限制专项验收通过（2026-10-11）。Firefox/Safari/WebKit 支持范围已暂缓。
+- [x] 完成 Browser SDK 相关单元、集成、构建、类型检查与格式检查，并记录命令、环境和结果（2026-10-11；详见下方基础质量验收记录）。
+- [ ] （暂缓）在目标部署环境确认 Collector Protocol V1 兼容性；当前 E2E 仅证明同一提交构建的 Collector 与 SDK 互通，不代表 Raspberry Pi/生产部署验收。
 - [x] 完成包 exports、类型、浏览器入口、依赖许可、README/LICENSE 和 tarball 内容检查。
 - [x] 确定打包方案：内部 workspace 运行时代码并入 SDK，生成包不依赖 monorepo workspace；外部运行时依赖仅为 `ulid` 与 `web-vitals`。
 - [x] 在 monorepo 外从 tarball 安装并运行 ESM 导入、TypeScript 和 Vite 浏览器构建 smoke test；消费者无需 workspace 配置或手工安装内部包。
-- [ ] 验证 Firefox 与 Safari/WebKit 的目标支持范围；在发布说明中记录实测矩阵和不支持 Navigation API 时的行为。
-- [ ] 确认版本策略、CI 发布校验、registry 发布权限、预发布/dry-run、回滚与弃用流程。
+- [ ] （暂缓）验证 Firefox 与 Safari/WebKit 的目标支持范围；在发布说明中记录实测矩阵和不支持 Navigation API 时的行为。
+- [ ] 确认 semver/版本策略、CI 发布校验、registry 发布权限、预发布/dry-run、回滚与弃用流程。
 - [ ] 以上验收全部通过后，执行实际 registry 发布并记录版本与结果。
+
+#### 隔离 Browser SDK 数据链路验收（2026-10-11）
+
+- 命令：`pnpm e2e:browser-sdk`。
+- 环境：本机隔离 E2E Compose 项目；PostgreSQL、当前仓库 Collector、Processor、Analytics API、Dashboard、Next.js Playground；Chromium / Playwright。runner 完成后已清理本次创建的 Compose 容器、网络和数据库卷。
+- 结果：通过。真实 `@traceleaf/browser` 根入口在 Next.js SSR/hydration 后发送 initial Page View 和 `/about` 客户端导航 Page View；事件写入 PostgreSQL，经 Processor 后由 Analytics API 返回，并在 Dashboard Top Pages 中展示。空日期范围返回 200 和空 items，Dashboard 显示空状态。
+- 失败隔离：通过。模拟 Collector 503、连接失败、无效 SDK 配置、抛错的错误回调及 Collector 对拒绝 Origin 返回 403；宿主页面仍可导航，未发现未处理页面异常。
+- 本轮没有发现需要修改代码的阻塞问题。
+- 范围：这是同一仓库版本的隔离 E2E 证据，不代表 Raspberry Pi/生产部署验收，也不构成 Firefox、Safari/WebKit 或无 Navigation API 浏览器兼容性结论。批次限制、有限缓冲/flush 和日志策略随后已通过针对性验收（见下方记录）；跨浏览器支持矩阵已暂缓。
+
+#### Chromium CORS 预检验收（2026-10-11）
+
+- 命令：`pnpm e2e:browser-sdk`、`pnpm --filter @web-analytics/transport test`、`pnpm --filter @traceleaf/browser test`、`cargo test -p collector --test http_ingestion`。
+- 环境：隔离 E2E Compose、Chromium `153.0.8010.12` / Playwright `1.63.0`；Browser SDK 页面从 `localhost` 请求 `127.0.0.1` 上的 Collector，以确保真实跨 Origin 预检。E2E 完成后已清理创建的 Compose 容器、网络和数据库卷。
+- 结果：全部通过。CDP Network 事件捕获浏览器真实发出的 `OPTIONS /v1/events`，响应状态为 204；`Access-Control-Allow-Origin` 与 Playground 页面 Origin 相同；允许方法包含 POST；允许请求头包含 Content-Type 和 X-Ingest-Key。HTTP 集成套件 14 项、transport 单测 23 项、Browser SDK 单测 40 项均通过。
+- Browser SDK E2E 保留并通过原有数据链路、空数据、503/连接失败、无效配置、抛错错误回调和拒绝 Origin 断言。
+- 范围：仅证明隔离 E2E 中 Chromium 的 CORS 预检行为；不代表生产/Raspberry Pi 部署或 Firefox、Safari/WebKit 兼容性验收。
+
+#### Browser SDK 基础质量验收（2026-10-11）
+
+- 构建：`pnpm build:packages` 通过，构建 Protocol TS、observer-core、analytics-core、Browser SDK、transport 和 playground-support。
+- 单测：`pnpm --filter @traceleaf/browser --filter @web-analytics/observer-core --filter @web-analytics/transport test` 通过；Browser SDK 40 项、observer-core 14 项、transport 23 项。
+- 类型检查：`pnpm --filter @traceleaf/browser --filter @web-analytics/observer-core --filter @web-analytics/transport --filter @web-analytics/nextjs-router-playground typecheck` 通过。
+- 格式：上述相同 package filters 的 `format:check` 通过；发现并修正 `packages/transport/src/fetch-transport.test.ts` 的 Prettier 格式后，transport 23 项单测复跑通过。文档 Prettier 检查和 `git diff --check` 通过。
+- 集成/E2E：Browser SDK 隔离链路与 CORS 预检 E2E，以及 Collector HTTP ingestion 集成测试结果见本节前两份记录。
+- 范围：这是 Browser SDK 及其直接依赖和 Next.js Playground 的针对性验证，不替代完整仓库 CI、生产部署或跨浏览器验收。
+
+#### 日志策略、缓冲与批次限制验收（2026-10-11）
+
+- 命令：`pnpm --filter @traceleaf/browser --filter @web-analytics/transport test`、`pnpm --filter @traceleaf/browser --filter @web-analytics/transport --filter @web-analytics/nextjs-router-playground typecheck`、相同 filters 的 `format:check`、`pnpm e2e:browser-sdk`。
+- 结果：全部通过。Browser SDK 单测 41 项、transport 单测 23 项；类型检查和格式检查通过。新增断言确认 transport 失败通过 `onError` 报告并使 `flush()` reject，SDK 不向 `console.warn`/`console.error` 写入内容。
+- 已有专项断言覆盖缓冲定时 flush、达到配置容量时自动 flush、手动 flush 等待发送、destroy 清空未发送事件、失败批次不重试；Fetch transport 覆盖每请求最多 100 个事件、按 UTF-8 请求体字节数拆分并保持顺序、超大事件拒绝，以及 keepalive 单请求 60,000-byte 预算和超限整体拒绝。
+- `pnpm e2e:browser-sdk` 同时通过真实 Chromium CORS 预检及 SDK → Collector → PostgreSQL → Processor → Analytics API → Dashboard 链路；runner 已清理隔离 Compose 容器、网络和数据库卷。
+- 范围：日志策略只保证当前 Browser SDK 正常与已测失败路径不写 console，错误通过可选 `onError` 暴露；有限缓冲是内存缓冲，不提供持久化或重试。该记录不构成 Firefox/Safari/WebKit 或生产部署验收。
 
 #### Tarball 打包实施记录（2026-10-10）
 
@@ -185,9 +223,9 @@ Vanilla JavaScript Playground 是通用 Navigation API observer 的浏览器基�
 - 包元数据：`exports` / `main` / `types` 指向 `dist`；tarball 文件白名单为 `dist`、README 与 LICENSE。SDK 继续保持 `private`。
 - 可重复验收命令：`pnpm --filter @traceleaf/browser package:acceptance`。脚本会先重建 SDK，再在系统临时目录生成 tarball、检查内容和 workspace 依赖、创建独立 Vite + TypeScript 消费者、安装 tarball 并构建及类型检查；tarball metadata 由 Node 内置 gzip 读取，不依赖系统 `tar` 可执行文件。
 - 实际结果：`pnpm --filter @traceleaf/browser build` 通过，生成 `dist/index.js`（37.96 KB）和合并声明 `dist/index.d.ts`（4.06 KB）。`pnpm --filter @traceleaf/browser package:acceptance` 通过：清单包含 package metadata、README、LICENSE、JS 和声明，未发现源码测试文件；metadata 仅列 `ulid`、`web-vitals`，且 `private: true`；临时目录中的原生 ESM 导入、`createBrowserAnalytics` / `Analytics` / `AnalyticsConsent` / `BrowserAnalyticsOptions` 类型检查及 Vite 浏览器构建均成功。打包产物中没有 `@web-analytics/*` 引用。
-- 未解决项：SDK 仍保持 private，尚未发布 registry。Firefox/Safari 兼容矩阵和完整 SDK → Collector 产品验收仍按各自计划执行；这些不属于本次独立 tarball 消费验收。
+- 未解决项：SDK 仍保持 private，尚未发布 registry。Firefox/Safari 兼容矩阵已暂缓；完整 SDK → Collector 产品验收仍按计划执行。这些不属于本次独立 tarball 消费验收。
 
-#### SDK 功能完成后：Firefox 与 Safari/WebKit 兼容性
+#### 暂缓：Firefox 与 Safari/WebKit 兼容性
 
 - [ ] 为 Firefox 和 Safari/WebKit 建立最低版本及实际版本的测试矩阵。
 - [ ] 验证初始页面、客户端导航、back/forward、pathname/search、hash、取消/失败、快速连续导航和 title 行为。
@@ -263,7 +301,7 @@ Astro、Solid、Vue、Svelte、Angular 以及各 Router 默认复用同一个 Br
 - Vanilla JavaScript 基线、框架 Playground E2E 与独立消费者安装验证覆盖通用导航观察和完整接入路径。
 - 文档、Schema/fixtures、支持矩阵、构建/CI 与发布配置随实现同步完成。
 
-Firefox 与 Safari/WebKit 兼容矩阵在 SDK 功能完成后单独执行，并在发布支持范围前完成；矩阵结果决定实际最低版本及不支持 Navigation API 时的产品行为。
+Firefox 与 Safari/WebKit 兼容矩阵目前由维护者明确暂缓，尚无实测支持矩阵；恢复该工作后，再根据结果决定最低版本及不支持 Navigation API 时的产品行为。
 
 ## 明确不包含
 

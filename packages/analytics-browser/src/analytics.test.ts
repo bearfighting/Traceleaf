@@ -431,6 +431,35 @@ describe("createAnalytics", () => {
     vi.unstubAllGlobals();
   });
 
+  it("reports transport failures through onError without writing to the console", async () => {
+    const error = new Error("transport failed");
+    const onError = vi.fn();
+    const warn = vi.spyOn(console, "warn");
+    const consoleError = vi.spyOn(console, "error");
+    const transport: Transport = {
+      sendBatch: vi.fn(async () => Promise.reject(error)),
+    };
+    const analytics = createAnalytics({
+      siteId: "site_example",
+      transport,
+      onError,
+      contextProvider: unknownContextProvider,
+    });
+    const observer = new MemoryNavigationObserver();
+
+    analytics.observe(observer);
+    observer.emit(navigation);
+
+    await expect(analytics.flush()).rejects.toBe(error);
+    expect(onError).toHaveBeenCalledWith(error);
+    expect(warn).not.toHaveBeenCalled();
+    expect(consoleError).not.toHaveBeenCalled();
+
+    analytics.destroy();
+    warn.mockRestore();
+    consoleError.mockRestore();
+  });
+
   it("reports beforeSend errors through onError and flush", async () => {
     const error = new Error("beforeSend failed");
     const onError = vi.fn();

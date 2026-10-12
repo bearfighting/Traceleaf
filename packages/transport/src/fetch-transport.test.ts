@@ -172,7 +172,11 @@ describe("FetchTransport", () => {
 
   it("splits batches at 100 events while preserving event order", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(responseFor(acceptedFixture));
-    const transport = new FetchTransport({ endpoint, ingestKey: "public-key-example", fetch: fetchMock });
+    const transport = new FetchTransport({
+      endpoint,
+      ingestKey: "public-key-example",
+      fetch: fetchMock,
+    });
     const events = Array.from({ length: 205 }, (_, index) => ({
       ...identifiedEvent,
       event_id: `01J00000000000000000000${String(index).padStart(2, "0")}`,
@@ -180,16 +184,22 @@ describe("FetchTransport", () => {
 
     await transport.sendBatch(events);
 
-    const batches = fetchMock.mock.calls.map(([, init]) =>
-      (JSON.parse(String(init?.body)) as { events: AnalyticsEvent[] }).events,
+    const batches = fetchMock.mock.calls.map(
+      ([, init]) => (JSON.parse(String(init?.body)) as { events: AnalyticsEvent[] }).events,
     );
     expect(batches.map((batch) => batch.length)).toEqual([100, 100, 5]);
-    expect(batches.flat().map((event) => event.event_id)).toEqual(events.map((event) => event.event_id));
+    expect(batches.flat().map((event) => event.event_id)).toEqual(
+      events.map((event) => event.event_id),
+    );
   });
 
   it("splits batches by UTF-8 body size", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(responseFor(acceptedFixture));
-    const transport = new FetchTransport({ endpoint, ingestKey: "public-key-example", fetch: fetchMock });
+    const transport = new FetchTransport({
+      endpoint,
+      ingestKey: "public-key-example",
+      fetch: fetchMock,
+    });
     const events = Array.from({ length: 3 }, (_, index) => ({
       ...identifiedEvent,
       event_id: `01J0000000000000000000000${index}`,
@@ -201,13 +211,20 @@ describe("FetchTransport", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const batches = fetchMock.mock.calls.map(([, init]) => String(init?.body));
     expect(batches.every((body) => new TextEncoder().encode(body).byteLength <= 65_536)).toBe(true);
-    expect(batches.flatMap((body) => (JSON.parse(body) as { events: AnalyticsEvent[] }).events.map((event) => event.event_id)))
-      .toEqual(events.map((event) => event.event_id));
+    expect(
+      batches.flatMap((body) =>
+        (JSON.parse(body) as { events: AnalyticsEvent[] }).events.map((event) => event.event_id),
+      ),
+    ).toEqual(events.map((event) => event.event_id));
   });
 
   it("rejects an event larger than the request body limit before sending", async () => {
     const fetchMock = vi.fn<typeof fetch>();
-    const transport = new FetchTransport({ endpoint, ingestKey: "public-key-example", fetch: fetchMock });
+    const transport = new FetchTransport({
+      endpoint,
+      ingestKey: "public-key-example",
+      fetch: fetchMock,
+    });
     const oversized = { ...identifiedEvent, path: `/${"x".repeat(66_000)}` };
 
     await expect(transport.sendBatch([oversized])).rejects.toThrow("request body limit");
@@ -306,7 +323,11 @@ describe("FetchTransport", () => {
 describe("FetchTransport keepalive", () => {
   it("sends a batch that fits within the browser budget", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(responseFor(acceptedFixture));
-    const transport = new FetchTransport({ endpoint, ingestKey: "keepalive-key", fetch: fetchMock });
+    const transport = new FetchTransport({
+      endpoint,
+      ingestKey: "keepalive-key",
+      fetch: fetchMock,
+    });
     await transport.sendBatch([identifiedEvent], { keepalive: true });
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(fetchMock.mock.calls[0]?.[1]?.keepalive).toBe(true);

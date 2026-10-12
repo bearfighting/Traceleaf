@@ -2,7 +2,7 @@
 
 ## Scope and conclusion
 
-This audit records the repository's Browser SDK entry/configuration decision and compares the current HTTP ingestion fixtures, Rust Collector, and Browser SDK Fetch transport. It does not change the protocol or runtime behavior. The SDK workspace package is `@traceleaf/browser` (physical directory `packages/analytics-browser`) and remains private. Its root entry is `createBrowserAnalytics()` with only the call-required public types; callers pass `siteId`, `endpoint`, and `ingestKey` explicitly. The SDK does not read host environment variables; applications may read their own configuration and pass it in. The main request path, successful response, and batch limits align. Some fixture error details still differ from Collector responses.
+This audit records the repository's Browser SDK entry/configuration decision and compares the current HTTP ingestion fixtures, Rust Collector, and Browser SDK Fetch transport. It does not change the protocol or runtime behavior. The SDK workspace package is `@traceleaf/browser` (physical directory `packages/analytics-browser`) and remains private. Its root entry is `createBrowserAnalytics()` with only the call-required public types; callers pass `siteId`, `endpoint`, and `ingestKey` explicitly. The SDK does not read host environment variables; applications may read their own configuration and pass it in. The main request path, successful response, batch limits, and error fixture details align with the Collector; see the findings below for remaining coverage gaps.
 
 ## Request and success response
 
@@ -50,9 +50,23 @@ Health is `GET /health` and returns `200 {"status":"ok"}`; it is outside the Fet
 ## Findings and recommended follow-up
 
 1. **Batch limits align.** Fetch splits regular batches while preserving order, enforcing both Collector's 100-event cap and 65,536-byte request limit. Keepalive uses a 60,000-byte ceiling and rejects the whole batch if it would need multiple requests, avoiding partial delivery. Tests cover event-count and byte splitting, keepalive limits, and ordering.
-2. **Some fixture error bodies do not match Collector error bodies.** `invalid-json.json` expects “Request body is not valid JSON”, while `ApiError::invalid_json` emits “Request body must be valid JSON”. `mixed-site-ids.json` expects a specific message, while the current conflict path maps to the generic “Event batch validation failed”. `invalid-occurred-at.json` expects code `invalid_event_batch`, while the Collector maps timestamp range failures to `invalid_occurred_at`. This remains a contract fixture follow-up.
+2. **The error fixtures now match the Collector response bodies.** `invalid-json.json` uses the Collector's “Request body must be valid JSON”; `mixed-site-ids.json` uses its generic “Event batch validation failed” response; and `invalid-occurred-at.json` uses `invalid_occurred_at` with “Event occurred_at is outside the supported range”. Collector tests assert the corresponding error codes. Keep these fixtures synchronized when response semantics change.
 3. **Fixture coverage is broader than Fetch integration coverage.** HTTP fixtures include Origin and preflight failures, payload size, and batch cardinality. The Fetch unit tests cover request shape, successful response, error mapping, network failure, and keepalive/batch limits. Preflight itself is browser-managed and is not directly issued by this transport.
 
 ## Evidence and validation
 
 Primary evidence is the current HTTP fixture set under `protocol/contracts/http-ingestion/current/fixtures/`, Rust request handling and policy in `services/collector/src/transport/http/`, `services/collector/src/domain/`, and `services/collector/src/application/`, plus `packages/transport/src/fetch-transport.ts` and its tests. Suggested validation commands are `pnpm http:validate`, `pnpm --filter @web-analytics/transport test`, and `cargo test -p collector`.
+
+### Contract validation record (2026-10-11)
+
+- `pnpm http:validate`: passed; all 30 HTTP fixtures validated.
+- `pnpm --filter @web-analytics/transport test`: passed; 23 tests, including request shape, batch splitting, error mapping, and network failure behavior.
+- `cargo test -p collector --lib transport::http::tests::batch_validation`: passed; 7 batch validation tests.
+- `cargo test -p collector --lib transport::http::tests::request`: passed; 7 request tests, including the exact invalid-JSON error message.
+- `cargo test -p collector --test http_ingestion`: passed; 14 HTTP ingestion tests covering accepted batches, CORS/preflight, Origin/key policy, unsupported protocol version, rate limiting, and timestamp range handling.
+- `git diff --check`: passed.
+- This validates repository contracts and Collector behavior. The release target's deployed Collector version and policy still need environment-level confirmation before SDK publication.
+
+## SDK and Collector deployment compatibility
+
+The current browser package sends Protocol V1 EventBatch requests to `POST /v1/events`. Deployments must keep a Collector version that accepts Protocol V1 before enabling or publishing an SDK release that sends it. For this release, verify the target Collector already accepts the current V1 page-view, custom-event, and web-vital events that the SDK may emit. If a future SDK requires a new protocol or ingestion behavior, deploy a backward-compatible Collector first, verify it accepts both the old and new SDK request forms, and only then release the SDK. Keep old request support for the documented SDK compatibility window; roll back the SDK independently if needed, without rolling the Collector back to a version that rejects requests still sent by deployed SDKs.
