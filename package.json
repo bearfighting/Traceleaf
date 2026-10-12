@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "node ./tooling/dev/dev.mjs",
     "dev:next": "node ./tooling/dev/dev.mjs --router next",
+    "dev:website": "pnpm --filter @traceleaf/website dev",
     "dev:react": "node ./tooling/dev/dev.mjs --router react",
     "dev:tanstack": "node ./tooling/dev/dev.mjs --router tanstack",
     "dev:vanilla": "pnpm --filter @web-analytics/vanilla-playground dev",

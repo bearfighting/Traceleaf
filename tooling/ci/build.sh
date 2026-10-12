@@ -12,3 +12,4 @@ pnpm --filter @web-analytics/react-router-playground --filter @web-analytics/tan
 pnpm --filter @web-analytics/vanilla-playground build
 pnpm --filter @web-analytics/vue-playground --filter @web-analytics/svelte-playground --filter @web-analytics/solid-playground --filter @web-analytics/angular-playground --filter @web-analytics/astro-playground build
 pnpm --filter @web-analytics/dashboard build
+pnpm --filter @traceleaf/website build
