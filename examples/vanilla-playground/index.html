@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vanilla Navigation Playground</title>
+  </head>
+  <body>
+    <main>
+      <h1>Vanilla Navigation Playground</h1>
+      <p>Navigation API observer baseline with the browser SDK and mock transport.</p>
+      <section aria-label="Current page">
+        <h2 data-testid="page-title">Home</h2>
+        <output data-testid="current-url"></output>
+        <button data-testid="consent-toggle" type="button">Consent</button>
+        <nav>
+          <button data-navigation="push">Push page</button>
+          <button data-navigation="replace">Replace page</button>
+          <button data-navigation="search">Change search</button>
+          <button data-navigation="hash">Change hash</button>
+          <button data-navigation="back">Back</button>
+          <button data-navigation="forward">Forward</button>
+        </nav>
+        <nav aria-label="Controlled navigation outcomes">
+          <button data-navigation="cancel">Cancel navigation</button>
+          <button data-navigation="reject">Reject before commit</button>
+          <button data-navigation="fail">Fail after commit</button>
+          <button data-navigation="rapid">Rapid navigations</button>
+        </nav>
+      </section>
+      <section>
+        <h2>Navigation observer events</h2>
+        <pre data-testid="events-json">[]</pre>
+      </section>
+      <section>
+        <h2>Mock Page Views</h2>
+        <output data-testid="analytics-page-views">0</output>
+        <pre data-testid="analytics-events">[]</pre>
+      </section>
+      <section>
+        <h2>SDK instances</h2>
+        <output data-testid="active-instances">2</output>
+        <button data-testid="remove-second-instance">Remove second instance</button>
+        <output data-testid="second-instance-page-views">0</output>
+      </section>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

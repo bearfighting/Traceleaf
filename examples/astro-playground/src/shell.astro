@@ -1,0 +1,30 @@
+---
+import { ClientRouter } from "astro:transitions";
+const { title } = Astro.props;
+---
+
+<html>
+  <head><title>{title}</title><ClientRouter /></head><body
+    ><nav><a href="/">Home</a> | <a href="/users/42">User</a></nav><slot /><pre
+      id="events"
+      data-testid="events"
+      transition:persist="navigation-events">[]</pre>
+    <script>
+      import { createBrowserAnalytics } from "@traceleaf/browser";
+      const events: unknown[] = [];
+      const display = () => {
+        const output = document.querySelector("#events");
+        if (output) output.textContent = JSON.stringify(events);
+      };
+      createBrowserAnalytics({
+        siteId: "astro-playground",
+        consent: "granted",
+        transport: { async sendBatch() {} },
+        onNavigation: (event) => {
+          events.push(event);
+          display();
+        },
+      });
+    </script></body
+  >
+</html>

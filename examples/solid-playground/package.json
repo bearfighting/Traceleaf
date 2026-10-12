@@ -1,0 +1,23 @@
+{
+  "name": "@web-analytics/solid-playground",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write src index.html vite.config.ts tsconfig.json package.json",
+    "format:check": "prettier --check src index.html vite.config.ts tsconfig.json package.json"
+  },
+  "dependencies": {
+    "@traceleaf/browser": "workspace:*",
+    "@solidjs/router": "^0.15.0",
+    "solid-js": "^1.9.0"
+  },
+  "devDependencies": {
+    "vite": "^8.0.0",
+    "vite-plugin-solid": "^2.11.0",
+    "typescript": "^6.0.0"
+  }
+}

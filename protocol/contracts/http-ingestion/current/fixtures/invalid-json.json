@@ -20,6 +20,6 @@
       "access-control-allow-origin": "https://www.example.com",
       "vary": "Origin"
     },
-    "body": "{\"error\":{\"code\":\"invalid_json\",\"message\":\"Request body is not valid JSON\"}}"
+    "body": "{\"error\":{\"code\":\"invalid_json\",\"message\":\"Request body must be valid JSON\"}}"
   }
 }

@@ -49,10 +49,9 @@ async fn rejects_invalid_json_without_writing() {
         .expect("request should complete");
 
     assert_eq!(response.status(), 400);
-    assert_eq!(
-        response_json(response).await["error"]["code"],
-        "invalid_json"
-    );
+    let error = response_json(response).await["error"].clone();
+    assert_eq!(error["code"], "invalid_json");
+    assert_eq!(error["message"], "Request body must be valid JSON");
     assert!(sink.snapshot().await.is_empty());
 }
 

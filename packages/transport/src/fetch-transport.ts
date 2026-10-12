@@ -4,6 +4,8 @@ import type { Transport } from "@web-analytics/analytics-core";
 import type { AnalyticsEvent } from "@web-analytics/protocol-ts";
 
 const MAX_KEEPALIVE_BODY_BYTES = 60_000;
+const MAX_REQUEST_BODY_BYTES = 64 * 1024;
+const MAX_EVENTS_PER_REQUEST = 100;
 
 export interface FetchTransportOptions {
   endpoint: string;
@@ -42,19 +44,17 @@ export class FetchTransport implements Transport {
       return;
     }
 
-    if (options?.keepalive) {
-      const { events: boundedEvents, omittedCount } = fitKeepaliveBatch(events);
-      if (boundedEvents.length > 0) await this.sendOne(boundedEvents, true);
-      if (omittedCount > 0) {
-        throw new Error(
-          `Keepalive byte budget exceeded; sent ${boundedEvents.length} event(s) and omitted ${omittedCount}.`,
-        );
-      }
-
-      return;
+    const keepalive = options?.keepalive === true;
+    const maxBodyBytes = keepalive ? MAX_KEEPALIVE_BODY_BYTES : MAX_REQUEST_BODY_BYTES;
+    const batches = splitEventBatches(events, maxBodyBytes);
+    if (keepalive && batches.length > 1) {
+      throw new Error(
+        `Keepalive byte budget exceeded; batch requires ${batches.length} requests, but keepalive allows one.`,
+      );
     }
-
-    await this.sendOne(events, false);
+    for (const batch of batches) {
+      await this.sendOne(batch, keepalive);
+    }
   }
 
   private async sendOne(events: readonly AnalyticsEvent[], keepalive: boolean): Promise<void> {
@@ -124,19 +124,31 @@ function errorMessage(value: unknown): string {
   return value instanceof Error ? value.message : String(value);
 }
 
-function fitKeepaliveBatch(events: readonly AnalyticsEvent[]): {
-  events: readonly AnalyticsEvent[];
-  omittedCount: number;
-} {
-  const selected: AnalyticsEvent[] = [];
-  for (let index = 0; index < events.length; index += 1) {
-    const candidate = [...selected, events[index]];
-    const body = JSON.stringify({ schema_version: 1, events: candidate });
-    if (new TextEncoder().encode(body).byteLength > MAX_KEEPALIVE_BODY_BYTES) {
-      return { events: selected, omittedCount: events.length - index };
+function splitEventBatches(
+  events: readonly AnalyticsEvent[],
+  maxBodyBytes: number,
+): readonly (readonly AnalyticsEvent[])[] {
+  const batches: AnalyticsEvent[][] = [];
+  let current: AnalyticsEvent[] = [];
+  for (const event of events) {
+    const candidate = [...current, event];
+    if (candidate.length > MAX_EVENTS_PER_REQUEST || requestBodySize(candidate) > maxBodyBytes) {
+      if (current.length === 0) {
+        throw new Error(`Event exceeds the ${maxBodyBytes}-byte request body limit`);
+      }
+      batches.push(current);
+      current = [event];
+      if (requestBodySize(current) > maxBodyBytes) {
+        throw new Error(`Event exceeds the ${maxBodyBytes}-byte request body limit`);
+      }
+    } else {
+      current = candidate;
     }
-    selected.push(events[index]);
   }
+  if (current.length > 0) batches.push(current);
+  return batches;
+}
 
-  return { events: selected, omittedCount: 0 };
+function requestBodySize(events: readonly AnalyticsEvent[]): number {
+  return new TextEncoder().encode(JSON.stringify({ schema_version: 1, events })).byteLength;
 }

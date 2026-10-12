@@ -9,6 +9,7 @@ export default defineConfig({
         .pathname,
       "@web-analytics/protocol-ts": new URL("../protocol-ts/src/index.ts", import.meta.url)
         .pathname,
+      "@web-analytics/transport": new URL("../transport/src/index.ts", import.meta.url).pathname,
     },
   },
   test: {

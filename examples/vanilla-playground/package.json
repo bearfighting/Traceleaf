@@ -1,0 +1,20 @@
+{
+  "name": "@web-analytics/vanilla-playground",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "format": "prettier --write src index.html vite.config.ts package.json",
+    "format:check": "prettier --check src index.html vite.config.ts package.json"
+  },
+  "dependencies": {
+    "@traceleaf/browser": "workspace:*",
+    "@web-analytics/playground-support": "workspace:*"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.9",
+    "vite": "^8.3.0"
+  }
+}

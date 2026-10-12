@@ -7,18 +7,17 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "typecheck": "tsc --noEmit",
-    "test": "node -e \"console.log('Browser coverage is provided by e2e:router-adapters')\"",
+    "test": "node -e \"console.log('Browser coverage is provided by e2e:navigation-api')\"",
     "format": "prettier --write src index.html vite.config.ts tsconfig.json package.json",
     "format:check": "prettier --check src index.html vite.config.ts tsconfig.json package.json"
   },
   "dependencies": {
     "@tanstack/react-router": "^1.170.39",
-    "@web-analytics/analytics-browser": "workspace:*",
+    "@traceleaf/browser": "workspace:*",
     "@web-analytics/analytics-core": "workspace:*",
     "@web-analytics/observer-core": "workspace:*",
     "@web-analytics/playground-support": "workspace:*",
     "@web-analytics/protocol-ts": "workspace:*",
-    "@web-analytics/router-adapters": "workspace:*",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },

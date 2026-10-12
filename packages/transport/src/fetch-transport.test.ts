@@ -170,6 +170,67 @@ describe("FetchTransport", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("splits batches at 100 events while preserving event order", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(responseFor(acceptedFixture));
+    const transport = new FetchTransport({
+      endpoint,
+      ingestKey: "public-key-example",
+      fetch: fetchMock,
+    });
+    const events = Array.from({ length: 205 }, (_, index) => ({
+      ...identifiedEvent,
+      event_id: `01J00000000000000000000${String(index).padStart(2, "0")}`,
+    }));
+
+    await transport.sendBatch(events);
+
+    const batches = fetchMock.mock.calls.map(
+      ([, init]) => (JSON.parse(String(init?.body)) as { events: AnalyticsEvent[] }).events,
+    );
+    expect(batches.map((batch) => batch.length)).toEqual([100, 100, 5]);
+    expect(batches.flat().map((event) => event.event_id)).toEqual(
+      events.map((event) => event.event_id),
+    );
+  });
+
+  it("splits batches by UTF-8 body size", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(responseFor(acceptedFixture));
+    const transport = new FetchTransport({
+      endpoint,
+      ingestKey: "public-key-example",
+      fetch: fetchMock,
+    });
+    const events = Array.from({ length: 3 }, (_, index) => ({
+      ...identifiedEvent,
+      event_id: `01J0000000000000000000000${index}`,
+      path: `/${"é".repeat(11_000)}`,
+    }));
+
+    await transport.sendBatch(events);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const batches = fetchMock.mock.calls.map(([, init]) => String(init?.body));
+    expect(batches.every((body) => new TextEncoder().encode(body).byteLength <= 65_536)).toBe(true);
+    expect(
+      batches.flatMap((body) =>
+        (JSON.parse(body) as { events: AnalyticsEvent[] }).events.map((event) => event.event_id),
+      ),
+    ).toEqual(events.map((event) => event.event_id));
+  });
+
+  it("rejects an event larger than the request body limit before sending", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    const transport = new FetchTransport({
+      endpoint,
+      ingestKey: "public-key-example",
+      fetch: fetchMock,
+    });
+    const oversized = { ...identifiedEvent, path: `/${"x".repeat(66_000)}` };
+
+    await expect(transport.sendBatch([oversized])).rejects.toThrow("request body limit");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it.each([
     [400, "invalid_event_batch", "collector"],
     [401, "invalid_ingest_key", "collector"],
@@ -260,7 +321,19 @@ describe("FetchTransport", () => {
 });
 
 describe("FetchTransport keepalive", () => {
-  it("keeps the total in-flight keepalive request below the shared browser budget", async () => {
+  it("sends a batch that fits within the browser budget", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(responseFor(acceptedFixture));
+    const transport = new FetchTransport({
+      endpoint,
+      ingestKey: "keepalive-key",
+      fetch: fetchMock,
+    });
+    await transport.sendBatch([identifiedEvent], { keepalive: true });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock.mock.calls[0]?.[1]?.keepalive).toBe(true);
+  });
+
+  it("rejects the whole batch when it needs multiple keepalive requests", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(responseFor(acceptedFixture));
     const transport = new FetchTransport({
       endpoint,
@@ -283,11 +356,6 @@ describe("FetchTransport keepalive", () => {
     await expect(transport.sendBatch(largeEvents, { keepalive: true })).rejects.toThrow(
       "Keepalive byte budget exceeded",
     );
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [, init] = fetchMock.mock.calls[0];
-    expect(init?.keepalive).toBe(true);
-    expect((init?.headers as Record<string, string>)["X-Ingest-Key"]).toBe("keepalive-key");
-    expect(new TextEncoder().encode(String(init?.body)).byteLength).toBeLessThanOrEqual(60_000);
-    expect(JSON.parse(String(init?.body)).events.length).toBeLessThan(largeEvents.length);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

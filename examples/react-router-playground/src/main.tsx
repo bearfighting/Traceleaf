@@ -1,21 +1,22 @@
-import { createAnalytics } from "@web-analytics/analytics-browser";
+import { createBrowserAnalytics, type AnalyticsConsent } from "@traceleaf/browser";
 import type { Transport } from "@web-analytics/analytics-core";
-import type { Analytics } from "@web-analytics/analytics-browser";
 import { createPlaygroundTransport } from "@web-analytics/playground-support";
 import type { AnalyticsEvent } from "@web-analytics/protocol-ts";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Link, Outlet, Route, Routes, useNavigate } from "react-router-dom";
 import { BrowserRouter } from "react-router-dom";
 
-import { RouterAnalyticsBridge } from "@web-analytics/router-adapters/react-router";
 import type { NavigationEvent } from "@web-analytics/observer-core";
 
 function Shell() {
   const [events, setEvents] = useState<NavigationEvent[]>([]);
   const [sentEvents, setSentEvents] = useState<AnalyticsEvent[]>([]);
-  const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const initialConsent: AnalyticsConsent =
+    import.meta.env.NEXT_PUBLIC_ANALYTICS_CONSENT === "denied" ? "denied" : "granted";
+  const [consent, setConsent] = useState<AnalyticsConsent>(initialConsent);
+  const analyticsRef = useRef<ReturnType<typeof createBrowserAnalytics> | null>(null);
   const transport = useMemo<Transport>(
     () =>
       createPlaygroundTransport(
@@ -28,33 +29,38 @@ function Shell() {
       ),
     [],
   );
-  useEffect(() => {
-    const instance = createAnalytics({
-      consent: "granted",
-      siteId: import.meta.env.NEXT_PUBLIC_ANALYTICS_SITE_ID || "react-router-playground",
-      transport,
-      bufferSize: 1,
-    });
-    setAnalytics(instance);
-    return () => {
-      instance.destroy();
-      setAnalytics(null);
-    };
-  }, [transport]);
   const handleNavigation = useCallback(
     (event: NavigationEvent) => setEvents((current) => [...current, event]),
     [],
   );
-
+  useEffect(() => {
+    const instance = createBrowserAnalytics({
+      consent: initialConsent,
+      siteId: import.meta.env.NEXT_PUBLIC_ANALYTICS_SITE_ID || "react-router-playground",
+      transport,
+      bufferSize: 1,
+      onNavigation: handleNavigation,
+    });
+    analyticsRef.current = instance;
+    return () => {
+      analyticsRef.current = null;
+      instance.destroy();
+    };
+  }, [handleNavigation, transport]);
+  const toggleConsent = () => {
+    const nextConsent = consent === "granted" ? "denied" : "granted";
+    analyticsRef.current?.setConsent(nextConsent);
+    setConsent(nextConsent);
+  };
   return (
     <>
-      {analytics ? (
-        <RouterAnalyticsBridge analytics={analytics} onNavigation={handleNavigation} />
-      ) : null}
       <nav>
         <Link to="/">Home</Link> <Link to="/users/42">User</Link>{" "}
         <Link to="/search?q=router">Search</Link> <a href="#section">Hash</a>
       </nav>
+      <button type="button" data-testid="consent-toggle" onClick={toggleConsent}>
+        Consent: {consent}
+      </button>
       <button type="button" onClick={() => window.history.back()}>
         Back
       </button>
@@ -69,15 +75,26 @@ function Shell() {
 }
 
 function Home() {
-  return <h1>React Router Home</h1>;
+  return (
+    <>
+      <title>React Router Home</title>
+      <h1>React Router Home</h1>
+    </>
+  );
 }
 function User() {
-  return <h1>React Router User</h1>;
+  return (
+    <>
+      <title>React Router User</title>
+      <h1>React Router User</h1>
+    </>
+  );
 }
 function Search() {
   const navigate = useNavigate();
   return (
     <>
+      <title>React Router Search</title>
       <h1>React Router Search</h1>
       <button onClick={() => navigate("/users/7", { replace: true })}>Replace</button>
     </>
