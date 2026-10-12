@@ -1,6 +1,6 @@
 # 功能冻结与部署待办
 
-> 状态：MVP 其他功能继续冻结。自 2026-10-04 起不增加其他新功能；维护者已决定将项目版本对齐到 `1.0.0` 并尽快发布 Browser SDK。`@traceleaf/browser@1.0.0` 发布检查已通过；registry 发布尚未执行，当前环境未登录 npm。本文是唯一的未完成、计划中和暂缺事项清单。
+> 状态：MVP 其他功能继续冻结。自 2026-10-04 起不增加其他新功能；维护者已决定将项目版本对齐到 `1.0.0` 并通过 GitHub Release 提供 Browser SDK tarball。`@traceleaf/browser@1.0.0` 发布检查已通过；GitHub Release 尚未创建。本文是唯一的未完成、计划中和暂缺事项清单。
 
 ## 当前基线
 
@@ -9,7 +9,7 @@
 - Dashboard 本地类型检查、lint、单测、构建及格式检查通过；完整仓库 `pnpm check` 和格式检查通过。已记录的 CI 与 E2E 通过结果见历史归档。
 - 最近一次重新启动 `pnpm e2e:dashboard` 未完成：卡在容器依赖安装阶段后中止；这次尝试不作为发布版本的 E2E 通过证据。
 - Raspberry Pi 4B 局域网部署的 production Compose、环境模板和操作说明已建立；尚未在 Pi 上完成 ARM64 镜像构建、端到端运行、备份恢复演练和正式发布验收。
-- Browser SDK `1.0.0` 发布候选已通过聚焦验收，实际 registry 发布尚未执行。SDK 发布不替代产品部署验收。
+- Browser SDK `1.0.0` tarball 候选已通过聚焦验收，GitHub Release 尚未创建。SDK 发布不替代产品部署验收。
 
 ## Browser SDK 发布前待办
 
@@ -26,7 +26,7 @@ SDK 和平台的版本来源、更新步骤及发布检查统一见[版本与发
 - [x] 完成并记录 Browser SDK 相关单测、集成、E2E、构建、类型检查和格式检查；详见 [Browser SDK 基础质量验收](browser-sdk-integration-plan.md#browser-sdk-基础质量验收-2026-10-11)。该结果不替代完整仓库 CI 或生产部署验收。
 - [ ] （暂缓）在 Firefox 与 Safari/WebKit 验证目标版本、initial/客户端导航/back-forward 等行为，并确定不支持 Navigation API 时的行为；将实测矩阵及支持范围写入接入文档和发布说明。当前 Chromium 结果不代替此项。
 - [x] 按[版本与发布流程](versioning-and-release-process.md)完成精简 SDK 发布检查；首次发布使用 `1.0.0`，之后每次发布递增普通版本号。
-- [ ] 在 npm 登录并确认 `@traceleaf` scope 发布权限后，由维护者手动推送 `@traceleaf/browser@1.0.0`，记录版本和结果。
+- [ ] 从已验收 commit 创建 `browser-sdk-v1.0.0` GitHub Release，附上 `traceleaf-browser-1.0.0.tgz` 和简短说明，并记录 release URL。
 
 ## 发布前必须完成
 
@@ -65,6 +65,6 @@ SDK 和平台的版本来源、更新步骤及发布检查统一见[版本与发
 
 - 不增加产品功能、分析指标、API/协议能力或 SDK 集成范围；Browser SDK 发布准备的明确授权范围除外。
 - 已单独批准一个有限例外：按 [ADR-022](decisions/ADR-022-navigation-api-only-browser-sdk.md) 收敛 Browser SDK 导航观察；使用 Navigation API，移除框架专用 observer / adapter / bridge，不实现 History API 检测或 fallback。该导航观察决策本身不扩大为其他 SDK 功能授权；SDK 发布准备由下条单独授权。
-- 已获准完成并发布现有 Browser SDK。该授权允许必要的发布准备、兼容修复和验收，不构成包已通过验收或可立即发布 registry 的证明，也不解除 MVP 其他范围的冻结。
+- 已获准完成并通过 GitHub Release 分发现有 Browser SDK。该授权不解除 MVP 其他范围的冻结。
 - 可合入发布阻塞缺陷、安全修复、迁移兼容、部署/恢复和文档修正；每项变更必须保持本文件中的验收状态准确。
 - 新需求只登记为未来候选项。解除冻结须由项目维护者明确决定，并更新 MVP Scope 与发布基线。

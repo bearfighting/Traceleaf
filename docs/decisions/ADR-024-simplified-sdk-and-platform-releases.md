@@ -29,8 +29,8 @@ version policy is defined in [ADR-023](ADR-023-protocol-version-upgrades-require
    does not require the full Dashboard or platform E2E suite. Protocol schema
    and fixture validation must cover the shared boundary, with both TypeScript
    and Rust consumers tested when that boundary changes.
-5. Keep package publication manual after validation succeeds. Do not introduce
-   an automatic registry publish workflow as part of this release process.
+5. Distribute SDK releases manually as tarballs attached to GitHub Releases.
+   Keep `private: true` in the package manifest and do not publish to npm.
 6. Protocol `schema_version` remains 1 unless the project owner explicitly
    requests an upgrade. Definition changes must update canonical schemas,
    examples, fixtures, generated types, and consumers together.
@@ -47,8 +47,8 @@ procedures are maintained in [Versioning and Release Process](../versioning-and-
 - Protocol compatibility is enforced by shared schemas, fixtures, and
   producer/consumer tests, not by automatically increasing the protocol
   version.
-- The package remained private until its release checks completed; ADR-025
-  records the current publishable `1.0.0` candidate.
+- The package remains private to prevent accidental npm publication; consumers
+  install the attached GitHub Release tarball.
 - The currently deferred target-deployment Collector compatibility and
   Firefox/Safari/WebKit acceptance remain deferred as recorded in the Browser
   SDK plan.

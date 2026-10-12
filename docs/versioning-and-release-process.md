@@ -9,22 +9,21 @@ plus [ADR-025](decisions/ADR-025-project-version-baseline-1.0.0.md).
 
 | Area                                             | Version source                            | Update rule                                                                                                                                                                                                                                               |
 | ------------------------------------------------ | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Browser SDK                                      | `packages/analytics-browser/package.json` | Independent published package version. The current `1.0.0` is the first publication. Increment on each later publication; never publish nightly, alpha, beta, or candidate versions.                                                                      |
+| Browser SDK                                      | `packages/analytics-browser/package.json` | Independent package version distributed as a tarball attached to a GitHub Release. `1.0.0` is the first release. Keep the package `private: true` to block accidental npm publication.                                                                    |
 | Collector, Processor, Analytics API, Dashboard   | One platform version                      | Release together as one platform update. Use one Git tag `vX.Y.Z`; do not create per-service version streams. Keep the root `package.json`, Rust workspace version in `Cargo.toml`, and `apps/dashboard/package.json` aligned with that platform version. |
 | Other private workspace packages and Playgrounds | Their package manifests                   | Their manifests are aligned to `1.0.0` for this project baseline, but they are not independently released. Do not bump them for SDK or platform releases.                                                                                                 |
 | Event Protocol                                   | Event `schema_version`                    | Keep the unified Protocol at `1`. Update the definition without changing the version unless the project owner explicitly requests an upgrade.                                                                                                             |
 
 Package versions and Git tags identify different artifacts: the SDK package
-version identifies an npm release; `vX.Y.Z` identifies one coordinated
-platform release. The root and app package versions do not cause npm
-publication because those packages remain private. First-party package
+version identifies a GitHub Release tarball tagged `browser-sdk-vX.Y.Z`;
+`vX.Y.Z` identifies one coordinated platform release. First-party package
 manifests and the Rust workspace are aligned to `1.0.0` for this initial
 baseline; thereafter, only the version owners listed in the table change.
 
 For SDK `1.x` releases, use patch increments for fixes and minor increments
 for features; use a major increment for breaking public API changes. Do not
-reuse a package version already published to the registry. Keep release notes short: list the package
-version, Git commit, and user-facing changes in the registry or GitHub release
+reuse an SDK version already released. Keep release notes short: list the
+package version, Git commit, and user-facing changes in the GitHub Release
 description; a separate release-management system is unnecessary.
 
 ## Browser SDK release
@@ -37,12 +36,20 @@ description; a separate release-management system is unnecessary.
    second full Dashboard/platform E2E run.
 3. If the change affects navigation observation, default transport, CORS, or
    Collector ingestion, also run `pnpm e2e:browser-sdk`.
-4. For the first publication, the release candidate is `1.0.0`. The package is
-   marked publishable; confirm registry access and run the publishable tarball
-   acceptance below against the reviewed release commit.
-5. After the checks pass, manually publish that package version from the same
-   commit. Record the version, commit, commands, and outcome in the release
-   record. No automatic publish workflow or pre-release channel is required.
+4. Keep `private: true`. Run package acceptance in its default mode, then create
+   a `.tgz` with `npm pack` from the validated commit. Store the generated
+   asset under ignored `artifacts/releases/` so it is ready to attach:
+
+   ```sh
+   mkdir -p artifacts/releases
+   cd packages/analytics-browser
+   npm pack --pack-destination ../../artifacts/releases
+   ```
+
+5. In the GitHub Releases page, create a release using tag
+   `browser-sdk-vX.Y.Z` on the validated commit. Attach the tarball and include
+   the version, commit, and user-facing changes. Do not publish the package to
+   npm. Consumers download it and run `npm install ./traceleaf-browser-X.Y.Z.tgz`.
 
 The focused checks are:
 
@@ -55,16 +62,8 @@ pnpm --filter @traceleaf/browser build
 pnpm --filter @traceleaf/browser package:acceptance
 ```
 
-For the first release, replace the default package acceptance with publishable
-mode:
-
-```sh
-pnpm --filter @traceleaf/browser package:acceptance -- --publishable
-```
-
-The default mode verifies that the package remains private. Publishable mode
-verifies the opposite and runs the same isolated ESM, TypeScript, and Vite
-consumer checks against the packed artifact.
+The acceptance script verifies that the packed manifest remains private and
+runs isolated ESM, TypeScript, and Vite consumer checks against the tarball.
 
 If the Protocol or ingestion contract changes, also run the Collector HTTP
 contract suite:
@@ -75,7 +74,7 @@ cargo test -p collector --test http_ingestion
 
 The repository currently has no `sdk:verify` wrapper. If repeated manual
 commands become inconvenient, they can later be grouped under one command;
-this is optional and must not trigger registry publication.
+this is optional and must not create a GitHub Release automatically.
 
 The current pull request CI still runs the repository-wide check, build, test,
 and PostgreSQL integration jobs. This guide keeps the additional manual SDK

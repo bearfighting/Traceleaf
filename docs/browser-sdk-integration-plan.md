@@ -1,6 +1,6 @@
 # Browser SDK 对外接入与发布计划
 
-> 状态：维护者已决定将项目版本对齐到 `1.0.0` 并尽快发布现有 Browser SDK。SDK 包已切换为可发布的 `1.0.0` 候选；tarball 独立消费者 smoke test 已通过，正式发布检查仍在进行。该工作不包含新增 Analytics 功能或扩大产品范围，MVP 其他功能继续冻结。导航观察范围按 [ADR-022](decisions/ADR-022-navigation-api-only-browser-sdk.md) 执行；History API 检测与 fallback 不在本轮范围。
+> 状态：维护者已决定将项目版本对齐到 `1.0.0`，并通过 GitHub Release 提供 Browser SDK tarball；不发布到 npm。SDK 保持 `private: true`，`1.0.0` tarball 独立消费者验收已通过，GitHub Release 尚未创建。该工作不包含新增 Analytics 功能或扩大产品范围，MVP 其他功能继续冻结。导航观察范围按 [ADR-022](decisions/ADR-022-navigation-api-only-browser-sdk.md) 执行；History API 检测与 fallback 不在本轮范围。
 > 目标：提供不依赖具体 Router 或 UI 框架的通用 Browser SDK，让目标网站通过同一套浏览器级导航观察实现页面浏览分析；SDK 故障不得影响目标应用。Chromium observer 验收目标现在包含 Next.js、React Router、TanStack Router、Vanilla、Vue、SvelteKit、Solid、Angular 和 Astro Playground。测试结果只作为受测 Chromium 与依赖版本的兼容性证据，不代表完整浏览器矩阵或对外支持承诺。首发设计不包含 Router 专用代码。
 
 > 浏览器范围：本轮 Navigation API 验证只在 Chromium 中进行。维护者于 2026-10-11 明确暂缓 Firefox 与 Safari/WebKit 的兼容性和支持范围验收；当前不安排执行，且不代表通过或作出兼容性承诺。恢复时再决定最低支持版本，以及缺少 Navigation API 时的行为或替代方案；不预先承诺 History API fallback。
@@ -26,7 +26,7 @@
 
 ### 最小接入 API（首发接入）
 
-仓库内入口通过一个初始化函数接入；SDK 的 `1.0.0` 发布候选通过 npm tarball 进行独立消费者验收。所有框架和普通网站也使用相同函数：
+仓库内入口通过一个初始化函数接入；SDK 的 `1.0.0` 发布候选通过 tarball 进行独立消费者验收。消费者从 GitHub Release 下载 tarball 后本地安装。所有框架和普通网站也使用相同函数：
 
 ```js
 import { createBrowserAnalytics } from "@traceleaf/browser";
@@ -71,9 +71,9 @@ SDK 是辅助功能，任何 SDK 配置或运行时错误都不能阻止宿主�
 
 ## 当前实现基线与差距
 
-仓库内 Browser SDK 位于 `packages/analytics-browser`，包名为 `@traceleaf/browser`，版本 `1.0.0`，并通过 `packages/transport` 提供默认 Fetch transport。通用 Navigation API observer 已接入 SDK，所有九个 Playground 共用此入口。当前正在进行首发验收：
+仓库内 Browser SDK 位于 `packages/analytics-browser`，包名为 `@traceleaf/browser`，版本 `1.0.0`，并通过 `packages/transport` 提供默认 Fetch transport。通用 Navigation API observer 已接入 SDK，所有九个 Playground 共用此入口。当前 SDK 聚焦发布验收已通过，待创建 GitHub Release：
 
-- `analytics-browser` 已构建为可发布包；`observer-core`、`transport` 等内部包继续保持 private workspace packages，SDK tarball 不依赖这些 workspace 包。
+- `analytics-browser` 已构建为可通过 GitHub Release 分发的 tarball；`observer-core`、`transport` 等内部包继续保持 private workspace packages，SDK tarball 不依赖这些 workspace 包。
 - `analytics-browser` 已支持调用方显式传入 `siteId` 和 `endpoint`/`ingestKey` 使用内建 Fetch transport，或注入自定义 `Transport`。SDK 不读取框架环境变量；配置无效时通过可选 `onError` 报告一次并返回禁用实例。持久化和重试仍不在 SDK 范围内。
 - SDK 首发版本 `1.0.0` 的发布准备已启动；当前仓库已有 Chromium Browser SDK/Collector 链路及外部 tarball 消费者验收记录。目标部署兼容确认和 Firefox/Safari/WebKit 验收按维护者决定暂缓。History API 检测及 fallback 不在当前范围。
 - MVP 其他功能继续冻结；当前状态与授权边界以 [`project-status.md`](project-status.md) 和 [`mvp-scope.md`](mvp-scope.md) 为准。本授权不批准新增 Analytics 功能或扩大产品范围。
@@ -132,15 +132,15 @@ Vanilla JavaScript Playground 是通用 Navigation API observer 的浏览器基�
 | 2. 公开 API 与失败语义     | 接入入口已定稿；Chromium E2E 已验收 SSR/hydration、无效配置和错误回调异常隔离                                                                                                                  | Firefox/Safari/WebKit 支持范围及缺 Navigation API 时的真实浏览器行为已暂缓，尚未验收。                                                                            |
 | 3. 通用 SDK 边界           | SSR/hydration、缺少/无效配置及宿主导航 fail-open 已由 Chromium E2E 覆盖；日志通过 `onError` 回调，正常与 transport 失败路径不写 console（2026-10-11）                                          | 完整运行时异常矩阵仍待验收；跨浏览器验证已暂缓。                                                                                                                  |
 | 4. 默认 HTTP 与 fail-open  | 隔离 E2E 验证真实 SDK 请求进入 Collector，覆盖 503、连接失败、拒绝 Origin 的 fail-open 和 Chromium CORS 预检；批次及有限缓冲/flush 单测通过（2026-10-11）                                      | 不增加持久化队列或复杂重试；跨浏览器验证已暂缓。                                                                                                                  |
-| 5. 公共包与文档            | SDK 包入口、README、LICENSE 和 tarball 内容检查已通过；当前候选为可发布的 `1.0.0`                                                                                                              | 浏览器兼容矩阵验收已暂缓；发布检查仍在进行。                                                                                                                      |
+| 5. 公共包与文档            | SDK 包入口、README、LICENSE 和 tarball 内容检查已通过；当前候选为 `1.0.0` private tarball                                                                                                      | 浏览器兼容矩阵验收已暂缓；GitHub Release 尚未创建。                                                                                                               |
 | 6. 端到端验证              | 部分完成；九种 Playground Navigation API E2E 及隔离的 SDK → Collector → PostgreSQL → Processor → API → Dashboard 链路、Chromium CORS 预检、SSR/hydration、空数据和失败状态均通过（2026-10-11） | Firefox/Safari 支持范围验证已暂缓；本记录不代表 Raspberry Pi 或生产部署验收。                                                                                     |
-| 7. 独立安装与发布          | `1.0.0` focused release checks 和 publishable tarball 消费者验收通过；registry 尚未发布                                                                                                        | 内部运行时代码打入 SDK；`ulid` 与 `web-vitals` 为外部运行时依赖。当前环境尚未登录 npm，需发布者登录后执行 registry 推送。                                         |
+| 7. 独立安装与发布          | `1.0.0` focused release checks 和 private tarball 消费者验收通过；GitHub Release 尚未创建                                                                                                      | 内部运行时代码打入 SDK；`ulid` 与 `web-vitals` 为外部运行时依赖。需将 tarball 附加到 `browser-sdk-v1.0.0` Release。                                               |
 
 当前明确的顺序调整：Browser SDK 默认使用通用 Navigation API observer，并移除 Router 专用代码。Firefox 与 Safari/WebKit 兼容性验证由维护者于 2026-10-11 明确暂缓，恢复工作需维护者明确提出。若之后验证发现 Navigation API 覆盖缺口，先记录证据并单独评审，不自动加入 History API fallback 或 Router 专用代码。
 
 ### 待完成工作 Checklist
 
-以下清单跟踪当前未完成事项。现有 Browser SDK 的发布准备和发布已获限范围批准；该批准不代表发布验收通过或可以立即发布 registry。MVP 其他功能继续冻结。Browser SDK 的产品部署验收与包发布验收分别跟踪。
+以下清单跟踪当前未完成事项。现有 Browser SDK 的 GitHub Release 准备和发布已获限范围批准；MVP 其他功能继续冻结。Browser SDK 的产品部署验收与包发布验收分别跟踪。
 
 #### 当前：Navigation API observer 验证（Chromium）
 
@@ -184,18 +184,18 @@ Vanilla JavaScript Playground 是通用 Navigation API observer 的浏览器基�
 - [x] 确定打包方案：内部 workspace 运行时代码并入 SDK，生成包不依赖 monorepo workspace；外部运行时依赖仅为 `ulid` 与 `web-vitals`。
 - [x] 在 monorepo 外从 tarball 安装并运行 ESM 导入、TypeScript 和 Vite 浏览器构建 smoke test；消费者无需 workspace 配置或手工安装内部包。
 - [ ] （暂缓）验证 Firefox 与 Safari/WebKit 的目标支持范围；在发布说明中记录实测矩阵和不支持 Navigation API 时的行为。
-- [x] 完成精简 SDK 发布检查：Protocol/HTTP fixtures、SDK 及直接依赖测试、类型检查、构建和 publishable tarball 消费者验收；本候选没有运行时行为改动，故未重复运行 Browser SDK E2E。
-- [x] 统一首发候选版本为 `1.0.0`；npm publish dry-run 通过，tarball 为 31.3 kB、包含 6 个发布文件。
-- [ ] 登录 npm 并确认 `@traceleaf` scope 发布权限后，手动执行 `npm publish --access public` 发布 `@traceleaf/browser@1.0.0` 并记录结果；已明确暂缓的项目不作为本轮发布检查门禁。
+- [x] 完成精简 SDK 发布检查：Protocol/HTTP fixtures、SDK 及直接依赖测试、类型检查、构建和 private tarball 消费者验收；本候选没有运行时行为改动，故未重复运行 Browser SDK E2E。
+- [x] 统一首发候选版本为 `1.0.0`；生成 `artifacts/releases/traceleaf-browser-1.0.0.tgz`（31,464 bytes，6 个文件，SHA-1 `3c8fa2a00b9419583c332e2f7c430cc92e5262c3`）。
+- [ ] 在 GitHub 创建 `browser-sdk-v1.0.0` Release，附上 `traceleaf-browser-1.0.0.tgz`；已明确暂缓的项目不作为本轮发布检查门禁。
 
 #### Browser SDK 1.0.0 首发候选验收（2026-10-11）
 
 - 版本：所有 first-party npm package manifest、Cargo workspace 与 Cargo.lock 中的 workspace crate 已对齐为 `1.0.0`；Protocol `schema_version` 保持 `1`。
 - Protocol/HTTP：`pnpm protocol:validate` 与 `pnpm http:validate` 通过，HTTP 验证覆盖 30 个 fixtures。
 - SDK 测试：protocol-ts、observer-core、analytics-core、browser SDK、transport 共 94 项单测通过；相同 package filters 的 `typecheck` 通过；SDK build 通过。
-- 发布包：`pnpm --filter @traceleaf/browser package:acceptance -- --publishable` 通过；独立临时消费者完成 ESM 导入、TypeScript 检查和 Vite 构建。`npm publish --dry-run --access public` 通过，候选包为 `@traceleaf/browser@1.0.0`。
+- 发布包：`pnpm --filter @traceleaf/browser package:acceptance` 通过；独立临时消费者完成 ESM 导入、TypeScript 检查和 Vite 构建。候选包为 `@traceleaf/browser@1.0.0`，保持 `private: true`。
 - 格式/元数据：`pnpm format:check:docs`、`pnpm format:check`、`cargo fmt --check` 和 `cargo metadata --no-deps --format-version=1 --locked` 通过。
-- 发布阻塞：此环境 `npm whoami` 返回 `ENEEDAUTH`；`npm view @traceleaf/browser versions --json` 返回 `E404`（尚无法判断 scope/package 权限）。实际 registry 发布未执行。
+- 发布状态：不向 npm 发布；GitHub Release 尚未创建。当前环境没有 `gh` CLI，不能在本机直接上传 Release asset；tarball 已在 ignored `artifacts/releases/` 目录待上传。
 - 范围：本候选只有版本和发布元数据变化，没有 SDK 运行时代码变化；Chromium CORS 和完整链路 E2E 结果见上方 2026-10-11 记录。Firefox/Safari/WebKit 与目标部署 Collector 兼容确认仍暂缓。
 
 #### 隔离 Browser SDK 数据链路验收（2026-10-11）
@@ -249,7 +249,7 @@ Vanilla JavaScript Playground 是通用 Navigation API observer 的浏览器基�
 
 ### 2. 锁定公开接入与失败语义
 
-当前 workspace 内部接口已经落地：两种 transport 配置互斥，site ID、endpoint、ingest key 和自定义 `sendBatch` 在 observer 启动前校验；无效配置不会启动 observer 或访问 visitor ID。SDK `1.0.0` 正在完成独立发布验收。
+当前 workspace 内部接口已经落地：两种 transport 配置互斥，site ID、endpoint、ingest key 和自定义 `sendBatch` 在 observer 启动前校验；无效配置不会启动 observer 或访问 visitor ID。SDK `1.0.0` 的独立 tarball 发布验收已通过，待创建 GitHub Release。
 
 - 已定稿仓库内通用浏览器包名 `@traceleaf/browser` 和根入口 `createBrowserAnalytics()`；调用方显式传入配置，宿主自行决定环境变量读取方式。
 - SDK 不读取构建器环境变量；endpoint 不设硬编码默认值。React 组件入口不纳入本项。
@@ -300,14 +300,14 @@ Astro、Solid、Vue、Svelte、Angular 以及各 Router 默认复用同一个 Br
 
 ### 7. 独立安装验证与发布
 
-- SDK 发布候选已移除 `private`；内部运行时代码已打入包内，workspace 包不作为外部运行时依赖。
+- SDK 保持 `private: true`；内部运行时代码已打入包内，workspace 包不作为外部运行时依赖。
 - 检查 exports、类型声明、浏览器入口、依赖许可、README、LICENSE 和 tarball 内容。
-- 在 monorepo 之外建立消费者 smoke test：从生成的 tarball/registry 安装，在目标框架版本中构建并运行。
-- 使用项目统一的简化版本规则和 SDK 聚焦检查；通过后人工发布 `@traceleaf/browser@1.0.0`。
+- 在 monorepo 之外建立消费者 smoke test：从生成的 tarball 安装并构建运行。
+- 使用项目统一的简化版本规则和 SDK 聚焦检查；通过后创建 GitHub Release 并附加 `@traceleaf/browser@1.0.0` tarball。
 
 **退出条件：**干净外部消费者无需 workspace 配置即可安装、构建和运行；发布包无遗漏运行文件；版本和发布流程可审查。
 
-## Browser SDK 发布验收标准（后续阶段）
+## Browser SDK 发布验收标准
 
 - Next.js App Router、Vite + React Router、Vite + TanStack Router、Astro、Solid、Vue、Svelte、Angular 与普通网站均通过同一通用 Browser SDK 接入。
 - 核心 SDK 与导航观察保持框架无关；所有首发目标共用同一个 observer，不维护框架专属导航代码。

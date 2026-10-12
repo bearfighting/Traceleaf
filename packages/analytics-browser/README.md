@@ -1,9 +1,11 @@
 # `@traceleaf/browser`
 
-Install the package from npm in your application:
+Download `traceleaf-browser-1.0.0.tgz` from the
+[Browser SDK 1.0.0 GitHub Release](https://github.com/bearfighting/web-analytics-platform/releases/download/browser-sdk-v1.0.0/traceleaf-browser-1.0.0.tgz)
+and install it in your application:
 
 ```sh
-npm install @traceleaf/browser
+npm install ./traceleaf-browser-1.0.0.tgz
 ```
 
 To create a local tarball from a clean checkout, build the package first, then
