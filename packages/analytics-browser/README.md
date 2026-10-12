@@ -1,14 +1,13 @@
 # `@traceleaf/browser`
 
-After registry publication, install the package in your application:
+Install the package from npm in your application:
 
 ```sh
 npm install @traceleaf/browser
 ```
 
-The package is currently private and has not been published to a registry. To
-create a local tarball from a clean checkout, build the package first, then pack
-it from its directory:
+To create a local tarball from a clean checkout, build the package first, then
+pack it from its directory:
 
 ```sh
 pnpm --filter @traceleaf/browser build

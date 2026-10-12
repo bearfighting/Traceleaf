@@ -10,6 +10,7 @@ const packageDirectory = resolve(
 );
 const temporaryDirectory = mkdtempSync(join(tmpdir(), "traceleaf-browser-consumer-"));
 const repositoryDirectory = resolve(packageDirectory, "../..");
+const publishable = process.argv.includes("--publishable");
 
 function readTarballFile(tarballPath, requestedPath) {
   const archive = gunzipSync(readFileSync(tarballPath));
@@ -70,8 +71,13 @@ try {
   if (JSON.stringify(runtimeDependencies) !== JSON.stringify(["ulid", "web-vitals"])) {
     throw new Error(`Unexpected runtime dependencies: ${runtimeDependencies.join(", ")}`);
   }
-  if (packedManifest.private !== true)
-    throw new Error("SDK package must remain private until all release acceptance is complete");
+  if (publishable ? packedManifest.private === true : packedManifest.private !== true) {
+    throw new Error(
+      publishable
+        ? "Publishable SDK tarball must not have private: true"
+        : "SDK tarball must remain private outside a publishable release candidate",
+    );
+  }
 
   writeFileSync(
     join(temporaryDirectory, "package.json"),
