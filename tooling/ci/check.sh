@@ -22,4 +22,6 @@ pnpm --filter @web-analytics/vue-playground --filter @web-analytics/svelte-playg
 pnpm --filter @web-analytics/playground-support typecheck
 pnpm --filter @web-analytics/dashboard typecheck
 pnpm --filter @web-analytics/dashboard lint
+pnpm --filter @traceleaf/website typecheck
+pnpm --filter @traceleaf/website lint
 pnpm format:check
