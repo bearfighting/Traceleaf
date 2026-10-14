@@ -12,7 +12,12 @@ export type {
   WebVitalRating,
   WebVitalNavigationType,
 } from "./web-vital-event";
-export { WEB_VITAL_METRICS, isWebVitalEvent, webVitalRating } from "./web-vital-event";
+export {
+  WEB_VITAL_METRICS,
+  WEB_VITAL_RATING_THRESHOLDS,
+  isWebVitalEvent,
+  webVitalRating,
+} from "./web-vital-event";
 export type { BrowserContextV1, ContextDimension, UnknownContextValue } from "./browser-context-v1";
 export type AnalyticsEvent = PageViewEvent | CustomEvent | WebVitalEvent;
 export type AnalyticsEventBatch = EventBatch;

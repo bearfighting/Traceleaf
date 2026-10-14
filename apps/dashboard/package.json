@@ -13,9 +13,11 @@
     "format:check": "prettier --check app components config lib *.mjs *.ts *.json"
   },
   "dependencies": {
+    "@web-analytics/protocol-ts": "workspace:*",
     "next": "16.3.6",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "recharts": "^3.10.1"
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "16.3.6",

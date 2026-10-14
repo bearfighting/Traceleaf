@@ -19,7 +19,12 @@ function createClient(overrides: Partial<AnalyticsApiClient> = {}): AnalyticsApi
       to: context.dateRange.to,
       page_views: 4,
     }),
-    timeline: vi.fn(),
+    timeline: vi.fn().mockResolvedValue({
+      site_id: context.siteId,
+      from: context.dateRange.from,
+      to: context.dateRange.to,
+      items: [{ day: "2026-09-01", page_views: 2 }],
+    }),
     pages: vi.fn(),
     events: vi.fn(),
     visitors: vi.fn(),
@@ -31,7 +36,7 @@ function createClient(overrides: Partial<AnalyticsApiClient> = {}): AnalyticsApi
 }
 
 describe("loadDashboardOverview", () => {
-  it("queries all-time and selected-range overview in parallel with the current context", async () => {
+  it("queries summaries and Timeline in parallel with the current context", async () => {
     const client = createClient();
 
     const result = await loadDashboardOverview(context, { client });
@@ -47,6 +52,15 @@ describe("loadDashboardOverview", () => {
           to: "2026-09-18",
           page_views: 4,
         },
+        timeline: {
+          status: "success",
+          data: {
+            site_id: "site_playground",
+            from: "2026-09-01",
+            to: "2026-09-18",
+            items: [{ day: "2026-09-01", page_views: 2 }],
+          },
+        },
       },
     });
     expect(client.overview).toHaveBeenCalledWith("site_playground");
@@ -55,7 +69,7 @@ describe("loadDashboardOverview", () => {
       "2026-09-01",
       "2026-09-18",
     );
-    expect(client.timeline).not.toHaveBeenCalled();
+    expect(client.timeline).toHaveBeenCalledWith("site_playground", "2026-09-01", "2026-09-18");
     expect(client.pages).not.toHaveBeenCalled();
   });
 
@@ -68,6 +82,12 @@ describe("loadDashboardOverview", () => {
         to: context.dateRange.to,
         page_views: 0,
       }),
+      timeline: vi.fn().mockResolvedValue({
+        site_id: context.siteId,
+        from: context.dateRange.from,
+        to: context.dateRange.to,
+        items: [{ day: "2026-09-01", page_views: 0 }],
+      }),
     });
 
     const result = await loadDashboardOverview(context, { client });
@@ -76,6 +96,10 @@ describe("loadDashboardOverview", () => {
     if (result.status === "success") {
       expect(result.data.overview.page_views).toBe(0);
       expect(result.data.rangeOverview.page_views).toBe(0);
+      expect(result.data.timeline).toMatchObject({
+        status: "success",
+        data: { items: [{ page_views: 0 }] },
+      });
     }
   });
 
@@ -107,5 +131,39 @@ describe("loadDashboardOverview", () => {
     expect(result.status).toBe("error");
     expect(result).toMatchObject({ context, error: { kind: "config" } });
     expect(createClientMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps summary cards successful when Timeline fails", async () => {
+    const timelineError = new AnalyticsApiClientError("Timeline failed", {
+      kind: "http",
+      status: 503,
+    });
+    const client = createClient({ timeline: vi.fn().mockRejectedValue(timelineError) });
+
+    const result = await loadDashboardOverview(context, { client });
+
+    expect(result.status).toBe("success");
+    if (result.status === "success") {
+      expect(result.data.overview.page_views).toBe(12);
+      expect(result.data.rangeOverview.page_views).toBe(4);
+      expect(result.data.timeline).toEqual({ status: "error", error: timelineError });
+    }
+  });
+
+  it("preserves an empty Timeline response", async () => {
+    const client = createClient({
+      timeline: vi.fn().mockResolvedValue({
+        site_id: context.siteId,
+        from: context.dateRange.from,
+        to: context.dateRange.to,
+        items: [],
+      }),
+    });
+
+    const result = await loadDashboardOverview(context, { client });
+
+    expect(result.status).toBe("success");
+    if (result.status === "success")
+      expect(result.data.timeline).toMatchObject({ status: "success", data: { items: [] } });
   });
 });

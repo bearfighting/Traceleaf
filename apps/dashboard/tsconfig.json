@@ -12,7 +12,10 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
-    "paths": { "@/*": ["./*"] },
+    "paths": {
+      "@/*": ["./*"],
+      "@web-analytics/protocol-ts": ["../../packages/protocol-ts/src/index.ts"]
+    },
     "incremental": true,
     "plugins": [
       {

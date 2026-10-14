@@ -1,27 +1,40 @@
 import React from "react";
 
+import {
+  DEFINITION_REPORT_ITEM_LIMIT,
+  type DashboardDefinitionReportState,
+} from "../../lib/analytics/dashboard-reports";
 import { settingsRoute } from "../../lib/settings/settings-routes";
 import { ErrorState } from "../shared/states/error-state";
 import { UnavailableState } from "../shared/states/unavailable-state";
 import { Table } from "../ui/index";
+
+import { ConversionRateCharts, FunnelStepCharts } from "./conversion-funnel-chart";
+import {
+  conversionChartSeries,
+  formatConversionRate,
+  funnelChartSeries,
+} from "./conversion-funnel-chart-data";
 
 import type {
   ConversionReportResponse,
   FunnelReportResponse,
 } from "../../lib/analytics/analytics-api/types";
 import type { DashboardOverviewContext } from "../../lib/analytics/dashboard-overview";
-import type { DashboardDefinitionReportState } from "../../lib/analytics/dashboard-reports";
+import type { DefinitionSetResponse } from "../../lib/settings/configuration-api/types";
 
 export function ConversionFunnelTables({
   context,
   conversions,
   funnels,
+  definitions,
   showConversions = true,
   showFunnels = true,
 }: {
   context: DashboardOverviewContext;
   conversions?: DashboardDefinitionReportState<ConversionReportResponse>;
   funnels?: DashboardDefinitionReportState<FunnelReportResponse>;
+  definitions?: DefinitionSetResponse | null;
   showConversions?: boolean;
   showFunnels?: boolean;
 }) {
@@ -53,6 +66,15 @@ export function ConversionFunnelTables({
                 ) : (
                   <>
                     <p className="metric">{conversions.data.total}</p>
+                    {conversions.data.items.length >= DEFINITION_REPORT_ITEM_LIMIT && (
+                      <p role="status">
+                        Showing up to {DEFINITION_REPORT_ITEM_LIMIT} conversion report rows; this
+                        result may be truncated.
+                      </p>
+                    )}
+                    <ConversionRateCharts
+                      series={conversionChartSeries(conversions.data, definitions)}
+                    />
                     <Table className="data-table">
                       <caption className="table-caption">
                         Conversion events and session rate by UTC date
@@ -62,6 +84,8 @@ export function ConversionFunnelTables({
                           <th>Conversion</th>
                           <th>Date</th>
                           <th>Events</th>
+                          <th>Converted sessions</th>
+                          <th>Eligible sessions</th>
                           <th>Session rate</th>
                         </tr>
                       </thead>
@@ -71,7 +95,9 @@ export function ConversionFunnelTables({
                             <td>{item.definition_id}</td>
                             <td>{item.day}</td>
                             <td>{item.event_count}</td>
-                            <td>{(item.conversion_rate * 100).toFixed(1)}%</td>
+                            <td>{item.converted_sessions}</td>
+                            <td>{item.eligible_sessions}</td>
+                            <td>{formatConversionRate(item)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -108,6 +134,13 @@ export function ConversionFunnelTables({
                 ) : (
                   <>
                     <p className="metric">{funnels.data.total}</p>
+                    {funnels.data.items.length >= DEFINITION_REPORT_ITEM_LIMIT && (
+                      <p role="status">
+                        Showing up to {DEFINITION_REPORT_ITEM_LIMIT} funnel report rows; this result
+                        may be truncated.
+                      </p>
+                    )}
+                    <FunnelStepCharts series={funnelChartSeries(funnels.data, definitions)} />
                     <Table className="data-table">
                       <caption className="table-caption">
                         Sessions reaching each funnel step by first-step cohort

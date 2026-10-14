@@ -30,3 +30,31 @@
   --color-code-surface: #172033;
   --color-code-foreground: #f8fafc;
 }
+
+:root {
+  --chart-1: #315ee8;
+  --chart-2: #159a78;
+  --chart-3: #a16207;
+  --chart-4: #8b5cf6;
+  --chart-5: #e45b72;
+  --chart-6: #0891b2;
+  --chart-grid: #e2e8f0;
+  --chart-tooltip-background: #ffffff;
+  --chart-tooltip-border: #e2e8f0;
+  --chart-tooltip-foreground: #172033;
+  --chart-legend-foreground: #64748b;
+}
+
+@theme inline {
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-tooltip-background: var(--chart-tooltip-background);
+  --color-chart-tooltip-border: var(--chart-tooltip-border);
+  --color-chart-tooltip-foreground: var(--chart-tooltip-foreground);
+  --color-chart-legend-foreground: var(--chart-legend-foreground);
+}

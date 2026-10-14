@@ -30,6 +30,7 @@ describe("GeoCountryTable", () => {
     expect(html).toContain("CA");
     expect(html).toContain("Unknown");
     expect(html).toContain("Page Views by country");
+    expect(html).toContain('aria-label="Top countries by page views"');
     expect(html).not.toContain("IP geolocation by");
   });
 
@@ -87,5 +88,22 @@ describe("GeoCountryTable", () => {
       />,
     );
     expect(error).toContain("Report failed");
+  });
+
+  it("keeps the complete response in the table when the chart shows only the first ten", () => {
+    const items = Array.from({ length: 12 }, (_, index) => ({
+      country_code: index === 11 ? "unknown" : `C${index}`,
+      page_views: 12 - index,
+    }));
+    const html = renderToStaticMarkup(
+      <GeoCountryTable
+        context={context}
+        state={{ status: "success", data: { ...response, items } }}
+      />,
+    );
+
+    expect(html).toContain("first 10 countries returned by the API");
+    expect(html).toContain("Unknown");
+    expect(html).toContain("<td>1</td></tr>");
   });
 });

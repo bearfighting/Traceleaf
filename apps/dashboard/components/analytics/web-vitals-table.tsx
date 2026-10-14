@@ -6,6 +6,8 @@ import { ErrorState } from "../shared/states/error-state";
 import { UnavailableState } from "../shared/states/unavailable-state";
 import { Table } from "../ui/index";
 
+import { WebVitalsChart } from "./web-vitals-chart";
+
 import type { WebVitalsResponse } from "../../lib/analytics/analytics-api/types";
 import type { DashboardOverviewContext } from "../../lib/analytics/dashboard-overview";
 import type { DashboardReportState } from "../../lib/analytics/dashboard-reports";
@@ -19,6 +21,15 @@ export function WebVitalsTable({
   return (
     <section className="card report-card" id="web-vitals" aria-labelledby="web-vitals-heading">
       <h2 id="web-vitals-heading">Web Vitals</h2>
+      {state.status === "success" && (
+        <p
+          className={`freshness-${state.data.freshness_status}`}
+          role={state.data.freshness_status === "failed" ? "alert" : "status"}
+        >
+          Web Vitals data freshness: {state.data.freshness_status}
+          {state.data.data_as_of ? ` · Data as of ${state.data.data_as_of} UTC` : ""}
+        </p>
+      )}
       {state.status === "error" ? (
         <ErrorState context={context} message={state.error.message} />
       ) : state.status === "disabled" ? (
@@ -28,37 +39,40 @@ export function WebVitalsTable({
       ) : state.data.items.length === 0 ? (
         <EmptyState context={context} />
       ) : (
-        <Table className="data-table">
-          <caption className="table-caption">Document load metrics by route</caption>
-          <thead>
-            <tr>
-              <th>Route</th>
-              <th>Metric</th>
-              <th>Samples</th>
-              <th>p75</th>
-              <th>Good</th>
-              <th>Needs improvement</th>
-              <th>Poor</th>
-            </tr>
-          </thead>
-          <tbody>
-            {state.data.items.map((x) => (
-              <tr key={`${x.path}:${x.metric}`}>
-                <td>{x.path}</td>
-                <td>{x.metric}</td>
-                <td>{x.count}</td>
-                <td>
-                  {x.status === "insufficient_data"
-                    ? "Insufficient data"
-                    : `${x.p75} ${x.metric === "CLS" ? "" : "ms"}`}
-                </td>
-                <td>{x.good_count}</td>
-                <td>{x.needs_improvement_count}</td>
-                <td>{x.poor_count}</td>
+        <>
+          <WebVitalsChart items={state.data.items} />
+          <Table className="data-table mt-4">
+            <caption className="table-caption">Document load metrics by route</caption>
+            <thead>
+              <tr>
+                <th>Route</th>
+                <th>Metric</th>
+                <th>Samples</th>
+                <th>p75</th>
+                <th>Good</th>
+                <th>Needs improvement</th>
+                <th>Poor</th>
               </tr>
-            ))}
-          </tbody>
-        </Table>
+            </thead>
+            <tbody>
+              {state.data.items.map((x) => (
+                <tr key={`${x.path}:${x.metric}`}>
+                  <td>{x.path}</td>
+                  <td>{x.metric}</td>
+                  <td>{x.count}</td>
+                  <td>
+                    {x.status === "insufficient_data"
+                      ? "Insufficient data"
+                      : `${x.p75} ${x.metric === "CLS" ? "" : "ms"}`}
+                  </td>
+                  <td>{x.good_count}</td>
+                  <td>{x.needs_improvement_count}</td>
+                  <td>{x.poor_count}</td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </>
       )}
     </section>
   );

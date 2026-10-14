@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isWebVitalEvent, webVitalRating } from "./index";
+import { isWebVitalEvent, WEB_VITAL_RATING_THRESHOLDS, webVitalRating } from "./index";
 
 import type { BrowserContextV1, EventBatch, PageViewEvent } from "./index";
 
@@ -84,6 +84,7 @@ describe("Web Vital protocol helpers", () => {
     report_sequence: 1,
   };
   it("validates linked reports and frozen rating boundaries", () => {
+    expect(WEB_VITAL_RATING_THRESHOLDS.LCP).toEqual([2500, 4000, 600000]);
     expect(isWebVitalEvent(sample)).toBe(true);
     expect(webVitalRating("LCP", 2500)).toBe("good");
     expect(webVitalRating("LCP", 2500.01)).toBe("needs_improvement");

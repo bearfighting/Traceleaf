@@ -5,7 +5,12 @@ import { AnalyticsApiClientError } from "./analytics-api/errors";
 import type { DashboardApiDependencies } from "../dashboard-dependencies";
 import type { DashboardDateRange } from "../query-params";
 import type { AnalyticsApiClient } from "./analytics-api/client";
-import type { OverviewResponse, RangeOverviewResponse } from "./analytics-api/types";
+import type {
+  OverviewResponse,
+  RangeOverviewResponse,
+  TimelineResponse,
+} from "./analytics-api/types";
+import type { DashboardReportState } from "./dashboard-reports";
 
 export interface DashboardOverviewContext {
   siteId: string;
@@ -18,6 +23,7 @@ export interface DashboardOverviewContext {
 export interface DashboardOverviewData {
   overview: OverviewResponse;
   rangeOverview: RangeOverviewResponse;
+  timeline: DashboardReportState<TimelineResponse>;
 }
 
 export type DashboardOverviewState =
@@ -35,14 +41,38 @@ export async function loadDashboardOverview(
       (dependencies.createClient ?? createAnalyticsApiClient)({
         baseUrl: (dependencies.getApiUrl ?? getAnalyticsApiUrl)(),
       });
-    const [overview, rangeOverview] = await Promise.all([
+    const [overview, rangeOverview, timeline] = await Promise.all([
       client.overview(context.siteId),
       client.rangeOverview(context.siteId, context.dateRange.from, context.dateRange.to),
+      settleTimeline(client, context),
     ]);
 
-    return { status: "success", context, data: { overview, rangeOverview } };
+    return { status: "success", context, data: { overview, rangeOverview, timeline } };
   } catch (cause) {
     return { status: "error", context, error: toAnalyticsApiClientError(cause) };
+  }
+}
+
+async function settleTimeline(
+  client: AnalyticsApiClient,
+  context: DashboardOverviewContext,
+): Promise<DashboardReportState<TimelineResponse>> {
+  try {
+    const data = await client.timeline(
+      context.siteId,
+      context.dateRange.from,
+      context.dateRange.to,
+    );
+
+    return { status: "success", data };
+  } catch (cause) {
+    const error = toAnalyticsApiClientError(cause);
+
+    return error.kind === "disabled"
+      ? { status: "disabled", error }
+      : error.kind === "unavailable"
+        ? { status: "unavailable", error }
+        : { status: "error", error };
   }
 }
 

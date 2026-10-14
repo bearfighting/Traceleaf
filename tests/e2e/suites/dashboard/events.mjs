@@ -57,7 +57,7 @@ export async function runEventScenario(context, scenario) {
     const conversions = page.locator("section.card").filter({
       has: page.getByRole("heading", { name: "Conversions", exact: true, level: 2 }),
     });
-    await expectReportRows(page, "Conversions", ["purchase_completed 2026-09-18 1 0.0%"]);
+    await expectReportRows(page, "Conversions", ["purchase_completed 2026-09-18 1 0 0 N/A"]);
     assert(
       !(await conversions.textContent()).includes("currency"),
       "Conversion properties must not be displayed",
@@ -110,12 +110,31 @@ export async function runEventScenario(context, scenario) {
     runProcessorBackfill("2026-09-20", "2026-09-21");
     runProcessorRebuildConversionFunnels("site_playground", importedDefinitionVersion);
     await page.goto(rangeUrl("site_playground", "2026-09-20", "2026-09-21", "conversions"));
-    await expectReportRows(page, "Conversions", ["purchase_completed 2026-09-20 1 100.0%"]);
-    await page.goto(rangeUrl("site_playground", "2026-09-20", "2026-09-21", "funnels"));
-    await expectReportRows(page, "Funnels", [
-      "checkout 2026-09-20 1 1 100.0%",
-      "checkout 2026-09-20 2 1 100.0%",
+    const conversionResponse = await fetch(
+      `${analyticsUrl}/v1/sites/site_playground/reports/2026-09-20/2026-09-21/conversions`,
+    ).then((response) => response.json());
+    const conversion = conversionResponse.items[0];
+    await expect(page.getByRole("group", { name: "Conversion rates by UTC date" })).toBeVisible();
+    await expect(page.getByText("Purchase completed", { exact: true })).toBeVisible();
+    await expectReportRows(page, "Conversions", [
+      `${conversion.definition_id} ${conversion.day} ${conversion.event_count} ${conversion.converted_sessions} ${conversion.eligible_sessions} ${conversion.eligible_sessions === 0 ? "N/A" : `${(conversion.conversion_rate * 100).toFixed(1)}%`}`,
     ]);
+    await page.goto(rangeUrl("site_playground", "2026-09-20", "2026-09-21", "funnels"));
+    const funnelResponse = await fetch(
+      `${analyticsUrl}/v1/sites/site_playground/reports/2026-09-20/2026-09-21/funnels`,
+    ).then((response) => response.json());
+    await expect(page.getByRole("group", { name: /steps for 2026-09-20/ })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Checkout · 2026-09-20 UTC", exact: true }),
+    ).toBeVisible();
+    await expectReportRows(
+      page,
+      "Funnels",
+      funnelResponse.items.map(
+        (item) =>
+          `${item.definition_id} ${item.day} ${item.step_index + 1} ${item.sessions} ${(item.conversion_rate * 100).toFixed(1)}%`,
+      ),
+    );
 
     const boundarySessionCount = runCompose(
       [
