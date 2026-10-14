@@ -18,7 +18,10 @@ describe("DimensionReportTable", () => {
             from: context.dateRange.from,
             to: context.dateRange.to,
             dimension: "browser",
-            items: [{ value: "unknown", page_views: 5, unique_visitors: 2, sessions: 3 }],
+            items: [
+              { value: "unknown", page_views: 5, unique_visitors: 2, sessions: 3 },
+              { value: "Firefox", page_views: 0, unique_visitors: 0, sessions: 0 },
+            ],
             data_as_of: null,
             freshness_status: "current",
             aggregation_version: 1,
@@ -29,6 +32,8 @@ describe("DimensionReportTable", () => {
 
     expect(markup).toContain("unknown");
     expect(markup).toContain("5");
+    expect(markup).toContain("Firefox");
+    expect(markup).toContain('aria-label="Page Views by browser"');
   });
 
   it("renders an empty state", () => {

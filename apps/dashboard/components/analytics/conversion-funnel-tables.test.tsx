@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { AnalyticsApiClientError } from "../../lib/analytics/analytics-api/errors";
+import { DEFINITION_REPORT_ITEM_LIMIT } from "../../lib/analytics/dashboard-reports";
 
 import { ConversionFunnelTables } from "./conversion-funnel-tables";
 
@@ -69,6 +70,32 @@ describe("ConversionFunnelTables", () => {
     expect(html).not.toContain("visitor_id");
   });
 
+  it("shows N/A when the conversion rate has no eligible sessions", () => {
+    const html = renderToStaticMarkup(
+      <ConversionFunnelTables
+        context={context}
+        conversions={{
+          status: "success",
+          data: {
+            ...conversions,
+            items: [
+              {
+                ...conversions.items[0],
+                converted_sessions: 0,
+                eligible_sessions: 0,
+                conversion_rate: 0,
+              },
+            ],
+          },
+        }}
+        showFunnels={false}
+      />,
+    );
+
+    expect(html).toContain("N/A");
+    expect(html).not.toContain("0.0%");
+  });
+
   it("shows empty and error states", () => {
     const empty = renderToStaticMarkup(
       <ConversionFunnelTables
@@ -91,5 +118,34 @@ describe("ConversionFunnelTables", () => {
       />,
     );
     expect(error).toContain("Request failed");
+  });
+
+  it("warns when the definition report response reaches the API row limit", () => {
+    const limitedConversions = {
+      ...conversions,
+      items: Array.from({ length: DEFINITION_REPORT_ITEM_LIMIT }, (_, index) => ({
+        ...conversions.items[0],
+        definition_id: `purchase-${index}`,
+      })),
+    };
+    const limitedFunnels = {
+      ...funnels,
+      items: Array.from({ length: DEFINITION_REPORT_ITEM_LIMIT }, (_, index) => ({
+        ...funnels.items[0],
+        definition_id: `checkout-${index}`,
+      })),
+    };
+    const html = renderToStaticMarkup(
+      <ConversionFunnelTables
+        context={context}
+        conversions={{ status: "success", data: limitedConversions }}
+        funnels={{ status: "success", data: limitedFunnels }}
+      />,
+    );
+
+    expect(html).toContain(
+      "Showing up to 20 conversion report rows; this result may be truncated.",
+    );
+    expect(html).toContain("Showing up to 20 funnel report rows; this result may be truncated.");
   });
 });

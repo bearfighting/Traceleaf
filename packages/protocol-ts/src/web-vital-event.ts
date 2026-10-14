@@ -17,7 +17,10 @@ export interface WebVitalEvent {
   navigation_type: WebVitalNavigationType;
   report_sequence: number;
 }
-const THRESHOLDS: Record<WebVitalMetric, readonly [number, number, number]> = {
+export const WEB_VITAL_RATING_THRESHOLDS: Record<
+  WebVitalMetric,
+  readonly [good: number, needsImprovement: number, maximum: number]
+> = {
   LCP: [2500, 4000, 600000],
   INP: [200, 500, 600000],
   CLS: [0.1, 0.25, 100],
@@ -25,7 +28,7 @@ const THRESHOLDS: Record<WebVitalMetric, readonly [number, number, number]> = {
   TTFB: [800, 1800, 600000],
 };
 export function webVitalRating(metric: WebVitalMetric, value: number): WebVitalRating | null {
-  const [good, needs, max] = THRESHOLDS[metric];
+  const [good, needs, max] = WEB_VITAL_RATING_THRESHOLDS[metric];
   if (!Number.isFinite(value) || value < 0 || value > max) return null;
 
   return value <= good ? "good" : value <= needs ? "needs_improvement" : "poor";

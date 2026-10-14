@@ -6,6 +6,9 @@ import { ErrorState } from "../shared/states/error-state";
 import { UnavailableState } from "../shared/states/unavailable-state";
 import { Table } from "../ui/index";
 
+import { OverviewCard } from "./overview-card";
+import { VisitorSessionTrendChart } from "./visitor-session-trend-chart";
+
 import type { VisitorSessionResponse } from "../../lib/analytics/analytics-api/types";
 import type { DashboardOverviewContext } from "../../lib/analytics/dashboard-overview";
 import type { DashboardReportState } from "../../lib/analytics/dashboard-reports";
@@ -19,12 +22,11 @@ interface VisitorSessionTrendTableProps {
 export function VisitorSessionTrendTable({ context, state, focus }: VisitorSessionTrendTableProps) {
   const visibleItems =
     state.status === "success"
-      ? state.data.items.filter((item) => {
-          if (focus === "visitors") return item.unique_visitors > 0;
-          if (focus === "sessions") return item.sessions > 0;
-
-          return item.page_views > 0 || item.unique_visitors > 0 || item.sessions > 0;
-        })
+      ? focus
+        ? state.data.items
+        : state.data.items.filter(
+            (item) => item.page_views > 0 || item.unique_visitors > 0 || item.sessions > 0,
+          )
       : [];
 
   return (
@@ -52,27 +54,53 @@ export function VisitorSessionTrendTable({ context, state, focus }: VisitorSessi
           message="No analytics data is available for this selection."
         />
       ) : (
-        <Table className="data-table">
-          <caption className="table-caption">Daily Visitor and Session metrics in UTC</caption>
-          <thead>
-            <tr>
-              <th scope="col">UTC Date</th>
-              {focus === undefined && <th scope="col">Page Views</th>}
-              {focus !== "sessions" && <th scope="col">Unique Visitors</th>}
-              {focus !== "visitors" && <th scope="col">Sessions</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {visibleItems.map((item) => (
-              <tr key={item.day}>
-                <td>{item.day}</td>
-                {focus === undefined && <td>{item.page_views}</td>}
-                {focus !== "sessions" && <td>{item.unique_visitors}</td>}
-                {focus !== "visitors" && <td>{item.sessions}</td>}
+        <>
+          {focus && (
+            <div className="overview-grid mb-4">
+              <OverviewCard
+                context={context}
+                label={
+                  focus === "visitors"
+                    ? "Selected range Unique Visitors"
+                    : "Selected range Sessions"
+                }
+                metric={focus === "visitors" ? "unique_visitors" : "sessions"}
+                value={focus === "visitors" ? state.data.unique_visitors : state.data.sessions}
+              />
+            </div>
+          )}
+          {focus && (
+            <>
+              <p className="mb-3 text-sm text-muted">
+                {focus === "visitors"
+                  ? "Daily unique visitors are not additive to the selected range total."
+                  : "Daily session activity in UTC."}
+              </p>
+              <VisitorSessionTrendChart items={visibleItems} focus={focus} />
+            </>
+          )}
+          <Table className="data-table">
+            <caption className="table-caption">Daily Visitor and Session metrics in UTC</caption>
+            <thead>
+              <tr>
+                <th scope="col">UTC Date</th>
+                {focus === undefined && <th scope="col">Page Views</th>}
+                {focus !== "sessions" && <th scope="col">Unique Visitors</th>}
+                {focus !== "visitors" && <th scope="col">Sessions</th>}
               </tr>
-            ))}
-          </tbody>
-        </Table>
+            </thead>
+            <tbody>
+              {visibleItems.map((item) => (
+                <tr key={item.day}>
+                  <td>{item.day}</td>
+                  {focus === undefined && <td>{item.page_views}</td>}
+                  {focus !== "sessions" && <td>{item.unique_visitors}</td>}
+                  {focus !== "visitors" && <td>{item.sessions}</td>}
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </>
       )}
     </section>
   );

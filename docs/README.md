@@ -9,6 +9,7 @@
 - [运维指南](operations.md)：PostgreSQL 备份恢复、migration 部署和 Geo 数据库操作。
 - [PostgreSQL 测试隔离设计](testing/postgres-test-isolation-plan.md)：后端 PostgreSQL 集成测试的隔离模型、组件命令和验收目标。
 - [Browser SDK 对外接入与发布计划](browser-sdk-integration-plan.md)：通用 Navigation API SDK 的对外接入、兼容和发布计划。
+- [Dashboard 图表设计](dashboard-chart-design.md)：Analytics 指标图表的实现状态、数据语义和剩余验收项。
 - [静态产品展示站规划](static-product-site-plan.md)：面向开发者的独立静态站点、产品演示、快速开始与 Updates 规划（提案，实施前需确认范围）。
 - [ADR-022: 通用 Navigation API observer](decisions/ADR-022-navigation-api-only-browser-sdk.md)：使用单一浏览器级 observer 并移除 Router 专用集成。
 - [事件协议](event-protocol.md)：事件语义摘要；机器可读契约以 `protocol/` 为准。

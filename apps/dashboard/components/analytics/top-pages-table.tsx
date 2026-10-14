@@ -6,6 +6,8 @@ import { ErrorState } from "../shared/states/error-state";
 import { UnavailableState } from "../shared/states/unavailable-state";
 import { Table } from "../ui/index";
 
+import { TopPagesChart } from "./top-pages-chart";
+
 import type { PagesResponse } from "../../lib/analytics/analytics-api/types";
 import type { DashboardOverviewContext } from "../../lib/analytics/dashboard-overview";
 import type { DashboardReportState } from "../../lib/analytics/dashboard-reports";
@@ -28,25 +30,28 @@ export function TopPagesTable({ context, state }: TopPagesTableProps) {
       ) : state.data.items.length === 0 ? (
         <EmptyState context={context} />
       ) : (
-        <Table className="data-table">
-          <caption className="table-caption">Page Views by path</caption>
-          <thead>
-            <tr>
-              <th scope="col">Path</th>
-              <th scope="col">Page Views</th>
-            </tr>
-          </thead>
-          <tbody>
-            {state.data.items.map((item) => (
-              <tr key={item.path}>
-                <td>
-                  <code>{item.path}</code>
-                </td>
-                <td>{item.page_views}</td>
+        <>
+          <TopPagesChart items={state.data.items} />
+          <Table className="data-table mt-4">
+            <caption className="table-caption">Page Views by path</caption>
+            <thead>
+              <tr>
+                <th scope="col">Path</th>
+                <th scope="col">Page Views</th>
               </tr>
-            ))}
-          </tbody>
-        </Table>
+            </thead>
+            <tbody>
+              {state.data.items.map((item) => (
+                <tr key={item.path}>
+                  <td>
+                    <code>{item.path}</code>
+                  </td>
+                  <td>{item.page_views}</td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </>
       )}
     </section>
   );

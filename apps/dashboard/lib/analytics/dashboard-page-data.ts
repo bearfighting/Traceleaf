@@ -47,9 +47,19 @@ export async function loadDashboardPageData(
     };
   }
 
+  let timelinePromise: ReturnType<AnalyticsApiClient["timeline"]> | undefined;
+  const sharedClient: AnalyticsApiClient = {
+    ...client,
+    timeline: (siteId, from, to) => {
+      timelinePromise ??= client.timeline(siteId, from, to);
+
+      return timelinePromise;
+    },
+  };
+
   const [overview, reports] = await Promise.all([
-    loadDashboardOverview(context, { client }),
-    loadDashboardReports(context, { client }),
+    loadDashboardOverview(context, { client: sharedClient }),
+    loadDashboardReports(context, { client: sharedClient }),
   ]);
 
   return { overview, reports };

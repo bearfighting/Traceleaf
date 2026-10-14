@@ -28,6 +28,8 @@ export type DashboardReportState<T> =
 export type DashboardDefinitionReportState<T> =
   DashboardReportState<T> | { status: "missing_definitions" };
 
+export const DEFINITION_REPORT_ITEM_LIMIT = 20;
+
 export interface DashboardReportsState {
   events: DashboardReportState<EventsResponse>;
   geoCountries: DashboardReportState<GeoCountryResponse>;
@@ -290,7 +292,7 @@ function loadConversions(
         context.siteId,
         context.dateRange.from,
         context.dateRange.to,
-        20,
+        undefined,
         undefined,
         context.definitionVersion,
       )
@@ -306,7 +308,7 @@ function loadFunnels(
         context.siteId,
         context.dateRange.from,
         context.dateRange.to,
-        20,
+        undefined,
         undefined,
         context.definitionVersion,
       )

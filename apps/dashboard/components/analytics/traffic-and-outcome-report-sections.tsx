@@ -2,12 +2,14 @@ import React from "react";
 
 import { loadDashboardOverview } from "../../lib/analytics/dashboard-overview";
 import { loadTrafficAndOutcomeReport } from "../../lib/analytics/dashboard-reports";
+import { loadSiteDefinitions } from "../../lib/settings/configuration-api/server";
 import { ErrorState } from "../shared/states/error-state";
 
 import { ConversionFunnelTables } from "./conversion-funnel-tables";
 import { EventReportTable } from "./event-report-table";
 import { GeoCountryTable } from "./geo-country-table";
 import { OverviewCard } from "./overview-card";
+import { OverviewPageViewsSection } from "./overview-page-views-section";
 import { TimelineTable } from "./timeline-table";
 import { TopPagesTable } from "./top-pages-table";
 import { WebVitalsTable } from "./web-vitals-table";
@@ -51,14 +53,19 @@ export async function TrafficAndOutcomeReportSections({
             <OverviewCard
               context={context}
               label="Site total Page Views"
-              pageViews={overview.data.overview.page_views}
+              metric="page_views"
+              value={overview.data.overview.page_views}
             />
             <OverviewCard
               context={context}
               label="Selected range Page Views"
-              pageViews={overview.data.rangeOverview.page_views}
+              metric="page_views"
+              value={overview.data.rangeOverview.page_views}
             />
           </section>
+        )}
+        {overview.status === "success" && (
+          <OverviewPageViewsSection context={context} state={overview.data.timeline} />
         )}
         <section className="card" aria-label="Detailed reports">
           <h2>Explore reports</h2>
@@ -99,7 +106,12 @@ export async function TrafficAndOutcomeReportSections({
     return null;
   }
 
-  const reports = await loadTrafficAndOutcomeReport(context, report, client);
+  const [reports, definitionsResult] = await Promise.all([
+    loadTrafficAndOutcomeReport(context, report, client),
+    report === "conversions" || report === "funnels"
+      ? loadSiteDefinitions(context.siteId)
+      : Promise.resolve(undefined),
+  ]);
 
   return (
     <>
@@ -122,6 +134,14 @@ export async function TrafficAndOutcomeReportSections({
         <ConversionFunnelTables
           context={context}
           conversions={reports.conversions}
+          definitions={
+            definitionsResult?.kind === "ready" &&
+            reports.conversions.status === "success" &&
+            definitionsResult.definitions?.definition_version ===
+              reports.conversions.data.definition_version
+              ? definitionsResult.definitions
+              : null
+          }
           showConversions
           showFunnels={false}
         />
@@ -130,6 +150,14 @@ export async function TrafficAndOutcomeReportSections({
         <ConversionFunnelTables
           context={context}
           funnels={reports.funnels}
+          definitions={
+            definitionsResult?.kind === "ready" &&
+            reports.funnels.status === "success" &&
+            definitionsResult.definitions?.definition_version ===
+              reports.funnels.data.definition_version
+              ? definitionsResult.definitions
+              : null
+          }
           showConversions={false}
           showFunnels
         />

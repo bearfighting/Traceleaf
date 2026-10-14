@@ -45,12 +45,14 @@ export async function AudienceDimensionReportSections({
               <OverviewCard
                 context={context}
                 label="Unique Visitors"
-                pageViews={result.state.data.unique_visitors}
+                metric="unique_visitors"
+                value={result.state.data.unique_visitors}
               />
               <OverviewCard
                 context={context}
                 label="Sessions"
-                pageViews={result.state.data.sessions}
+                metric="sessions"
+                value={result.state.data.sessions}
               />
             </>
           ) : result.state.status === "error" ? (

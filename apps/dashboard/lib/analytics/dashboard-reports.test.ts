@@ -309,7 +309,7 @@ describe("loadDashboardReports", () => {
       "site_playground",
       "2026-09-18",
       "2026-09-18",
-      20,
+      undefined,
       undefined,
       undefined,
     );
@@ -317,7 +317,7 @@ describe("loadDashboardReports", () => {
       "site_playground",
       "2026-09-18",
       "2026-09-18",
-      20,
+      undefined,
       undefined,
       undefined,
     );

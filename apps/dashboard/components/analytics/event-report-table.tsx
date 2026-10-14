@@ -20,6 +20,15 @@ export function EventReportTable({
   return (
     <section className="card report-card" id="custom-events" aria-labelledby="events-heading">
       <h2 id="events-heading">Custom Events</h2>
+      {state.status === "success" && (
+        <p
+          className={`freshness-${state.data.freshness_status}`}
+          role={state.data.freshness_status === "failed" ? "alert" : "status"}
+        >
+          Custom Events data freshness: {state.data.freshness_status}
+          {state.data.data_as_of ? ` (as of ${state.data.data_as_of})` : ""}
+        </p>
+      )}
       {state.status === "error" ? (
         <ErrorState context={context} message={state.error.message} />
       ) : state.status === "disabled" ? (

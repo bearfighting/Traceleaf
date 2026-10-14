@@ -6,6 +6,8 @@ import { ErrorState } from "../shared/states/error-state";
 import { UnavailableState } from "../shared/states/unavailable-state";
 import { Table } from "../ui/index";
 
+import { GeoCountryPageViewsChart } from "./geo-country-page-views-chart";
+
 import type { GeoCountryResponse } from "../../lib/analytics/analytics-api/types";
 import type { DashboardOverviewContext } from "../../lib/analytics/dashboard-overview";
 import type { DashboardReportState } from "../../lib/analytics/dashboard-reports";
@@ -51,23 +53,26 @@ export function GeoCountryTable({
       ) : state.data.items.length === 0 ? (
         <EmptyState context={context} />
       ) : (
-        <Table className="data-table">
-          <caption className="table-caption">Page Views by country</caption>
-          <thead>
-            <tr>
-              <th scope="col">Country code</th>
-              <th scope="col">Page Views</th>
-            </tr>
-          </thead>
-          <tbody>
-            {state.data.items.map((item) => (
-              <tr key={item.country_code}>
-                <td>{item.country_code === "unknown" ? "Unknown" : item.country_code}</td>
-                <td>{item.page_views}</td>
+        <>
+          <GeoCountryPageViewsChart items={state.data.items} />
+          <Table className="data-table">
+            <caption className="table-caption">Page Views by country</caption>
+            <thead>
+              <tr>
+                <th scope="col">Country code</th>
+                <th scope="col">Page Views</th>
               </tr>
-            ))}
-          </tbody>
-        </Table>
+            </thead>
+            <tbody>
+              {state.data.items.map((item) => (
+                <tr key={item.country_code}>
+                  <td>{item.country_code === "unknown" ? "Unknown" : item.country_code}</td>
+                  <td>{item.page_views}</td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </>
       )}
     </section>
   );
