@@ -9,6 +9,7 @@ import { ulid } from "ulid";
 
 import { prepareE2ECaches } from "../support/e2e-cache.mjs";
 import {
+  captureE2EComposeDiagnostics,
   createE2EComposeRunner,
   e2ePort,
   removeE2EComposeProject,
@@ -259,6 +260,21 @@ try {
   console.log("Development startup E2E workflow passed.");
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
+  try {
+    const artifactDirectory = path.join(root, "artifacts", "dev-startup-e2e");
+    await captureE2EComposeDiagnostics({
+      runCompose,
+      artifactDirectory,
+      services: ["dashboard", "playground-next", "collector", "analytics-api", "postgres"],
+    });
+    console.error("Development startup diagnostics:");
+    runCompose(["ps", "--all"]);
+    runCompose(["logs", "--no-color", "--tail", "200", "dashboard", "playground-next"]);
+  } catch (diagnosticError) {
+    console.error(
+      `Development startup diagnostics could not be collected: ${diagnosticError instanceof Error ? diagnosticError.message : String(diagnosticError)}`,
+    );
+  }
   process.exitCode = 1;
 } finally {
   removeE2EComposeProject(runCompose);

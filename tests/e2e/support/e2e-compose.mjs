@@ -29,7 +29,12 @@ export function createE2EComposeRunner({
         cwd: root,
         encoding: "utf8",
         maxBuffer: 50 * 1024 * 1024,
-        env: { ...process.env, ...env, ...envOverrides },
+        env: {
+          ...process.env,
+          TRACELEAF_HOST_GID: String(process.getgid?.() ?? 1000),
+          ...env,
+          ...envOverrides,
+        },
         stdio: capture ? ["ignore", "pipe", "pipe"] : "inherit",
       });
     } catch (error) {

@@ -22,6 +22,8 @@ services:
 
   playground-react:
     profiles: ["playground-react"]
+    group_add:
+      - "${TRACELEAF_HOST_GID:-1000}"
     build:
       context: .
       dockerfile: docker/router-playground.Dockerfile
@@ -175,6 +177,8 @@ services:
 
   dashboard:
     profiles: ["dashboard"]
+    group_add:
+      - "${TRACELEAF_HOST_GID:-1000}"
     build:
       context: .
       dockerfile: docker/dashboard.Dockerfile
