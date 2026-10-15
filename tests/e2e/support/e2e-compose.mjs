@@ -69,7 +69,7 @@ export function removeE2EComposeProject(runCompose) {
 export function assertE2EProject(project) {
   if (
     typeof project !== "string" ||
-    !/^web-analytics-(?:[a-z0-9-]+-e2e|e2e|router-compose)-[a-z0-9]+$/.test(project)
+    !/^web-analytics-(?:[a-z0-9-]+-e2e|e2e|router-compose)-[a-z0-9]+(?:-[a-z0-9]+)*$/.test(project)
   ) {
     throw new Error(`Refusing database or Compose operations for non-E2E project '${project}'.`);
   }
