@@ -8,7 +8,7 @@
 - 最近一次功能基线提交：`2cdbc87`。发布时应以实际选定的 release commit/tag 为准。
 - Dashboard 本地类型检查、lint、单测、构建及格式检查通过；完整仓库 `pnpm check` 和格式检查通过。已记录的 CI 与 E2E 通过结果见历史归档。
 - 最近一次重新启动 `pnpm e2e:dashboard` 未完成：卡在容器依赖安装阶段后中止；这次尝试不作为发布版本的 E2E 通过证据。
-- Raspberry Pi 4B 局域网部署的 production Compose、环境模板和操作说明已建立；尚未完成 GHCR 多架构镜像发布、Pi ARM64 与 x86-64 主机端到端运行、备份恢复演练和正式发布验收。预构建镜像目标和验收方案见[部署计划](deployment-prebuilt-images-plan.md)与 [ADR-026](decisions/ADR-026-multi-architecture-container-releases.md)。
+- 平台 `v1.0.0` GHCR 多架构镜像已发布：完整 CI、linux/amd64 与 linux/arm64 原生 runner 隔离部署 smoke、候选 manifest 晋升均通过。提交、五个镜像 digest 和 smoke 检查记录见[平台 v1.0.0 发布记录](platform-release-v1.0.0.md)。Pi ARM64 与独立 x86-64 主机实机验收、备份恢复演练和正式 GitHub Release 仍待完成；预构建镜像目标和验收方案见[部署计划](deployment-prebuilt-images-plan.md)与 [ADR-026](decisions/ADR-026-multi-architecture-container-releases.md)。
 - Browser SDK `1.0.0` tarball 候选已通过聚焦验收，GitHub Release 尚未创建。SDK 发布不替代产品部署验收。
 
 ## Browser SDK 发布前待办

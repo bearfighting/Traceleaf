@@ -93,12 +93,13 @@ a separate CI change.
 3. CI pulls and runs the candidates on native AMD64 and ARM64 runners. Only
    after both isolated Compose smoke checks pass does CI promote those exact
    manifest digests to `sha-<commit>` and `vX.Y.Z`; it refuses to replace a
-   stable tag that points to different content. Create the GitHub Release only
-   after the workflow succeeds.
-4. Deploy and record the tag, commit, each image digest, migrations applied,
-   and healthcheck results together. Do not label or release one backend
-   service independently while the platform uses this coordinated release
-   model.
+   stable tag that points to different content. These CI checks validate the
+   release images, but do not replace deployment-host acceptance.
+4. Deploy to the target Raspberry Pi and a separate x86-64 host. Record the
+   tag, commit, each image digest, migrations applied, and healthcheck results
+   together. Create the GitHub Release after both host acceptance records are
+   complete. Do not label or release one backend service independently while
+   the platform uses this coordinated release model.
 5. Roll back the platform by redeploying the previous platform tag. Database
    migrations must retain the repository's existing backup, compatibility,
    and rollback requirements.
