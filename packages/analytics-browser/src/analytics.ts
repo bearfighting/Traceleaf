@@ -75,6 +75,7 @@ export function createAnalytics(options: AnalyticsOptions): Analytics {
   let vitalListenersStarted = false;
   let vitalCollectionDisabled = false;
   let vitalReportSequence = 0;
+  let pageIsHidden = typeof document !== "undefined" && document.visibilityState === "hidden";
   let vitalPageView: { eventId: string; path: string; occurredAt: number } | undefined;
   let consent: AnalyticsConsent = options.consent ?? "denied";
   const visitorIdStore = options.visitorIdStore ?? createVisitorIdStore(options.siteId);
@@ -150,7 +151,7 @@ export function createAnalytics(options: AnalyticsOptions): Analytics {
     notifyBufferChange();
 
     if (buffer.length >= bufferSize) {
-      void flushBuffer();
+      void flushBuffer(pageIsHidden);
     }
   };
 
@@ -203,7 +204,12 @@ export function createAnalytics(options: AnalyticsOptions): Analytics {
   };
 
   const visibilityFlush = () => {
-    if (document.visibilityState === "hidden") queueMicrotask(() => flushBuffer(true));
+    pageIsHidden = document.visibilityState === "hidden";
+    if (pageIsHidden) queueMicrotask(() => flushBuffer(true));
+  };
+  const pageHideFlush = () => {
+    pageIsHidden = true;
+    queueMicrotask(() => flushBuffer(true));
   };
   const reportVital = (metric: import("web-vitals").Metric) => {
     const page = vitalPageView;
@@ -311,6 +317,7 @@ export function createAnalytics(options: AnalyticsOptions): Analytics {
       return;
     vitalListenersStarted = true;
     document.addEventListener("visibilitychange", visibilityFlush);
+    window.addEventListener("pagehide", pageHideFlush);
     onLCP(reportVital);
     onINP(reportVital);
     onCLS(reportVital);
@@ -441,6 +448,8 @@ export function createAnalytics(options: AnalyticsOptions): Analytics {
         typeof document.removeEventListener === "function"
       )
         document.removeEventListener("visibilitychange", visibilityFlush);
+      if (typeof window !== "undefined" && typeof window.removeEventListener === "function")
+        window.removeEventListener("pagehide", pageHideFlush);
       if (flushTimer) {
         clearInterval(flushTimer);
         flushTimer = undefined;

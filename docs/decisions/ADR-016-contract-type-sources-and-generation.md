@@ -16,7 +16,7 @@ M0b evaluated Event Batch V1 and Stored Environment Policy V1 with real schemas 
 4. **Reject the tested Toolkit release for production; retain Toolkit as the long-term preferred candidate.** Do not use the tested SDK 0.7.0 commit for production generation. The project aims to optimize and re-evaluate Toolkit as its primary Schema-to-TypeScript/Rust converter against the project-specific capability and acceptance requirements in the Toolkit findings report. Keep the current generator strategy until those gates pass.
 5. **Keep artifacts in this monorepo.** Do not create a separate protocol repository without a demonstrated independent publishing or consumer requirement. TypeScript artifacts are consumed through `@web-analytics/protocol-ts`. Rust event types remain in the Collector protocol module; generated policy structures belong in a dedicated generated module in the Collector crate and are consumed through its policy runtime module.
 6. **Follow each Schema's compatibility contract.** Stored Environment Policy V1 rejects undeclared fields and schema versions other than V1. Event documents accept extensions only where their Schema allows them; the Page View Rust model preserves those allowed extensions. Event V1 version/discriminator constants remain strict.
-7. **Require drift, compile, and parity checks.** The eventual integration must pin generator/toolchain versions, commit generator lock information, and provide a check mode that fails on stale output. CI must run TypeScript package typecheck/tests, Rust consumer compile/tests, shared fixture parity (`node experiments/m0b/parity/run.mjs`), and Schema fixture validation (`pnpm protocol:validate`). This ADR selects the gates but does not wire them into build scripts or CI.
+7. **Keep supported checks in production packages and contract tooling.** Pin generator/toolchain versions, commit generator lock information, and provide a check mode that fails on stale output. CI runs TypeScript package typecheck/tests, Rust consumer compile/tests, and Schema fixture validation (`pnpm protocol:validate`). The M0b cross-language parity harness was an evaluation prototype; it is retired and is not a runtime or release gate.
 8. **Keep runtime validation separate.** Generated or hand-maintained types are not a substitute for runtime validation of untrusted input. Runtime lifecycle and staged static validation remain governed by ADR-015.
 
 ### M2 configuration contract source matrix
@@ -46,7 +46,7 @@ This matrix records the M2.3 generation scope: TypeScript output for all five co
 - M2.4 remains responsible for explicit policy constraints, date-time behavior, and shared fixture parity; generated types do not change runtime validation on their own.
 - The event Rust extension map and optional-field serialization behavior must be addressed before claiming event wire round-trip parity.
 - Policy date-time parsing in the Collector remains a documented Schema parity difference pending a separate decision; this ADR does not change production behavior.
-- The parity prototype and canonical fixtures remain the evidence base for future generation and migration work.
+- The archived M0b report and parity matrix preserve the prototype's findings. Its temporary source code and generated trial outputs are not maintained; canonical protocol fixtures remain validated by the supported Schema and consumer tests.
 
 ### M2.3 pinned generation workflow
 

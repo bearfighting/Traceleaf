@@ -84,7 +84,9 @@ test("E2E business-data reset rejects a runner for a different project", () => {
 
 test("E2E project names are limited to suite-specific disposable projects", () => {
   assert.doesNotThrow(() => assertE2EProject("web-analytics-e2e-123"));
+  assert.doesNotThrow(() => assertE2EProject("web-analytics-site-onboarding-e2e-123-1"));
   assert.doesNotThrow(() => assertE2EProject("web-analytics-router-compose-123"));
+  assert.throws(() => assertE2EProject("web-analytics-site-onboarding-e2e-123-"));
   assert.throws(() => assertE2EProject("web-analytics-platform"));
 });
 

@@ -1,5 +1,7 @@
 # M0b 协议静态运行时 Checklist
 
+> 归档说明（2026-10-15）：本 checklist 记录已结束的原型评估；`experiments/m0b` 中的试验代码和生成样本已删除。历史 parity 命令不再是当前 CI 门禁，当前约定以 ADR-016 为准。
+
 - 状态：已完成（评估与决策，2026-09-29）
 - 上位规划：[Platform Improvement Roadmap](platform-improvement-roadmap.md)
 - 设计背景：[Protocol Schema and Static Runtime Models](protocol-static-runtime-design.md)
@@ -41,7 +43,7 @@
 **证据 / 备注**
 
 - 候选及固定版本：Toolkit commit `825f4398e125f586354a18ba575d4d37edc5c745`、json-schema-to-typescript `16.0.0`、cargo-typify `0.8.0`；锁定方式、许可与工具链见[第二步结果报告](m0b-step2-generator-feasibility.md)。
-- 生成 / 检查命令：[试验脚本](../../../tooling/contracts/compare-contract-type-generators.mjs) 的 `--snapshot` / `--check`；精确命令、原始失败和输入处理见第二步结果报告。
+- 生成 / 检查命令：历史试验脚本 `tooling/contracts/compare-contract-type-generators.mjs` 的 `--snapshot` / `--check`（脚本已退役）；精确命令、原始失败和输入处理见第二步结果报告。
 - 可重复性结果：两个干净目录的结果清单和四份成功产物逐字节一致；`--check` 正常通过，故意改动临时样本时退出 1；`pnpm protocol:validate` 退出 0。
 - 人工介入或不支持特性：无生成后人工修补。事件 Rust 因外部 `$ref`、保留约束后的 `if/then/else` 未生成；Toolkit 配置 TS 有损，typify 配置 Rust 的 `schema_version` 类型变宽。四条路径的限定结论见第二步结果报告；Toolkit 的详细问题见[专项报告](m0b-toolkit-findings.md)。
 

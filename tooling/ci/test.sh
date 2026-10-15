@@ -7,7 +7,6 @@ cd "$ROOT_DIR"
 cargo test --workspace
 
 pnpm protocol:validate
-node experiments/m0b/parity/run.mjs
 pnpm capabilities:validate
 node tooling/contracts/check-configuration-contract-parity.mjs
 node tooling/ci/audit-policy-datetimes.mjs --fixtures

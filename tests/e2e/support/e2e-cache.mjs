@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { chmodSync, existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 const cacheInputs = [
@@ -27,6 +27,8 @@ const cacheInputs = [
 ];
 
 export function prepareE2ECaches(root, scope) {
+  prepareNodeWorkspaceDirectories(root);
+
   const hash = createHash("sha256").update(path.resolve(root));
   for (const relativePath of cacheInputs) {
     hash.update(relativePath);
@@ -68,6 +70,34 @@ export function prepareE2ECaches(root, scope) {
 
   initializeNodeOwnedVolume(root, `${prefix}_${scope}_dashboard_next`);
   return prefix;
+}
+
+function prepareNodeWorkspaceDirectories(root) {
+  // Node images run as UID 1000. On GitHub-hosted runners the checkout is owned
+  // by another UID, so grant the runner's group write access to the paths in
+  // which Vite, tsup, and Next.js create generated files. Compose adds that
+  // group to the Node containers without changing their UID or package cache.
+  if ((process.getuid?.() ?? 1000) === 1000) return;
+
+  const writableDirectories = [
+    "packages",
+    "packages/analytics-browser",
+    "packages/analytics-core",
+    "packages/observer-core",
+    "packages/playground-support",
+    "packages/protocol-ts",
+    "packages/transport",
+    "apps/dashboard",
+  ];
+  for (const relativePath of writableDirectories) {
+    const directory = path.join(root, relativePath);
+    chmodSync(directory, statSync(directory).mode | 0o020);
+  }
+
+  const nextEnvironmentTypes = path.join(root, "apps/dashboard/next-env.d.ts");
+  if (existsSync(nextEnvironmentTypes)) {
+    chmodSync(nextEnvironmentTypes, statSync(nextEnvironmentTypes).mode | 0o020);
+  }
 }
 
 export function initializeNodeOwnedVolume(root, volume) {

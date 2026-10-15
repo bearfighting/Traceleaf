@@ -497,9 +497,15 @@ async function assertBrowserWebVitalsCollection(browser) {
   await page.addInitScript(() => {
     const nativeFetch = window.fetch.bind(window);
     window.fetch = (input, init) => {
-      if (init?.keepalive) localStorage.setItem("__e2e_web_vitals_keepalive", "true");
+      if (init?.keepalive) localStorage.setItem("__e2e_web_vitals_keepalive", "fetch");
       return nativeFetch(input, init);
     };
+    document.addEventListener("visibilitychange", () => {
+      localStorage.setItem("__e2e_web_vitals_visibility", document.visibilityState);
+    });
+    window.addEventListener("pagehide", () => {
+      localStorage.setItem("__e2e_web_vitals_pagehide", "true");
+    });
   });
 
   try {
@@ -513,8 +519,8 @@ async function assertBrowserWebVitalsCollection(browser) {
     await page.waitForTimeout(1200);
     await page.goto(`${playgroundUrl}/about`, { waitUntil: "domcontentloaded" });
     assert(
-      (await page.evaluate(() => localStorage.getItem("__e2e_web_vitals_keepalive"))) === "true",
-      "The real Browser SDK did not issue a keepalive request when the document was hidden",
+      (await page.evaluate(() => localStorage.getItem("__e2e_web_vitals_keepalive"))) === "fetch",
+      `The real Browser SDK did not issue a keepalive request when the document was hidden (visibility=${await page.evaluate(() => localStorage.getItem("__e2e_web_vitals_visibility"))}, pagehide=${await page.evaluate(() => localStorage.getItem("__e2e_web_vitals_pagehide"))})`,
     );
 
     const deadline = Date.now() + 15_000;

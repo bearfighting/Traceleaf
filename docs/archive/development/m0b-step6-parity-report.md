@@ -1,5 +1,7 @@
 # M0b 第六步：TS/Rust 与 Schema parity 结果
 
+> 归档说明（2026-10-15）：本报告和逐 fixture parity matrix 保留历史评估结果；`experiments/m0b/parity` 原型代码已退役删除，以下执行命令仅记录当时的工具调用，不能再运行。
+
 - 日期：2026-09-29
 - 范围：Event Batch V1（含三类事件及 Browser Context）与 Stored Environment Policy V1。
 - 执行方式：`node experiments/m0b/parity/run.mjs`；结果写入 `artifacts/m0b-parity/`，逐 fixture 的受版本控制矩阵为[parity matrix](m0b-step6-parity-matrix.tsv)。

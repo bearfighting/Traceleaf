@@ -8,6 +8,7 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test -p analytics-api --test module_boundaries
 
+pnpm build:packages
 pnpm --filter @web-analytics/protocol-ts typecheck
 pnpm --filter @web-analytics/observer-core typecheck
 pnpm --filter @web-analytics/analytics-core typecheck

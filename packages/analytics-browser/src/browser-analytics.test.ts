@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { observerSubscribe, createObserver } = vi.hoisted(() => ({
-  observerSubscribe: vi.fn((..._args: unknown[]) => () => {}),
+  observerSubscribe: vi.fn((listener: unknown) => {
+    void listener;
+
+    return () => {};
+  }),
   createObserver: vi.fn(),
 }));
 
@@ -35,7 +39,9 @@ describe("createBrowserAnalytics consent", () => {
     };
     vi.stubGlobal("window", { location: currentLocation });
     vi.stubGlobal("document", { title: "Current page", referrer: "" });
-    const sendBatch = vi.fn(async (_events: readonly AnalyticsEvent[]) => {});
+    const sendBatch = vi.fn(async (events: readonly AnalyticsEvent[]) => {
+      void events;
+    });
     const context: BrowserContextV1 = {
       language: "en-CA",
       timezone: "UTC",

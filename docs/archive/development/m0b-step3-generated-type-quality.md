@@ -1,5 +1,7 @@
 # M0b 第三步：已生成类型质量评估
 
+> 归档说明（2026-10-15）：本文件记录历史类型质量评估。`experiments/m0b` 中的原型和生成样本已删除；本文件中的结果仍保留为评估记录。
+
 ## 验证环境与命令
 
 所有代码和编译产物在 Git 忽略的 `artifacts/m0b-type-quality/`。生成样本未改动。TypeScript 检查入口 `types.ts` 同时导入三份已生成 TS 样本和当前 `packages/protocol-ts` 公共类型；使用仓库 TypeScript 6.x、ESNext/Bundler 模式：
@@ -11,7 +13,7 @@ cargo run --offline --manifest-path artifacts/m0b-type-quality/rust/Cargo.toml
 pnpm protocol:validate
 ```
 
-上述命令均退出 0。Rust 临时 crate 使用 Rust `1.98.1`，serde `1.0.229`、serde_json `1.0.151`、chrono `0.4.45` 均取自仓库 Cargo.lock 的版本；生成代码另需 regress `0.12.0`。Rust crate 编译了未修改的 [typify 配置样本](../../../experiments/m0b/generated/typify/policy.rs)，并读取仓库 environment-policy fixtures。Serde 输出保存在 `artifacts/m0b-type-quality/serde-results.tsv`。
+上述命令均退出 0。Rust 临时 crate 使用 Rust `1.98.1`，serde `1.0.229`、serde_json `1.0.151`、chrono `0.4.45` 均取自仓库 Cargo.lock 的版本；生成代码另需 regress `0.12.0`。Rust crate 当时编译了 typify 配置样本（已删除），并读取仓库 environment-policy fixtures。Serde 输出保存在 `artifacts/m0b-type-quality/serde-results.tsv`。
 
 ## TypeScript 结果
 

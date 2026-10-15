@@ -51,6 +51,7 @@ export function NavigationDebugPanel() {
   const analyticsRef = useRef<ReturnType<typeof createBrowserAnalytics> | null>(null);
   const reportE2EErrors = useCallback((error: unknown) => {
     window.sessionStorage.setItem("__sdk_e2e_on_error_called", "true");
+
     throw new Error(`SDK E2E diagnostic callback: ${String(error)}`);
   }, []);
 
@@ -93,6 +94,7 @@ export function NavigationDebugPanel() {
         onError: reportE2EErrors,
       });
       analyticsRef.current = analytics;
+
       return () => {
         analyticsRef.current = null;
         analytics.destroy();
@@ -148,6 +150,7 @@ export function NavigationDebugPanel() {
               })),
     });
     analyticsRef.current = analytics;
+
     return () => {
       analyticsRef.current = null;
       analytics.destroy();
