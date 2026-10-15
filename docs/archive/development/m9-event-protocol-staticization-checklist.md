@@ -1,5 +1,7 @@
 # M9 Event Protocol Staticization Checklist
 
+> Archive note (2026-10-15): This checklist records the historical parity prototype run. Its source under `experiments/m0b` has been retired; current CI keeps Schema fixture validation and consumer tests, as described by ADR-016.
+
 - Status: Complete (M9.1–M9.5 complete)
 - Prerequisites: M0b event contract, canonical fixtures, and static type strategy accepted; ADR-016 and ADR-015
 - Roadmap: [Platform Improvement Roadmap](platform-improvement-roadmap.md)

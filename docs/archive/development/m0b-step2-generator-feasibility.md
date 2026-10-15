@@ -1,14 +1,16 @@
 # M0b 第二步：Schema 类型生成可脚本化试验
 
+> 归档说明（2026-10-15）：本文件记录历史生成器评估。`experiments/m0b` 中的试验源文件和生成样本已退役删除，以下命令仅说明当时的执行方式，不再可运行；评估结论仍保留在本文和 parity 报告中。
+
 ## 输入和固定工具
 
-输入沿用[第一步基线](m0b-step1-sample-baseline.md)：Event Batch V1（含三种事件和 Browser Context）及 Stored Environment Policy V1。入口 SHA-256 见[生成结果清单](../../../experiments/m0b/generated/results.json)。本试验未修改生产 Schema、类型或运行时校验。
+输入沿用[第一步基线](m0b-step1-sample-baseline.md)：Event Batch V1（含三种事件和 Browser Context）及 Stored Environment Policy V1。入口 SHA-256 曾记录在试验生成结果清单（已删除）。本试验未修改生产 Schema、类型或运行时校验。
 
-| 工具                                                                                           | 固定版本与依赖                                                                                                      | 许可证     | 调用入口                                                       |
-| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ---------- | -------------------------------------------------------------- |
-| [Schema Transformation Toolkit](https://github.com/bearfighting/schema-transformation-toolkit) | commit `825f4398e125f586354a18ba575d4d37edc5c745`，SDK `0.7.0`；该 commit 内的 `pnpm-lock.yaml`                     | Apache-2.0 | SDK `convert`，由脚本加载构建后的 `packages/sdk/dist/index.js` |
-| [json-schema-to-typescript](https://github.com/bcherny/json-schema-to-typescript)              | `16.0.0`；[试验专用 npm lockfile](../../../experiments/m0b/ts-generator/package-lock.json) 固定全部依赖和 integrity | MIT        | `dist/src/cli.js --input … --output …`                         |
-| [cargo-typify](https://github.com/oxidecomputer/typify/tree/main/cargo-typify)                 | `0.8.0`，`cargo install --locked` 使用该 release 的 Cargo.lock                                                      | Apache-2.0 | `cargo-typify typify --no-builder --output … SCHEMA`           |
+| 工具                                                                                           | 固定版本与依赖                                                                                  | 许可证     | 调用入口                                                       |
+| ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ---------- | -------------------------------------------------------------- |
+| [Schema Transformation Toolkit](https://github.com/bearfighting/schema-transformation-toolkit) | commit `825f4398e125f586354a18ba575d4d37edc5c745`，SDK `0.7.0`；该 commit 内的 `pnpm-lock.yaml` | Apache-2.0 | SDK `convert`，由脚本加载构建后的 `packages/sdk/dist/index.js` |
+| [json-schema-to-typescript](https://github.com/bcherny/json-schema-to-typescript)              | `16.0.0`；试验专用 npm lockfile 固定全部依赖和 integrity（已删除）                              | MIT        | `dist/src/cli.js --input … --output …`                         |
+| [cargo-typify](https://github.com/oxidecomputer/typify/tree/main/cargo-typify)                 | `0.8.0`，`cargo install --locked` 使用该 release 的 Cargo.lock                                  | Apache-2.0 | `cargo-typify typify --no-builder --output … SCHEMA`           |
 
 试验环境为 Node `v26.2.0`、pnpm `12.6.0`、仓库锁定 Rust `1.98.1`。Toolkit manifest 的 SDK 入口经该 commit 的实际 `packages/sdk/package.json` 与构建产物核对。工具只装在隔离试验目录；`experiments/m0b/ts-generator` 仅存试验 npm manifest/lockfile，不进入生产 workspace 依赖。
 
@@ -30,7 +32,7 @@ node scripts/compare-contract-type-generators.mjs --toolkit-root /tmp/m0b-schema
 node scripts/compare-contract-type-generators.mjs --toolkit-root /tmp/m0b-schema-transformation-toolkit --json2ts-root experiments/m0b/ts-generator --typify-bin /tmp/m0b-typify/bin/cargo-typify --output-dir artifacts/m0b-generator-trial/repro-b --check
 ```
 
-`--output-dir` 必须为空。脚本生成原始输入的诊断、成功产物、`results.json`，保存在被 Git 忽略的 `artifacts/m0b-generator-trial/`；`--snapshot` 将成功产物复制到[评估样本](../../../experiments/m0b/generated/results.json)。生成器各自完成代码格式化，脚本没有手工后处理。更新样本时显式使用 `--snapshot`，正常检查使用 `--check`。
+`--output-dir` 必须为空。脚本生成原始输入的诊断、成功产物、`results.json`，保存在被 Git 忽略的 `artifacts/m0b-generator-trial/`；`--snapshot` 当时会将成功产物复制到 `experiments/m0b/generated/`。生成器各自完成代码格式化，脚本没有手工后处理。更新样本时显式使用 `--snapshot`，正常检查使用 `--check`。
 
 ## 输入处理与结果
 
@@ -38,12 +40,12 @@ node scripts/compare-contract-type-generators.mjs --toolkit-root /tmp/m0b-schema
 
 脚本另试确定性的本地 `$ref` 打包：把所有外部引用映射至根 `$defs`，保持同一 2020-12 方言，重定向 Context 内部引用；原始与打包版由 Ajv 对 28 个现有事件 fixture 比较，结果一致。这只是当前 fixtures 的回归证据，不能单独证明对所有 JSON 等价。打包输入仍未让 Toolkit 或 typify 成功，所以它不属于任何成功路径，也不用于已提交生成样本。
 
-| 路径        | 原始输入 / 可脚本化处理结果                                                                                                                                                                                                                                             | 本步结论                                                                                           |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| 事件 → TS   | Toolkit 在 parse 阶段拒绝外部 `$ref`；`json2ts` 原始路径因物理目录与 `$id` 不一致失败，字节相同的 staged 输入成功生成[事件 TS](../../../experiments/m0b/generated/json2ts/event.ts)                                                                                     | **可脚本化生成**；类型语义质量待第 3、6 项                                                         |
-| 配置 → TS   | Toolkit 生成[配置 TS](../../../experiments/m0b/generated/toolkit/policy.ts)，报告 2 项 caveat、13 项 constraint loss；输出将 `schema_version`、`allowed_origins` 改为 camelCase。 `json2ts` 原始输入生成[配置 TS](../../../experiments/m0b/generated/json2ts/policy.ts) | `json2ts` **可脚本化生成**；Toolkit **有损输出**，不能视为完整支持                                 |
-| 事件 → Rust | Toolkit 原始输入在 parse 阶段拒绝外部 `$ref`；typify 原始输入因外部引用 panic（exit 101）。打包后 Toolkit 拒绝嵌入 Schema 的 `title` 关键字；typify 继续因 `if/then/else` 不支持而 panic（exit 101）                                                                    | 本次候选**明确不支持完整生成**，不能通过删约束取得成功                                             |
-| 配置 → Rust | Toolkit generate 阶段拒绝 literal Rust node；typify 原始输入生成[配置 Rust](../../../experiments/m0b/generated/typify/policy.rs)                                                                                                                                        | typify **可脚本化生成**；`schema_version` 变成 `serde_json::Value`，显然有损，是否可用待第 3、6 项 |
+| 路径        | 原始输入 / 可脚本化处理结果                                                                                                                                                                          | 本步结论                                                                                           |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| 事件 → TS   | Toolkit 在 parse 阶段拒绝外部 `$ref`；`json2ts` 原始路径因物理目录与 `$id` 不一致失败，字节相同的 staged 输入成功生成事件 TS（样本已删除）                                                           | **可脚本化生成**；类型语义质量待第 3、6 项                                                         |
+| 配置 → TS   | Toolkit 生成配置 TS（样本已删除），报告 2 项 caveat、13 项 constraint loss；输出将 `schema_version`、`allowed_origins` 改为 camelCase。 `json2ts` 原始输入生成配置 TS（样本已删除）                  | `json2ts` **可脚本化生成**；Toolkit **有损输出**，不能视为完整支持                                 |
+| 事件 → Rust | Toolkit 原始输入在 parse 阶段拒绝外部 `$ref`；typify 原始输入因外部引用 panic（exit 101）。打包后 Toolkit 拒绝嵌入 Schema 的 `title` 关键字；typify 继续因 `if/then/else` 不支持而 panic（exit 101） | 本次候选**明确不支持完整生成**，不能通过删约束取得成功                                             |
+| 配置 → Rust | Toolkit generate 阶段拒绝 literal Rust node；typify 原始输入生成配置 Rust 样本（已删除）                                                                                                             | typify **可脚本化生成**；`schema_version` 变成 `serde_json::Value`，显然有损，是否可用待第 3、6 项 |
 
 Toolkit 的问题分层、逐项损失和产物差异见[Toolkit 专项报告](m0b-toolkit-findings.md)；原始诊断及其他工具的 stderr 见每次运行的 `diagnostics/`。脚本会在 `results.json` 中记录失败阶段、代码或退出码。专用工具没有同等级的 constraint-loss 报告；“生成成功”仅表示产出文件，不表示无损或通过类型编译。
 
