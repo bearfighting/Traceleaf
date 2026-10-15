@@ -177,7 +177,7 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Run shared API E2E suites
-        run: node tooling/ci/measure-ci-e2e.mjs shared-api pnpm e2e --suite api
+        run: node tooling/ci/measure-ci-e2e.mjs shared-api node tests/e2e/runner/cli.mjs --suite api
 
       - name: Upload shared API CI measurement
         if: always()
@@ -227,7 +227,7 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Run Dashboard E2E
-        run: node tooling/ci/measure-ci-e2e.mjs dashboard pnpm e2e:dashboard
+        run: node tooling/ci/measure-ci-e2e.mjs dashboard node tests/e2e/runner/cli.mjs --suite dashboard
 
       - name: Print Dashboard E2E diagnostics
         if: failure()
@@ -290,7 +290,7 @@ jobs:
         run: pnpm build:packages
 
       - name: Run Navigation API E2E
-        run: node tooling/ci/measure-ci-e2e.mjs navigation-api pnpm e2e:navigation-api
+        run: node tooling/ci/measure-ci-e2e.mjs navigation-api node tests/e2e/runner/cli.mjs --suite navigation-api
 
       - name: Upload Navigation API CI measurement
         if: always()
@@ -333,7 +333,7 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Run Site Onboarding E2E
-        run: node tooling/ci/measure-ci-e2e.mjs site-onboarding pnpm e2e:site-onboarding
+        run: node tooling/ci/measure-ci-e2e.mjs site-onboarding node tests/e2e/runner/cli.mjs --suite site-onboarding
 
       - name: Upload Site Onboarding CI measurement
         if: always()
@@ -383,7 +383,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run development startup E2E
-        run: node tooling/ci/measure-ci-e2e.mjs dev-startup pnpm e2e:dev-startup
+        run: node tooling/ci/measure-ci-e2e.mjs dev-startup node tests/e2e/runner/cli.mjs --suite dev-startup
 
       - name: Upload development startup CI cache measurement
         if: always()
@@ -422,7 +422,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run Router Compose E2E
-        run: node tooling/ci/measure-ci-e2e.mjs router-compose pnpm e2e:router-compose
+        run: node tooling/ci/measure-ci-e2e.mjs router-compose node tests/e2e/runner/cli.mjs --suite router-compose
 
       - name: Upload Router Compose CI measurement
         if: always()
