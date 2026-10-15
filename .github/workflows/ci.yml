@@ -118,8 +118,8 @@ jobs:
           TRACELEAF_IMAGE_TAG: ${{ needs.publish-candidates.outputs.candidate_tag }}
           DEPLOYMENT_HOST_IP: 127.0.0.1
           POSTGRES_PASSWORD: smoke-url-safe-password
-          CONFIG_ADMIN_TOKENS: '["smoke-admin-token"]'
-          DASHBOARD_CONFIG_ADMIN_TOKEN: smoke-admin-token
+          CONFIG_ADMIN_TOKENS: '["AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"]'
+          DASHBOARD_CONFIG_ADMIN_TOKEN: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
           DASHBOARD_PORT: 13000
           PROCESSOR_POLL_INTERVAL_MS: 1000
           GEOIP_TRUSTED_PROXIES: ""

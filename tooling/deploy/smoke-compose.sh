@@ -7,29 +7,32 @@ set -euo pipefail
 : "${SMOKE_ARCHITECTURE:?}"
 env_file="$(mktemp)"
 override_file="$(mktemp --suffix=.yaml)"
+geo_data_dir="$(mktemp -d)"
 compose=(docker compose --project-name "$SMOKE_PROJECT" --env-file "$env_file" --file compose.deploy.yaml --file "$override_file")
 cleanup() {
   if [[ "${smoke_passed:-false}" != true ]]; then "${compose[@]}" logs --no-color || true; fi
   "${compose[@]}" down --volumes --remove-orphans || true
   rm -f "$env_file" "$override_file"
+  rm -rf "$geo_data_dir"
 }
 trap cleanup EXIT
+cp tests/fixtures/geo/GeoLite2-Country-Test.mmdb "$geo_data_dir/GeoLite2-Country.mmdb"
 cat > "$env_file" <<EOF
 TRACELEAF_IMAGE_NAMESPACE=$TRACELEAF_IMAGE_NAMESPACE
 TRACELEAF_IMAGE_TAG=$TRACELEAF_IMAGE_TAG
 DEPLOYMENT_HOST_IP=$DEPLOYMENT_HOST_IP
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-smoke-url-safe-password}
-CONFIG_ADMIN_TOKENS=${CONFIG_ADMIN_TOKENS:-["smoke-admin-token"]}
-DASHBOARD_CONFIG_ADMIN_TOKEN=${DASHBOARD_CONFIG_ADMIN_TOKEN:-smoke-admin-token}
+CONFIG_ADMIN_TOKENS=${CONFIG_ADMIN_TOKENS:-["AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"]}
+DASHBOARD_CONFIG_ADMIN_TOKEN=${DASHBOARD_CONFIG_ADMIN_TOKEN:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA}
 DASHBOARD_PORT=${DASHBOARD_PORT:-13000}
 PROCESSOR_POLL_INTERVAL_MS=${PROCESSOR_POLL_INTERVAL_MS:-1000}
 GEOIP_TRUSTED_PROXIES=${GEOIP_TRUSTED_PROXIES:-}
 EOF
-cat > "$override_file" <<'EOF'
+cat > "$override_file" <<EOF
 services:
   collector:
     volumes:
-      - ./tests/fixtures/geo/GeoLite2-Country-Test.mmdb:/workspace/data/GeoLite2-Country.mmdb:ro
+      - ${geo_data_dir}:/workspace/data:ro
 EOF
 "${compose[@]}" pull
 "${compose[@]}" up -d
