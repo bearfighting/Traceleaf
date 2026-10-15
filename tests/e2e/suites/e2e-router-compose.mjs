@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 
 import { prepareE2ECaches } from "../support/e2e-cache.mjs";
 import {
+  captureE2EComposeDiagnostics,
   createE2EComposeRunner,
   e2ePort,
   removeE2EComposeProject,
@@ -37,6 +38,21 @@ try {
   console.log("Router Compose backend smoke test passed.");
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
+  try {
+    const artifactDirectory = path.join(root, "artifacts", "router-compose-e2e");
+    await captureE2EComposeDiagnostics({
+      runCompose,
+      artifactDirectory,
+      services: ["playground-react", "collector", "postgres", "db-migrate"],
+    });
+    console.error("Router Compose diagnostics:");
+    runCompose(["ps", "--all"]);
+    runCompose(["logs", "--no-color", "--tail", "200", "playground-react"]);
+  } catch (diagnosticError) {
+    console.error(
+      `Router Compose diagnostics could not be collected: ${diagnosticError instanceof Error ? diagnosticError.message : String(diagnosticError)}`,
+    );
+  }
   process.exitCode = 1;
 } finally {
   removeE2EComposeProject(runCompose);
