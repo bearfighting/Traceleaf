@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { chmodSync, readFileSync, statSync } from "node:fs";
+import { chmodSync, existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 const cacheInputs = [
@@ -95,7 +95,9 @@ function prepareNodeWorkspaceDirectories(root) {
   }
 
   const nextEnvironmentTypes = path.join(root, "apps/dashboard/next-env.d.ts");
-  chmodSync(nextEnvironmentTypes, statSync(nextEnvironmentTypes).mode | 0o020);
+  if (existsSync(nextEnvironmentTypes)) {
+    chmodSync(nextEnvironmentTypes, statSync(nextEnvironmentTypes).mode | 0o020);
+  }
 }
 
 export function initializeNodeOwnedVolume(root, volume) {
