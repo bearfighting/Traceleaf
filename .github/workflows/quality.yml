@@ -55,6 +55,12 @@ jobs:
       - name: Check
         run: pnpm check
 
+      - name: Validate pull-only deployment Compose configuration
+        run: node tooling/deploy/validate-compose.mjs
+
+      - name: Check image promotion conflict handling
+        run: bash tooling/deploy/promote-images.test.sh
+
       - name: Build
         run: pnpm build
 

@@ -17,8 +17,20 @@ export function useEnvironmentPolicyFlow(
   initial: IngestPolicyResponse | null,
 ) {
   const router = useRouter();
-  const [policy, setPolicy] = useState(initial);
-  const [values, setValues] = useState(() => policyFormValues(initial));
+  const [configuration, setConfiguration] = useState(() => ({
+    initial,
+    policy: initial,
+    values: policyFormValues(initial),
+  }));
+  if (configuration.initial !== initial) {
+    setConfiguration({ initial, policy: initial, values: policyFormValues(initial) });
+  }
+  const policy = configuration.initial === initial ? configuration.policy : initial;
+  const values =
+    configuration.initial === initial ? configuration.values : policyFormValues(initial);
+  const setValues = (nextValues: ReturnType<typeof policyFormValues>) => {
+    setConfiguration((current) => ({ ...current, values: nextValues }));
+  };
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -28,7 +40,6 @@ export function useEnvironmentPolicyFlow(
 
     return () => window.clearTimeout(timer);
   }, []);
-
   async function save() {
     setBusy(true);
     setError("");
@@ -40,8 +51,11 @@ export function useEnvironmentPolicyFlow(
         toEnvironmentPolicyPayload(values),
         policy,
       );
-      setPolicy(saved);
-      setValues(policyFormValues(saved));
+      setConfiguration({
+        initial,
+        policy: saved,
+        values: policyFormValues(saved),
+      });
       setMessage(
         `Website access settings saved. Ingestion is ${saved.policy.enabled ? "enabled" : "disabled"}.`,
       );

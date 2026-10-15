@@ -1,4 +1,4 @@
-import type { NavigationEvent, NavigationObserver, NavigationType } from "./types";
+import type { NavigationObserver, NavigationType } from "./types";
 
 interface NavigationEntryLike {
   url: string;
@@ -168,8 +168,6 @@ export function createNavigationApiObserver(
           }
 
           let settled = false;
-          let timeout: ReturnType<typeof setTimeout> | undefined;
-          let poll: ReturnType<typeof setInterval> | undefined;
           const finish = () => {
             if (settled) return;
             settled = true;
@@ -186,10 +184,10 @@ export function createNavigationApiObserver(
             if (poll) clearInterval(poll);
           };
           pendingTitleWaits.add(cancel);
-          poll = setInterval(() => {
+          const poll = setInterval(() => {
             if (environment.title && environment.title !== titleBeforeNavigation) finish();
           }, 20);
-          timeout = setTimeout(finish, titleWaitMs);
+          const timeout = setTimeout(finish, titleWaitMs);
         });
       };
 

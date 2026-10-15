@@ -88,11 +88,18 @@ a separate CI change.
    Private leaf packages and examples retain the initial `1.0.0` baseline.
 2. Create one Git tag `vX.Y.Z` on the validated commit. The existing CI
    `v*` trigger runs full repository validation for this coordinated release.
-3. Build and deploy Collector, Processor, Analytics API, and Dashboard from
-   that same tag. Record the tag, commit, migrations applied, and deployment
-   result together. Do not label or release one backend service independently
-   while the platform uses this coordinated release model.
-4. Roll back the platform by redeploying the previous platform tag. Database
+   After it passes, CI publishes run-specific GHCR candidate manifests for
+   Collector, Processor, Analytics API, DB tools, and Dashboard.
+3. CI pulls and runs the candidates on native AMD64 and ARM64 runners. Only
+   after both isolated Compose smoke checks pass does CI promote those exact
+   manifest digests to `sha-<commit>` and `vX.Y.Z`; it refuses to replace a
+   stable tag that points to different content. Create the GitHub Release only
+   after the workflow succeeds.
+4. Deploy and record the tag, commit, each image digest, migrations applied,
+   and healthcheck results together. Do not label or release one backend
+   service independently while the platform uses this coordinated release
+   model.
+5. Roll back the platform by redeploying the previous platform tag. Database
    migrations must retain the repository's existing backup, compatibility,
    and rollback requirements.
 

@@ -62,7 +62,7 @@ export function ConfigurationEditor({
 
   return (
     <Editor
-      key={`${siteId}:${environment}:${result.capabilities.configuration.version}:${result.policy?.policy.version ?? "new"}`}
+      key={`${siteId}:${environment}:${result.capabilities.configuration.version}`}
       siteId={siteId}
       environment={environment}
       initialPolicy={result.policy}

@@ -5,20 +5,21 @@ This deployment profile runs the production Rust binaries and a production Next.
 ## Requirements
 
 - Raspberry Pi OS or Debian on a 64-bit ARM system, with Docker Engine and the Compose plugin.
-- A stable LAN IPv4 address for the Pi. Configure a DHCP reservation on the router, then use that address for `PI_LAN_IP`.
+- A stable LAN IPv4 address for the Pi. Configure a DHCP reservation on the router, then use that address for `DEPLOYMENT_HOST_IP`.
 - An SSD-backed Docker data directory is recommended for PostgreSQL. The Compose volume `postgres_data_v18` stores the database.
-- A supported country lookup MMDB at `./data/GeoLite2-Country.mmdb`. Collector currently requires this file to start. Obtain it under the provider's terms; Compose does not download it. See [Country Geo data operations](operations.md#country-geo-database).
-- Node.js and pnpm on the Pi to use the `pnpm deploy:*` commands. The underlying `docker compose` commands can also be run directly.
+- A supported country lookup MMDB at `./data/GeoLite2-Country.mmdb`. Collector requires this external file to start. Obtain it under the provider's terms; Compose does not download it. See [Country Geo data operations](operations.md#country-geo-database).
+- GHCR read access for the private Traceleaf image packages. Log in with a read-only token and Docker credential helper before pulling images; see [Linux deployment](deployment-linux.md#ghcr-credentials).
+- Node.js and pnpm are optional and only needed for the repository's `pnpm deploy:*` shortcuts. Direct Docker Compose commands work without them.
 
 ## Configure
 
-From the repository root, copy the deployment environment template and edit it:
+In the deployment directory, copy the supplied environment template and edit it:
 
 ```bash
 cp .env.deploy.example .env.deploy
 ```
 
-Set `PI_LAN_IP` to the Pi's reserved LAN address. Generate a PostgreSQL password containing only URL-safe characters; it is interpolated into the internal database URL. For example:
+Set `DEPLOYMENT_HOST_IP` to the Pi's reserved LAN address, `TRACELEAF_IMAGE_NAMESPACE` to the lowercase GitHub owner, and `TRACELEAF_IMAGE_TAG` to an accepted release such as `v1.0.0`. Generate a PostgreSQL password containing only URL-safe characters; it is interpolated into the internal database URL. For example:
 
 ```bash
 openssl rand -hex 24
@@ -40,7 +41,7 @@ mkdir -p data
 
 ## Start and access on the LAN
 
-Build ARM64 images on the Pi and start the stack:
+Pull the accepted ARM64 image manifest and start the stack:
 
 ```bash
 pnpm deploy:up
@@ -48,11 +49,11 @@ pnpm deploy:ps
 pnpm deploy:logs
 ```
 
-The first build can take a while on a Raspberry Pi 4B because it compiles the Rust workspace and builds the Dashboard. Repeat deployments reuse Docker build cache. The Compose file publishes only Collector `4001` and Dashboard `13000`, and binds both to `PI_LAN_IP`. Analytics API `4002` and PostgreSQL `5432` have no host port mapping and are available only on the Compose network.
+Compose pulls the prebuilt multi-architecture images; the Pi does not need the repository, Node.js, pnpm, Rust, or a build toolchain. The file publishes only Collector `4001` and Dashboard `13000`, bound to `DEPLOYMENT_HOST_IP`. Analytics API `4002` and PostgreSQL `5432` have no host port mapping and are available only on the Compose network.
 
-- Dashboard: `http://<PI_LAN_IP>:13000/dashboard`
-- Collector health: `http://<PI_LAN_IP>:4001/health`
-- Collector event endpoint: `http://<PI_LAN_IP>:4001/v1/events`
+- Dashboard: `http://<DEPLOYMENT_HOST_IP>:13000/dashboard`
+- Collector health: `http://<DEPLOYMENT_HOST_IP>:4001/health`
+- Collector event endpoint: `http://<DEPLOYMENT_HOST_IP>:4001/v1/events`
 
 Do not configure router port forwarding for these ports. The host firewall should allow `13000` only from the home LAN. Collector can be LAN-reachable during SDK integration checks; later, when using Cloudflare Tunnel, remove its host port mapping and route the public Collector hostname to the container's port `4001` from a `cloudflared` container on the same Docker network. Keep Dashboard, Analytics API and PostgreSQL off the public Tunnel.
 
@@ -62,12 +63,13 @@ The development seed and Playground are not part of this deployment and must not
 
 ## Operations
 
-- `pnpm deploy:build` builds or refreshes the production images.
-- `pnpm deploy:up` builds changed images and starts/recreates services in the background. The migration job runs before dependent services start.
+- `pnpm deploy:pull` downloads the selected release images.
+- `pnpm deploy:up` pulls images and starts/recreates services in the background. The migration job runs before dependent services start.
+- On a deployment host without the repository or pnpm, run `docker compose --project-name traceleaf --env-file .env.deploy --file compose.deploy.yaml pull`, then the same command with `up -d`.
 - `pnpm deploy:ps` shows service health and state.
 - `pnpm deploy:logs` follows service logs; use `Ctrl-C` to stop following logs.
 - `pnpm deploy:down` stops containers but preserves `postgres_data_v18`.
 
-Back up PostgreSQL before upgrades that change migrations. The general backup and restore procedure is in [Operations](operations.md#postgresql-backup-and-restore). Store backups somewhere other than the Pi's database disk and periodically verify a restore. Never use `docker compose down -v` for routine shutdown; that removes the database volume.
+Before every upgrade, back up PostgreSQL and verify the backup. Review [Linux deployment](deployment-linux.md) for private GHCR login, release rollback, and migration compatibility guidance. Switching `TRACELEAF_IMAGE_TAG` back to an earlier version rolls back application images only; it does not reverse schema migrations. The general backup and restore procedure is in [Operations](operations.md#postgresql-backup-and-restore). Store backups somewhere other than the Pi's database disk and periodically verify a restore. Never use `docker compose down -v` for routine shutdown; that removes the database volume.
 
 The Pi deployment is a single-host setup without automatic off-device backups, high availability or alerting. Review logs and backup completion manually during LAN validation.

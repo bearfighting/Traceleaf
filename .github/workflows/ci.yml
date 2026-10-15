@@ -23,3 +23,136 @@ jobs:
     uses: ./.github/workflows/quality.yml
     with:
       full_suite: true
+
+  publish-candidates:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: full-validation
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      candidate_tag: ${{ steps.release.outputs.candidate_tag }}
+      version: ${{ steps.release.outputs.version }}
+      revision: ${{ steps.release.outputs.revision }}
+      namespace: ${{ steps.release.outputs.namespace }}
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Validate release version and metadata
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Expected a vX.Y.Z tag" >&2; exit 1; }
+          revision="$(git rev-parse HEAD)"
+          namespace="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+          echo "namespace=$namespace" >> "$GITHUB_OUTPUT"
+          echo "candidate_tag=candidate-${revision}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU for cross-architecture image builds
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push candidate manifests
+        uses: docker/bake-action@v6
+        with:
+          files: docker-bake.hcl
+          targets: release
+          push: true
+          set: |
+            *.platform=linux/amd64,linux/arm64
+        env:
+          REGISTRY: ghcr.io
+          IMAGE_NAMESPACE: ${{ steps.release.outputs.namespace }}
+          IMAGE_TAG: ${{ steps.release.outputs.candidate_tag }}
+          SOURCE_URL: https://github.com/${{ github.repository }}
+          VERSION: ${{ steps.release.outputs.version }}
+          REVISION: ${{ steps.release.outputs.revision }}
+
+  smoke-candidate:
+    needs: publish-candidates
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: amd64
+            runner: ubuntu-24.04
+          - architecture: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run isolated deployment smoke
+        env:
+          TRACELEAF_IMAGE_NAMESPACE: ${{ needs.publish-candidates.outputs.namespace }}
+          TRACELEAF_IMAGE_TAG: ${{ needs.publish-candidates.outputs.candidate_tag }}
+          DEPLOYMENT_HOST_IP: 127.0.0.1
+          POSTGRES_PASSWORD: smoke-url-safe-password
+          CONFIG_ADMIN_TOKENS: '["smoke-admin-token"]'
+          DASHBOARD_CONFIG_ADMIN_TOKEN: smoke-admin-token
+          DASHBOARD_PORT: 13000
+          PROCESSOR_POLL_INTERVAL_MS: 1000
+          GEOIP_TRUSTED_PROXIES: ""
+          SMOKE_ARCHITECTURE: ${{ matrix.architecture }}
+          SMOKE_PROJECT: traceleaf-smoke-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.architecture }}
+        run: bash tooling/deploy/smoke-compose.sh
+
+  promote-release:
+    needs: [publish-candidates, smoke-candidate]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    concurrency:
+      group: ghcr-release-${{ github.repository }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Promote only matching candidate manifests
+        env:
+          IMAGE_NAMESPACE: ${{ needs.publish-candidates.outputs.namespace }}
+          IMAGE_TAG: ${{ needs.publish-candidates.outputs.candidate_tag }}
+          VERSION: ${{ needs.publish-candidates.outputs.version }}
+          REVISION: ${{ needs.publish-candidates.outputs.revision }}
+        run: bash tooling/deploy/promote-images.sh

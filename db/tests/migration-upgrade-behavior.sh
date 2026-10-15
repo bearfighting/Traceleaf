@@ -13,6 +13,11 @@ INSERT INTO analytics_feature_flags (site_id, analytics_enabled)
 VALUES ('legacy-enabled', TRUE), ('legacy-disabled', FALSE);
 CREATE TABLE site_environment_policies (collision BOOLEAN);
 SQL
+collision_fixture="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atq -c "SELECT current_database() || ':' || COALESCE(to_regclass('public.site_environment_policies')::TEXT, 'missing')")"
+if [[ "$collision_fixture" != *":site_environment_policies" ]]; then
+  echo "Migration collision fixture was not created in the upgrade database ($collision_fixture)" >&2
+  exit 1
+fi
 
 echo "Verifying the configuration migration rolls back atomically on failure..."
 if DATABASE_URL="$DATABASE_URL" pnpm db:migrate >/dev/null 2>&1; then

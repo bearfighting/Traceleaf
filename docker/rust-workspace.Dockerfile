@@ -44,7 +44,8 @@ CMD ["cargo", "run", "-p", "analytics-api", "--", "--host", "0.0.0.0", "--port",
 
 FROM rust-dependencies AS rust-release-builder
 COPY . .
-RUN --mount=type=cache,id=web-analytics-rust-release-target,target=/workspace/target,sharing=locked \
+ARG TARGETARCH
+RUN --mount=type=cache,id=web-analytics-rust-release-target-${TARGETARCH},target=/workspace/target,sharing=locked \
   cargo build --locked --release --workspace \
   && mkdir -p /release \
   && cp target/release/collector target/release/processor target/release/analytics-api target/release/db-migrator /release/

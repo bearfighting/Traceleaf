@@ -146,6 +146,7 @@ function splitEventBatches(
     }
   }
   if (current.length > 0) batches.push(current);
+
   return batches;
 }
 

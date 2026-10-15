@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fs, path::PathBuf};
 
-use collector::{
+use collector::domain::{
     protocol::{AnalyticsEvent, EventBatch},
     validation::Validator,
 };

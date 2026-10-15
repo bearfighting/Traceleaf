@@ -42,7 +42,7 @@ describe("Browser Web Vitals collection", () => {
     vi.stubGlobal("window", {
       location: { href: "https://example.test/start", pathname: "/start" },
       addEventListener: (name: string, cb: () => void) => {
-        listeners[name] = cb;
+        listeners[`window:${name}`] = cb;
       },
       removeEventListener: vi.fn(),
     });
@@ -62,6 +62,7 @@ describe("Browser Web Vitals collection", () => {
     const analytics = createAnalytics({
       siteId: "site_example",
       consent: "granted",
+      bufferSize: 1,
       createEventId: () => `01J0000000000000000000000${String(++sequence).padStart(1, "0")}`,
       now: () => 1760000000100,
       contextProvider: {
@@ -106,7 +107,26 @@ describe("Browser Web Vitals collection", () => {
       page_view_occurred_at: 1760000000100,
     });
     expect("visitor_id" in (vital as object)).toBe(false);
-    expect(sent[0]?.options?.keepalive).toBe(true);
+    expect(
+      sent.find((batch) => batch.events.some((event) => event.type === "web_vital"))?.options
+        ?.keepalive,
+    ).toBe(true);
+
+    doc.visibilityState = "visible";
+    listeners["document:visibilitychange"]?.();
+    observer.emit({
+      url: "https://example.test/about",
+      path: "/about",
+      title: "About",
+      navigationType: "push",
+      occurredAt: 1760000002000,
+    });
+    listeners["window:pagehide"]?.();
+    callbacks.CLS?.({ name: "CLS", value: 0.01, navigationType: "navigate" });
+    await Promise.resolve();
+    await analytics.flush();
+    expect(sent.at(-1)?.options?.keepalive).toBe(true);
+
     analytics.destroy();
     vi.unstubAllGlobals();
   });
