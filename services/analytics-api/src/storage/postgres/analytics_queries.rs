@@ -45,8 +45,18 @@ pub(crate) async fn timeline(
     range: DateRange,
 ) -> Result<Vec<TimelineRow>, sqlx::Error> {
     sqlx::query_as::<_, TimelineRow>(
-        "SELECT day, page_views FROM page_view_daily
-         WHERE site_id = $1 AND day BETWEEN $2 AND $3 ORDER BY day ASC",
+        "WITH selected_days AS (
+             SELECT day::date AS day
+             FROM generate_series($2::date, $3::date, INTERVAL '1 day') AS dates(day)
+         )
+         SELECT selected_days.day, COALESCE(p.page_views, 0)::bigint AS page_views
+         FROM selected_days
+         LEFT JOIN page_view_daily p ON p.site_id = $1 AND p.day = selected_days.day
+         WHERE EXISTS (
+             SELECT 1 FROM page_view_daily existing
+             WHERE existing.site_id = $1 AND existing.day BETWEEN $2 AND $3
+         )
+         ORDER BY selected_days.day ASC",
     )
     .bind(site_id)
     .bind(range.from)
@@ -265,14 +275,8 @@ pub(crate) async fn visitor_session_daily(
 ) -> Result<Vec<VisitorSessionRow>, sqlx::Error> {
     sqlx::query_as::<_, VisitorSessionRow>(
         "WITH days AS (
-             SELECT day FROM page_view_daily
-             WHERE site_id = $1 AND day BETWEEN $2 AND $3
-             UNION
-             SELECT day FROM visitor_daily
-             WHERE site_id = $1 AND generation_id = $4::uuid AND day BETWEEN $2 AND $3
-             UNION
-             SELECT day FROM session_daily
-             WHERE site_id = $1 AND generation_id = $4::uuid AND day BETWEEN $2 AND $3
+             SELECT day::date AS day
+             FROM generate_series($2::date, $3::date, INTERVAL '1 day') AS dates(day)
          )
          SELECT days.day,
                 COALESCE((SELECT page_views FROM page_view_daily p
@@ -282,6 +286,16 @@ pub(crate) async fn visitor_session_daily(
                 COALESCE((SELECT sessions FROM session_daily s
                           WHERE s.site_id = $1 AND s.generation_id = $4::uuid AND s.day = days.day), 0)::bigint AS sessions
          FROM days
+         WHERE EXISTS (
+             SELECT 1 FROM page_view_daily p
+             WHERE p.site_id = $1 AND p.day BETWEEN $2 AND $3
+             UNION ALL
+             SELECT 1 FROM visitor_daily v
+             WHERE v.site_id = $1 AND v.generation_id = $4::uuid AND v.day BETWEEN $2 AND $3
+             UNION ALL
+             SELECT 1 FROM session_daily s
+             WHERE s.site_id = $1 AND s.generation_id = $4::uuid AND s.day BETWEEN $2 AND $3
+         )
          ORDER BY days.day ASC",
     )
     .bind(site_id)
@@ -488,8 +502,99 @@ pub(crate) async fn conversion_rows(
     definition_id: Option<&str>,
     limit: i64,
 ) -> Result<Vec<ConversionReportRow>, sqlx::Error> {
-    sqlx::query_as::<_, ConversionReportRow>("WITH eligible AS (SELECT (occurred_at AT TIME ZONE 'UTC')::date AS day, COUNT(DISTINCT session_id)::bigint AS sessions FROM custom_event_facts WHERE site_id=$1 AND session_id IS NOT NULL AND (occurred_at AT TIME ZONE 'UTC')::date BETWEEN $4 AND $5 GROUP BY 1), matched AS (SELECT definition_id,(occurred_at AT TIME ZONE 'UTC')::date AS day,COUNT(*)::bigint AS event_count,COUNT(DISTINCT session_id)::bigint AS converted_sessions FROM conversion_facts WHERE site_id=$1 AND definition_version=$2 AND (occurred_at AT TIME ZONE 'UTC')::date BETWEEN $4 AND $5 AND ($3::text IS NULL OR definition_id=$3) GROUP BY 1,2) SELECT m.definition_id,m.day,m.event_count,m.converted_sessions,COALESCE(e.sessions,0)::bigint AS eligible_sessions FROM matched m LEFT JOIN eligible e USING(day) ORDER BY m.definition_id,m.day LIMIT $6")
-        .bind(site_id).bind(version).bind(definition_id).bind(range.from).bind(range.to).bind(limit).fetch_all(pool).await
+    sqlx::query_as::<_, ConversionReportRow>(
+        "WITH eligible AS (
+             SELECT (occurred_at AT TIME ZONE 'UTC')::date AS day,
+                    COUNT(DISTINCT session_id)::bigint AS sessions
+             FROM custom_event_facts
+             WHERE site_id = $1 AND session_id IS NOT NULL
+               AND (occurred_at AT TIME ZONE 'UTC')::date BETWEEN $4 AND $5
+             GROUP BY 1
+         ), matched AS (
+             SELECT definition_id,
+                    (occurred_at AT TIME ZONE 'UTC')::date AS day,
+                    COUNT(*)::bigint AS event_count,
+                    COUNT(DISTINCT session_id)::bigint AS converted_sessions
+             FROM conversion_facts
+             WHERE site_id = $1 AND definition_version = $2
+               AND (occurred_at AT TIME ZONE 'UTC')::date BETWEEN $4 AND $5
+               AND ($3::text IS NULL OR definition_id = $3)
+             GROUP BY 1, 2
+         )
+         SELECT m.definition_id, m.day, m.event_count, m.converted_sessions,
+                COALESCE(e.sessions, 0)::bigint AS eligible_sessions
+         FROM matched m
+         LEFT JOIN eligible e USING (day)
+         ORDER BY m.definition_id, m.day
+         LIMIT $6",
+    )
+    .bind(site_id)
+    .bind(version)
+    .bind(definition_id)
+    .bind(range.from)
+    .bind(range.to)
+    .bind(limit)
+    .fetch_all(pool)
+    .await
+}
+
+pub(crate) async fn conversion_chart_rows(
+    pool: &PgPool,
+    site_id: &str,
+    version: &str,
+    range: DateRange,
+    definition_id: Option<&str>,
+    definition_limit: i64,
+) -> Result<Vec<ConversionReportRow>, sqlx::Error> {
+    sqlx::query_as::<_, ConversionReportRow>(
+        "WITH eligible AS (
+             SELECT (occurred_at AT TIME ZONE 'UTC')::date AS day,
+                    COUNT(DISTINCT session_id)::bigint AS sessions
+             FROM custom_event_facts
+             WHERE site_id = $1 AND session_id IS NOT NULL
+               AND (occurred_at AT TIME ZONE 'UTC')::date BETWEEN $4 AND $5
+             GROUP BY 1
+         ), matched AS (
+             SELECT definition_id,
+                    (occurred_at AT TIME ZONE 'UTC')::date AS day,
+                    COUNT(*)::bigint AS event_count,
+                    COUNT(DISTINCT session_id)::bigint AS converted_sessions
+             FROM conversion_facts
+             WHERE site_id = $1 AND definition_version = $2
+               AND (occurred_at AT TIME ZONE 'UTC')::date BETWEEN $4 AND $5
+               AND ($3::text IS NULL OR definition_id = $3)
+             GROUP BY 1, 2
+         ), definitions AS (
+             SELECT definition->>'id' AS definition_id
+             FROM site_definition_revisions revision
+             CROSS JOIN LATERAL jsonb_array_elements(revision.document->'conversions') AS conversions(definition)
+             WHERE revision.site_id = $1 AND revision.definition_version = $2
+               AND ($3::text IS NULL OR definition->>'id' = $3)
+             ORDER BY definition->>'id'
+             LIMIT $6
+         ), days AS (
+             SELECT dates.day::date AS day
+             FROM generate_series($4::date, $5::date, INTERVAL '1 day') AS dates(day)
+         )
+         SELECT definitions.definition_id, days.day,
+                COALESCE(m.event_count, 0)::bigint AS event_count,
+                COALESCE(m.converted_sessions, 0)::bigint AS converted_sessions,
+                COALESCE(e.sessions, 0)::bigint AS eligible_sessions
+         FROM definitions
+         CROSS JOIN days
+         LEFT JOIN matched m
+           ON m.definition_id = definitions.definition_id AND m.day = days.day
+         LEFT JOIN eligible e ON e.day = days.day
+         ORDER BY definitions.definition_id, days.day",
+    )
+    .bind(site_id)
+    .bind(version)
+    .bind(definition_id)
+    .bind(range.from)
+    .bind(range.to)
+    .bind(definition_limit)
+    .fetch_all(pool)
+    .await
 }
 
 pub(crate) async fn conversion_total(

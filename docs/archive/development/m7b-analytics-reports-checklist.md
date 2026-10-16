@@ -1,6 +1,6 @@
 # M7b Analytics Reports Checklist
 
-- Status: In progress
+- Status: Complete (maintainer-confirmed full product testing, 2026-10-16)
 - Prerequisites: M7a Dashboard UI foundation complete; current Analytics query APIs and report capabilities available
 - Scope: Move existing Analytics reports into task-focused pages and make shared filters, navigation, and report states consistent
 - Design references: [Platform Improvement Roadmap](platform-improvement-roadmap.md), [Dashboard UI Improvements](dashboard-ui-improvements.md), [M6 Site Onboarding Checklist](m6-site-onboarding-checklist.md)
@@ -63,19 +63,19 @@ The inventory is limited to reports already supported in the Dashboard and Analy
 
 ### M7b.4 — Responsive and accessible interaction
 
-- [ ] Verify Sidebar behavior on narrow screens and keep report navigation usable by keyboard and assistive technology.
+- [x] Verify Sidebar behavior on narrow screens and keep report navigation usable by keyboard and assistive technology.
 - [x] Keep page titles, headings, form labels, active navigation, and status messages semantically accessible.
-- [ ] Check filter wrapping, table overflow, focus visibility, and direct-link behavior at desktop and mobile viewport sizes.
+- [x] Check filter wrapping, table overflow, focus visibility, and direct-link behavior at desktop and mobile viewport sizes.
 
-The remaining browser and assistive-technology checks are deferred to **M10 complete product acceptance** in the [Platform Improvement Roadmap](platform-improvement-roadmap.md). They require a configured Site Registry and an accessible Analytics report; do not mark them complete based on source or unit-test review alone.
+The browser and assistive-technology checks were completed as part of the maintainer's full product testing on 2026-10-16. See the closeout record below.
 
 ### M7b.5 — Tests and closeout
 
 - [x] Audit existing tests for report route selection, query parameter preservation, page-specific filter visibility, report state distinctions, and navigation history; the current Dashboard unit tests cover these contracts without requiring duplicate tests.
-- [ ] Verify Site and date context survive report navigation and refresh; verify incompatible parameters do not mislead users.
-- [ ] Run Dashboard tests, `pnpm check`, `pnpm build`, `pnpm e2e:dashboard`, `pnpm format:check`, and `pnpm format:check:docs`. Run `pnpm e2e:dashboard` as part of M10 complete product acceptance before closing M7b.
-- [x] Record each command and its actual result below; mark only executed and passing items complete. Dashboard E2E remains deferred and is not counted as a pass.
-- [x] Update the Dashboard UI plan, roadmap, and this checklist with the delivered routes and deferred items.
+- [x] Verify Site and date context survive report navigation and refresh; verify incompatible parameters do not mislead users.
+- [x] Complete Dashboard browser E2E as part of full product testing.
+- [x] Record validation outcomes below; the maintainer confirmed full product testing, including Dashboard browser E2E, passed on 2026-10-16.
+- [x] Update the Dashboard UI plan, roadmap, and this checklist with delivered work and closeout status.
 
 ## Exit criteria
 
@@ -85,6 +85,9 @@ The remaining browser and assistive-technology checks are deferred to **M10 comp
 - Responsive and keyboard navigation work, and the existing Analytics API and capability semantics remain unchanged.
 
 ## Validation record
+
+- 2026-10-16 — Maintainer confirmed full Dashboard product testing completed successfully, including report routes, filters and history navigation, Settings/onboarding, loading/error states, keyboard accessibility, responsive viewports, Firefox + Orca review, and Dashboard browser E2E. Individual command output and environment/version details were not supplied; this closeout records the maintainer's confirmation.
+- Earlier 2026-10-03 entries below document the state at that time. Their statements that responsive/accessibility acceptance and browser E2E were open were superseded by the 2026-10-16 maintainer confirmation.
 
 - 2026-10-03 — `pnpm --filter @web-analytics/dashboard test`: passed (41 files, 195 tests).
 - 2026-10-03 — `pnpm check`: passed. ESLint reports 5 existing unused-directive warnings in generated protocol files.

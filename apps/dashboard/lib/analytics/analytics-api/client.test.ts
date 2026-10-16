@@ -194,6 +194,7 @@ describe("Analytics API queries", () => {
       total: 0,
       definition_version: "r2-abc",
       items: [],
+      chart_items: [],
       data_as_of: null,
       freshness_status: "current",
       aggregation_version: 1,
@@ -400,6 +401,16 @@ describe("Analytics API errors and response validation", () => {
       total: 1,
       definition_version: "v1",
       items: [
+        {
+          definition_id: "purchase",
+          day: "2026-09-18",
+          event_count: 1,
+          converted_sessions: 1,
+          eligible_sessions: 2,
+          conversion_rate: 0.5,
+        },
+      ],
+      chart_items: [
         {
           definition_id: "purchase",
           day: "2026-09-18",

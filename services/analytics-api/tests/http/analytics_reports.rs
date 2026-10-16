@@ -40,10 +40,18 @@ async fn analytics_http_contract_returns_aggregates_and_validates_queries() {
     assert_eq!(response.status(), 200);
     assert_eq!(body(response).await["page_views"], 5);
 
+    sqlx::query(
+        "INSERT INTO page_view_daily (site_id, day, page_views) VALUES ($1, '2026-09-20', 5)",
+    )
+    .bind(site)
+    .execute(&pool)
+    .await
+    .unwrap();
+
     let response = app(pool.clone())
         .oneshot(
             Request::get(format!(
-                "/v1/sites/{site}/reports/2026-09-18/2026-09-19/timeline"
+                "/v1/sites/{site}/reports/2026-09-18/2026-09-20/timeline"
             ))
             .body(axum::body::Body::empty())
             .unwrap(),
@@ -55,7 +63,8 @@ async fn analytics_http_contract_returns_aggregates_and_validates_queries() {
         body(response).await["items"],
         serde_json::json!([
             {"day":"2026-09-18", "page_views":3},
-            {"day":"2026-09-19", "page_views":2}
+            {"day":"2026-09-19", "page_views":0},
+            {"day":"2026-09-20", "page_views":5}
         ])
     );
 
@@ -402,7 +411,7 @@ async fn phase6_reports_use_active_generation_distincts_and_watermarks() {
     let response = app(pool.clone())
         .oneshot(
             Request::get(format!(
-                "/v1/sites/{site}/reports/2026-09-18/2026-09-19/visitors"
+                "/v1/sites/{site}/reports/2026-09-18/2026-09-20/visitors"
             ))
             .body(axum::body::Body::empty())
             .unwrap(),
@@ -416,7 +425,147 @@ async fn phase6_reports_use_active_generation_distincts_and_watermarks() {
     assert_eq!(visitor_body["sessions"], 2);
     assert_eq!(visitor_body["data_as_of"], "2026-09-19T11:00:00Z");
     assert_eq!(visitor_body["freshness_status"], "stale");
-    assert_eq!(visitor_body["items"].as_array().unwrap().len(), 2);
+    assert_eq!(visitor_body["items"].as_array().unwrap().len(), 3);
+    assert_eq!(
+        visitor_body["items"][2],
+        serde_json::json!({
+            "day":"2026-09-20",
+            "page_views":0,
+            "unique_visitors":0,
+            "sessions":0
+        })
+    );
+
+    sqlx::query(
+        "INSERT INTO raw_events
+            (site_id, event_id, schema_version, event_type, occurred_at, received_at, path, payload)
+         VALUES
+            ($1, '01J00000000000000000000901', 1, 'custom_event', '2026-09-18T10:00:00Z', '2026-09-18T10:01:00Z', '/', '{}'::jsonb),
+            ($1, '01J00000000000000000000902', 1, 'custom_event', '2026-09-20T10:00:00Z', '2026-09-20T10:01:00Z', '/', '{}'::jsonb)",
+    )
+    .bind(site)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO custom_event_facts
+            (raw_event_id, site_id, event_id, occurred_at, received_at, event_name, session_id)
+         SELECT id, site_id, event_id, occurred_at, received_at, 'purchase',
+                CASE event_id
+                    WHEN '01J00000000000000000000901' THEN $2::uuid
+                    ELSE $3::uuid
+                END
+         FROM raw_events
+         WHERE site_id = $1 AND event_id IN (
+             '01J00000000000000000000901', '01J00000000000000000000902'
+         )",
+    )
+    .bind(site)
+    .bind(session_a)
+    .bind(session_b)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO conversion_facts
+            (site_id, definition_id, definition_version, event_id, occurred_at, session_id)
+         VALUES ($1, 'purchase', 'v1', '01J00000000000000000000901', '2026-09-18T10:00:00Z', $2::uuid)",
+    )
+    .bind(site)
+    .bind(session_a)
+    .execute(&pool)
+    .await
+    .unwrap();
+    let definition_document = serde_json::json!({
+        "schema_version": 1,
+        "site_id": site,
+        "revision": 1,
+        "definition_version": "v1",
+        "updated_at": "2026-09-18T00:00:00Z",
+        "effective_at": null,
+        "conversions": [
+            {"id":"purchase","name":"Purchase","event_name":"purchase","active":true,"properties":{}},
+            {"id":"trial","name":"Trial","event_name":"trial","active":true,"properties":{}}
+        ],
+        "funnels": []
+    });
+    sqlx::query(
+        "INSERT INTO site_definition_revisions
+            (site_id, revision, definition_version, effective_at, document)
+         VALUES ($1, 1, 'v1', NULL, $2)",
+    )
+    .bind(site)
+    .bind(definition_document)
+    .execute(&pool)
+    .await
+    .unwrap();
+    let response = app(pool.clone())
+        .oneshot(
+            Request::get(format!(
+                "/v1/sites/{site}/reports/2026-09-18/2026-09-20/conversions?limit=2&definition_version=v1"
+            ))
+            .body(axum::body::Body::empty())
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 200);
+    let conversion_body = body(response).await;
+    assert_eq!(conversion_body["items"].as_array().unwrap().len(), 1);
+    assert_eq!(conversion_body["chart_items"].as_array().unwrap().len(), 6);
+    assert_eq!(
+        conversion_body["chart_items"],
+        serde_json::json!([
+            {
+                "definition_id":"purchase",
+                "day":"2026-09-18",
+                "event_count":1,
+                "converted_sessions":1,
+                "eligible_sessions":1,
+                "conversion_rate":1.0
+            },
+            {
+                "definition_id":"purchase",
+                "day":"2026-09-19",
+                "event_count":0,
+                "converted_sessions":0,
+                "eligible_sessions":0,
+                "conversion_rate":0.0
+            },
+            {
+                "definition_id":"purchase",
+                "day":"2026-09-20",
+                "event_count":0,
+                "converted_sessions":0,
+                "eligible_sessions":1,
+                "conversion_rate":0.0
+            },
+            {
+                "definition_id":"trial",
+                "day":"2026-09-18",
+                "event_count":0,
+                "converted_sessions":0,
+                "eligible_sessions":1,
+                "conversion_rate":0.0
+            },
+            {
+                "definition_id":"trial",
+                "day":"2026-09-19",
+                "event_count":0,
+                "converted_sessions":0,
+                "eligible_sessions":0,
+                "conversion_rate":0.0
+            },
+            {
+                "definition_id":"trial",
+                "day":"2026-09-20",
+                "event_count":0,
+                "converted_sessions":0,
+                "eligible_sessions":1,
+                "conversion_rate":0.0
+            }
+        ])
+    );
 
     let response = app(pool.clone())
         .oneshot(

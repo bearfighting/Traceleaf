@@ -1188,7 +1188,8 @@
           "data_as_of",
           "freshness_status",
           "aggregation_version",
-          "items"
+          "items",
+          "chart_items"
         ],
         "properties": {
           "site_id": {
@@ -1224,6 +1225,13 @@
           },
           "items": {
             "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConversionReportItem"
+            }
+          },
+          "chart_items": {
+            "type": "array",
+            "description": "Complete UTC daily series for up to the requested number of configured conversion definitions in this definition version, including definitions with no matching events in the range. Use this collection for charts; items remains the row-limited detail table.",
             "items": {
               "$ref": "#/components/schemas/ConversionReportItem"
             }

@@ -161,6 +161,16 @@
               "conversion_rate": 0.0
             }
           ],
+          "chart_items": [
+            {
+              "definition_id": "purchase_completed",
+              "day": "2026-09-18",
+              "event_count": 1,
+              "converted_sessions": 0,
+              "eligible_sessions": 0,
+              "conversion_rate": 0.0
+            }
+          ],
           "data_as_of": "<dynamic>",
           "freshness_status": "current",
           "aggregation_version": 1
