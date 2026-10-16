@@ -161,7 +161,7 @@ flowchart LR
 
 **M7b 在 M7c 后执行**：[M7b Analytics Reports Checklist](m7b-analytics-reports-checklist.md)。把现有 Analytics 报表分配到对应页面，统一 contextual filters、空数据/禁用/错误状态和窄屏交互。只依赖现有 Analytics 查询 API。虽然该切片与 M3–M6 在技术上可并行，本项目当前顺序是在 M7c 后完成 M7b。
 
-**状态（2026-10-03）**：Overview、Pages、Dimensions、Visitors、Sessions、Custom events、Web Vitals、Countries、Conversions 和 Funnels 报表页面及其共享 Site/date 上下文已交付。M7b.5 测试覆盖审查记录了现有单测与 E2E 脚本的覆盖范围；Dashboard 单测、`pnpm check`、`pnpm build` 和格式检查已有通过记录。`pnpm e2e:dashboard` 本次延期，因为它会启动 Docker Compose，当前要求保持 Docker 原状；不将此前 E2E 记录计为本次验证。M7b.4 响应式与 Firefox/Orca 实际验收及浏览器 E2E 仍未完成，因此 M7b 保持开放，详见 checklist 与下方最终产品验收。
+**状态（2026-10-16）**：Overview、Pages、Dimensions、Visitors、Sessions、Custom events、Web Vitals、Countries、Conversions 和 Funnels 报表页面及其共享 Site/date 上下文已交付。维护者确认完整 Dashboard 产品测试通过，包括 M7b.4 响应式与 Firefox/Orca 验收，以及 M7b.5 Dashboard 浏览器 E2E；M7b 已关闭。详细记录见 [M7b checklist](m7b-analytics-reports-checklist.md)。
 
 **M7c 在 M6 后完成**：[M7c Site Settings Checklist](m7c-settings-checklist.md)。M7c.1–M7c.6 已交付 Overview、Capabilities、Environments & Origins、Ingest Keys、Definitions 页面和站点级次级导航，并完成响应式、键盘、自动化语义与回归验收。Firefox + Orca 实际语音播报复核作为非阻塞后续项。Settings 功能语义以站点接入设计为准。
 
@@ -189,18 +189,18 @@ flowchart LR
 - 域名所有权验证：作为独立于可达性检查的能力设计，可评估 DNS TXT 或 well-known 文件 challenge，并定义验证状态、过期与重验证行为。
 - 多用户身份与 RBAC：在对外开放管理界面或支持多个管理员前，设计用户身份、角色、Site 访问范围、审计 actor 和凭据迁移；完成前继续将全局 deployment-admin token 限定在受信任的管理环境。
 
-**M7b 延期验收**：在 M10 的完整产品验收中完成 M7b.4 响应式与无障碍检查，以及 M7b.5 Dashboard E2E。即使 M10 的站点验证或身份扩展拆分、延期，这些产品验收仍属于 M10 交付范围。完成验收并把证据记录到 [M7b Analytics Reports Checklist](m7b-analytics-reports-checklist.md) 后，方可关闭 M7b。
+**M7b 延期验收**：已于 2026-10-16 由维护者确认完成，M7b 已关闭。M10 其余站点验证或身份扩展工作不影响此状态。
 
-**前置**：提供一个可访问且已配置 Site Registry 的 Dashboard 环境，并准备至少一个可打开 Analytics 报表的 Site。优先复用现有运行环境；执行前不得为此自动启动或恢复 Docker 服务。
+**前置（已满足）**：完整产品验收已于 2026-10-16 完成并由维护者确认。
 
-**完整产品验收项**：
+**完整产品验收项（已完成）**：
 
 - 在 320、390、768、1023、1024 和 1440px 视口检查 Analytics Sidebar 的窄屏菜单/桌面导航切换、筛选器换行、表格横向溢出和键盘滚动、可见焦点及报表直链行为。
 - 用键盘操作 Sidebar、筛选器和表格；用 Firefox + Orca 检查报表导航当前页语义、页面标题和加载、空数据、不可用及错误状态播报。
 - 在已准备好的 E2E 环境运行 `pnpm e2e:dashboard`，确认 Site/date 上下文、报表导航与浏览器历史流程通过；该命令会启动 Compose 服务，执行前须确认环境符合本地 Docker 操作约束。
 - 记录实际 Dashboard 环境、浏览器与辅助技术版本及每项结果；只有实际执行通过后，才回填 [M7b Analytics Reports Checklist](m7b-analytics-reports-checklist.md) 中 M7b.4 对应验收项。
 
-M10 的站点可达性、域名验证、RBAC 与产品验收可以拆分交付，不要求同时上线；M7b 的延期验收仍归属 M10 完整产品验收。是否启动其他 M10 能力由真实部署与产品需求触发。
+M10 的站点可达性、域名验证与 RBAC 可以拆分交付，不要求同时上线；M7b 产品验收已关闭，不依赖其他 M10 工作。是否启动其他 M10 能力由真实部署与产品需求触发。
 
 ## 并行工作与合并顺序
 

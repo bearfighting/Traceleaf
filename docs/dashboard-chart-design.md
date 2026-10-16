@@ -6,13 +6,15 @@
 - 日期：2026-10-14
 - 目标：为现有 Analytics Dashboard 增加能帮助识别趋势、比较排行和理解构成的图表，同时保留精确数据表和现有报表状态处理。
 
-本文记录图表设计、实现状态和剩余验收项。当前图表复用现有 Analytics API 响应，不改变公共 API 响应结构或指标语义；Custom Events 排行图待 API 契约另行支持。未完成的响应式和辅助技术检查仍明确列为待办。
+本文记录图表设计、实现状态和剩余验收项。图表复用 Analytics API 数据；Conversions 保留受 limit 约束的明细 `items`，并使用 `chart_items` 提供完整的逐日绘图序列。Custom Events 排行图待 API 契约另行支持。未完成的响应式和辅助技术检查仍明确列为待办。
 
 ## 当前基线
 
 Dashboard 已有 Overview、Pages、Visitors、Sessions、Dimensions、Custom Events、Countries、Web Vitals、Conversions 和 Funnels 报表。趋势与分布类报表已加入图表，并保留相应精确数据表；Custom Events 目前保留逐日明细表。相关数据类型集中在 `apps/dashboard/lib/analytics/analytics-api/types.ts`，展示组件在 `apps/dashboard/components/analytics/`。
 
 当前 Overview 有站点累计 Page Views 和选定日期范围 Page Views 卡片，并请求 Timeline API 展示每日趋势。Visitors 与 Sessions API 有每日序列和范围汇总；维度、页面、国家、Vitals、Conversions、Funnels 也各有自己的响应类型。Custom Events 仍只使用现有逐日明细响应。
+
+日期趋势遵循 UTC 日历：当选定范围内至少有一条有效观测时，Page Views Timeline 和 Visitors/Sessions 日序列为范围内每个日期返回一行；没有事实记录的日期对应计数为 0。Conversions 对范围内出现过转换事件的定义补齐每日行；无转换但有 eligible sessions 时 rate 为 0，eligible sessions 为 0 时 rate 不可计算。整个范围没有相应报表事实时仍返回空序列，以保留报表空状态。分类分布图没有固定日期轴，不补造未知类别；Funnels 按实际 cohort 日期分组展示。
 
 ## 产品原则
 
@@ -39,17 +41,17 @@ Dashboard 已有 Overview、Pages、Visitors、Sessions、Dimensions、Custom Ev
 
 ## 指标与图表设计
 
-| 报表/指标           | 主要图形                                                                                    | 数据与呈现要求                                                                                                                                                                                               | 保留的表格/信息                                                                                                        |
-| ------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| Overview Page Views | 按日折线图；日期点少或区间短时也可使用柱状图，整个产品保持一致                              | 使用 Timeline API 的 `day`、`page_views`；日期按 UTC 显示；包括零值日期（若 API 已返回）                                                                                                                     | 当前两个 Page Views 汇总卡片；tooltip 展示日期和精确 Page Views；Timeline 报表保留每日表格                             |
-| Visitors / Sessions | 双折线图                                                                                    | 使用每日 `unique_visitors`、`sessions`；图例清楚标识系列；趋势只表达每日值                                                                                                                                   | 当前范围汇总数值；表格；说明每日 Visitors 不能求和为范围内 unique visitor 总数                                         |
-| Pages               | 水平条形图，默认 Top 10                                                                     | 使用 `path` 和 `page_views`，按 API 排名；路径长时截断轴标签但 tooltip 显示完整路径                                                                                                                          | 完整 API 返回列表的表格和精确数值                                                                                      |
-| Dimensions          | 水平条形图；可选 100% 堆叠条形图显示少数值的 Page View 占比                                 | 展示当前所选维度的一项指标；默认按 Page Views。若加入 Visitors 或 Sessions 切换，应明确每种值的排序与口径                                                                                                    | 显示 `value`、Page Views、Unique Visitors、Sessions 的表格。Visitors/Sessions 比例必须按其自身有效分母计算，并提示口径 |
-| Countries           | 水平条形图，默认 Top 10                                                                     | 使用 `country_code`、`page_views`；coverage、provider、freshness 说明与图表同区展示；Unknown 保持为明确类别                                                                                                  | 完整国家表格；地理数据覆盖起点和来源说明                                                                               |
-| Custom Events       | 暂不绘制排行榜；后续可在 API 契约支持完整区间聚合后增加                                     | 现有 API 返回受行数限制的逐日明细，前端不能据此可靠计算区间排行榜；不能将截断明细求和后冒充完整事件总数                                                                                                      | 保留逐日事件表格及 API `total` 语义                                                                                    |
-| Web Vitals          | 每项 Web Vital 的分布条形图，展示 Good / Needs improvement / Poor；可用点图或条形图呈现 p75 | 不同指标分图或分面，不能混用毫秒和 CLS 数值轴；显示样本数；`insufficient_data` 不绘制虚构值；阈值标注须与 Processor / API 契约一致                                                                           | 按 route 和 metric 的 p75、count、分类样本数表格；对不足样本明确说明                                                   |
-| Conversions         | 每个 definition 的每日 conversion rate 折线图                                               | 用 `conversion_rate` 与 `day`；rate 的分母是 `eligible_sessions`，tooltip 同时给出 `converted_sessions` 和 `eligible_sessions`；不可跨 definition 混成一条线                                                 | definition、每日转换次数、符合条件 sessions、rate 的表格；definition version 信息                                      |
-| Funnels             | 按步骤递减的水平条形图或漏斗图                                                              | 使用同一个 definition 与日期的 `step_index`、`sessions`、`conversion_rate`；步骤标签取自 definition；tooltip 显示 sessions 和相对转化率。图中避免把步骤人数差异误称为严格的用户流失，除非契约保证同一 cohort | 每日/definition/step 的数值表格和定义版本；若步骤名缺失则使用明确的步骤编号                                            |
+| 报表/指标           | 主要图形                                                                                    | 数据与呈现要求                                                                                                                                                                                                                         | 保留的表格/信息                                                                                                        |
+| ------------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Overview Page Views | 按日折线图；日期点少或区间短时也可使用柱状图，整个产品保持一致                              | 使用 Timeline API 的 `day`、`page_views`；日期按 UTC 显示；有数据范围内补全无记录日为 0；整个范围无数据则保持空序列                                                                                                                    | 当前两个 Page Views 汇总卡片；tooltip 展示日期和精确 Page Views；Timeline 报表保留每日表格                             |
+| Visitors / Sessions | 双折线图                                                                                    | 使用每日 `unique_visitors`、`sessions`；图例清楚标识系列；趋势只表达每日值                                                                                                                                                             | 当前范围汇总数值；表格；说明每日 Visitors 不能求和为范围内 unique visitor 总数                                         |
+| Pages               | 水平条形图，默认 Top 10                                                                     | 使用 `path` 和 `page_views`，按 API 排名；路径长时截断轴标签但 tooltip 显示完整路径                                                                                                                                                    | 完整 API 返回列表的表格和精确数值                                                                                      |
+| Dimensions          | 水平条形图；可选 100% 堆叠条形图显示少数值的 Page View 占比                                 | 展示当前所选维度的一项指标；默认按 Page Views。若加入 Visitors 或 Sessions 切换，应明确每种值的排序与口径                                                                                                                              | 显示 `value`、Page Views、Unique Visitors、Sessions 的表格。Visitors/Sessions 比例必须按其自身有效分母计算，并提示口径 |
+| Countries           | 水平条形图，默认 Top 10                                                                     | 使用 `country_code`、`page_views`；coverage、provider、freshness 说明与图表同区展示；Unknown 保持为明确类别                                                                                                                            | 完整国家表格；地理数据覆盖起点和来源说明                                                                               |
+| Custom Events       | 暂不绘制排行榜；后续可在 API 契约支持完整区间聚合后增加                                     | 现有 API 返回受行数限制的逐日明细，前端不能据此可靠计算区间排行榜；不能将截断明细求和后冒充完整事件总数                                                                                                                                | 保留逐日事件表格及 API `total` 语义                                                                                    |
+| Web Vitals          | 每项 Web Vital 的分布条形图，展示 Good / Needs improvement / Poor；可用点图或条形图呈现 p75 | 不同指标分图或分面，不能混用毫秒和 CLS 数值轴；显示样本数；`insufficient_data` 不绘制虚构值；阈值标注须与 Processor / API 契约一致                                                                                                     | 按 route 和 metric 的 p75、count、分类样本数表格；对不足样本明确说明                                                   |
+| Conversions         | 每个 definition 的每日 conversion rate 折线图                                               | 用 `conversion_rate` 与 `day`；rate 的分母是 `eligible_sessions`，无转换事件但有 eligible sessions 的日期显示为 0，分母为 0 时保持不可计算；tooltip 同时给出 `converted_sessions` 和 `eligible_sessions`；不可跨 definition 混成一条线 | definition、每日转换次数、符合条件 sessions、rate 的表格；definition version 信息                                      |
+| Funnels             | 按步骤递减的水平条形图或漏斗图                                                              | 使用同一个 definition 与日期的 `step_index`、`sessions`、`conversion_rate`；步骤标签取自 definition；tooltip 显示 sessions 和相对转化率。图中避免把步骤人数差异误称为严格的用户流失，除非契约保证同一 cohort                           | 每日/definition/step 的数值表格和定义版本；若步骤名缺失则使用明确的步骤编号                                            |
 
 ### 饼图与占比
 
@@ -85,6 +87,7 @@ Dashboard 已有 Overview、Pages、Visitors、Sessions、Dimensions、Custom Ev
 - Overview 增加 Timeline 请求，沿用现有 Analytics API client、请求错误映射、日期范围和站点上下文。避免同时从客户端重复请求同一图表数据。
 - 各图表复用对应报表已经加载的响应，不增加为绘图而重复的 API 调用。
 - 图表数据适配函数应为纯函数，处理排序、Top N、格式化及缺失值；不改变领域指标含义。
+- 按日期聚合的计数序列必须包含范围内的无记录日期并显示 0；比例值在分母为 0 时仍应显示为不可计算，而不是 0%。
 - 零值、无数据、缺失值应区分：零代表有有效观测且值为 0；空数据使用 Empty State；不足样本按 API 状态显示，不强行插补。
 - 图表与表格必须展示相同日期范围、时区和筛选上下文。当前每日 Timeline 明确为 UTC。
 - Freshness 为 stale、rebuilding 或 failed 时，现有提示必须仍然可见；不能用图表视觉样式掩盖数据过期状态。

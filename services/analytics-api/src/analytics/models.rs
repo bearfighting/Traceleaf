@@ -162,6 +162,7 @@ pub(crate) struct ConversionReportResponse {
     pub total: i64,
     pub definition_version: String,
     pub items: Vec<ConversionReportItem>,
+    pub chart_items: Vec<ConversionReportItem>,
     pub data_as_of: Option<chrono::DateTime<chrono::Utc>>,
     pub freshness_status: String,
     pub aggregation_version: i32,

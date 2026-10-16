@@ -36,6 +36,36 @@ const definitions: DefinitionSetResponse = {
 };
 
 describe("conversion chart data", () => {
+  it("uses complete chart series when the detail rows are limited", () => {
+    const chartItems = Array.from({ length: 31 }, (_, index) => {
+      const day = new Date(Date.UTC(2026, 0, index + 1)).toISOString().slice(0, 10);
+      const hasConversion = index === 0;
+      const eligibleSessions = index === 30 ? 0 : 3;
+
+      return {
+        definition_id: "buy",
+        day,
+        event_count: hasConversion ? 2 : 0,
+        converted_sessions: hasConversion ? 1 : 0,
+        eligible_sessions: hasConversion ? 4 : eligibleSessions,
+        conversion_rate: hasConversion ? 0.25 : eligibleSessions === 0 ? 0 : 0,
+      };
+    });
+    const response = {
+      items: [chartItems[0]],
+      chart_items: chartItems,
+    } as ConversionReportResponse;
+
+    const series = conversionChartSeries(response);
+
+    const rows = conversionChartRows(series);
+    expect(rows).toHaveLength(31);
+    expect(rows[0]).toEqual({ day: "2026-01-01", conversion_buy: 0.25 });
+    expect(rows[1]).toEqual({ day: "2026-01-02", conversion_buy: 0 });
+    expect(rows[30]).toEqual({ day: "2026-01-31", conversion_buy: null });
+    expect(response.items).toHaveLength(1);
+  });
+
   it("keeps definitions separate, orders dates, and preserves API rates and session counts", () => {
     const response = {
       definition_version: "v1",

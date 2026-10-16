@@ -234,23 +234,25 @@ export function isWebVitalsResponse(value: unknown): value is WebVitalsResponse 
 }
 
 export function isConversionReportResponse(value: unknown): value is ConversionReportResponse {
+  const isConversionReportItem = (item: unknown) =>
+    isRecord(item) &&
+    !("properties" in item) &&
+    !("visitor_id" in item) &&
+    isString(item.definition_id) &&
+    isString(item.day) &&
+    isValidDate(item.day) &&
+    isNonNegativeInteger(item.event_count) &&
+    isNonNegativeInteger(item.converted_sessions) &&
+    isNonNegativeInteger(item.eligible_sessions) &&
+    typeof item.conversion_rate === "number" &&
+    item.conversion_rate >= 0 &&
+    item.conversion_rate <= 1;
+
   return (
     isDefinitionReport(value) &&
-    value.items.every(
-      (item) =>
-        isRecord(item) &&
-        !("properties" in item) &&
-        !("visitor_id" in item) &&
-        isString(item.definition_id) &&
-        isString(item.day) &&
-        isValidDate(item.day) &&
-        isNonNegativeInteger(item.event_count) &&
-        isNonNegativeInteger(item.converted_sessions) &&
-        isNonNegativeInteger(item.eligible_sessions) &&
-        typeof item.conversion_rate === "number" &&
-        item.conversion_rate >= 0 &&
-        item.conversion_rate <= 1,
-    )
+    value.items.every(isConversionReportItem) &&
+    Array.isArray(value.chart_items) &&
+    value.chart_items.every(isConversionReportItem)
   );
 }
 

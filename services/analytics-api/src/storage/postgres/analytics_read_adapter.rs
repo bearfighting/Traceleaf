@@ -258,7 +258,34 @@ impl AnalyticsReadUseCases for AnalyticsReadAdapter {
                 .map_err(|e| {
                     crate::application::errors::AnalyticsApplicationError::Storage(e.to_string())
                 })?;
+                let chart_rows = q::conversion_chart_rows(
+                    &self.pool,
+                    &site_id,
+                    &definition_version,
+                    range,
+                    definition_id.as_deref(),
+                    limit,
+                )
+                .await
+                .map_err(|e| {
+                    crate::application::errors::AnalyticsApplicationError::Storage(e.to_string())
+                })?;
                 let items = rows
+                    .into_iter()
+                    .map(|r| ConversionReportItem {
+                        definition_id: r.definition_id,
+                        day: r.day,
+                        event_count: r.event_count,
+                        converted_sessions: r.converted_sessions,
+                        eligible_sessions: r.eligible_sessions,
+                        conversion_rate: if r.eligible_sessions == 0 {
+                            0.0
+                        } else {
+                            r.converted_sessions as f64 / r.eligible_sessions as f64
+                        },
+                    })
+                    .collect();
+                let chart_items = chart_rows
                     .into_iter()
                     .map(|r| ConversionReportItem {
                         definition_id: r.definition_id,
@@ -302,6 +329,7 @@ impl AnalyticsReadUseCases for AnalyticsReadAdapter {
                             total,
                             definition_version,
                             items,
+                            chart_items,
                             data_as_of,
                             freshness_status,
                             aggregation_version: 1,

@@ -7,7 +7,7 @@
 - MVP 功能范围见 [MVP Scope](mvp-scope.md)。功能与开发阶段记录不代表生产部署已验收。
 - 最近一次功能基线提交：`2cdbc87`。发布时应以实际选定的 release commit/tag 为准。
 - Dashboard 本地类型检查、lint、单测、构建及格式检查通过；完整仓库 `pnpm check` 和格式检查通过。已记录的 CI 与 E2E 通过结果见历史归档。
-- 最近一次重新启动 `pnpm e2e:dashboard` 未完成：卡在容器依赖安装阶段后中止；这次尝试不作为发布版本的 E2E 通过证据。
+- 维护者于 2026-10-16 确认 Dashboard 完整产品测试通过（含浏览器 E2E）；较早一次 E2E 重跑中止记录已被后续完整验收取代。详见 [M7b Analytics Reports Checklist](archive/development/m7b-analytics-reports-checklist.md)。
 - 平台 `v1.0.0` GHCR 多架构镜像已发布：完整 CI、linux/amd64 与 linux/arm64 原生 runner 隔离部署 smoke、候选 manifest 晋升均通过。提交、五个镜像 digest 和 smoke 检查记录见[平台 v1.0.0 发布记录](platform-release-v1.0.0.md)。Pi ARM64 与独立 x86-64 主机实机验收、备份恢复演练和正式 GitHub Release 仍待完成；预构建镜像目标和验收方案见[部署计划](deployment-prebuilt-images-plan.md)与 [ADR-026](decisions/ADR-026-multi-architecture-container-releases.md)。
 - Browser SDK `1.0.0` tarball 候选已通过聚焦验收，GitHub Release 尚未创建。SDK 发布不替代产品部署验收。
 
@@ -37,7 +37,7 @@ SDK 和平台的版本来源、更新步骤及发布检查统一见[版本与发
 | 限制管理界面访问         | 当前全局 deployment-admin token 只适用于受信任环境。上线前确认 Dashboard 位于私有网络或受访问代理保护；若要公开管理访问，必须先设计并实现身份验证与授权。                                                                                                               |
 | 验证备份与回滚           | 在目标部署环境实测数据库备份恢复和服务镜像回滚，记录可恢复结果与责任人。                                                                                                                                                                                                |
 | 发布平台版本前做完整验证 | 对选定 commit 运行 `pnpm check`、`pnpm test`、`pnpm build`、`pnpm format:check`、`pnpm format:check:docs`、数据库迁移/集成测试和关键 E2E；记录实际环境与结果。E2E 要使用隔离环境并确认清理完成。                                                                        |
-| 完成 Dashboard 产品验收  | 检查报表路由、筛选和历史导航、Settings/onboarding、加载/错误状态、键盘焦点及 320–1440px 响应式；完成 Firefox + Orca 辅助技术检查，并保存结果。                                                                                                                          |
+| 完成 Dashboard 产品验收  | [x] 维护者于 2026-10-16 确认完整产品测试通过，覆盖报表路由、筛选和历史导航、Settings/onboarding、加载/错误状态、键盘焦点、响应式及 Firefox + Orca；含 Dashboard 浏览器 E2E。详见 [M7b 验收记录](archive/development/m7b-analytics-reports-checklist.md)。               |
 | 确认最低运维观测         | 确认健康检查、错误告警、日志脱敏、限流和故障响应流程在目标环境可用。                                                                                                                                                                                                    |
 
 ## 上线后计划

@@ -147,6 +147,7 @@ export interface ConversionReportResponse {
   total: number;
   definition_version: string;
   items: ConversionReportItem[];
+  chart_items: ConversionReportItem[];
   data_as_of: string | null;
   freshness_status: FreshnessStatus;
   aggregation_version: number;

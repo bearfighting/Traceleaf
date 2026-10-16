@@ -25,7 +25,7 @@ export function conversionChartSeries(
   definitions?: DefinitionSetResponse | null,
 ): ConversionSeries[] {
   const byDefinition = new Map<string, ConversionReportResponse["items"]>();
-  for (const item of response.items)
+  for (const item of response.chart_items ?? response.items)
     byDefinition.set(item.definition_id, [...(byDefinition.get(item.definition_id) ?? []), item]);
 
   return [...byDefinition].map(([definitionId, items], index) => ({
