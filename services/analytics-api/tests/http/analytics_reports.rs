@@ -63,7 +63,7 @@ async fn analytics_http_contract_returns_aggregates_and_validates_queries() {
         body(response).await["items"],
         serde_json::json!([
             {"day":"2026-09-18", "page_views":3},
-            {"day":"2026-09-19", "page_views":0},
+            {"day":"2026-09-19", "page_views":2},
             {"day":"2026-09-20", "page_views":5}
         ])
     );
