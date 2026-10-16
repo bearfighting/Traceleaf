@@ -1,17 +1,45 @@
 "use client";
 
-import { motion, useReducedMotion } from "motion/react";
+import { useReducedMotion } from "motion/react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { Copy } from "@/lib/content";
+import {
+  DAILY_PAGE_VIEWS,
+  SELECTED_RANGE_PAGE_VIEWS,
+  SITE_TOTAL_PAGE_VIEWS,
+  TOP_PAGE_BAR_WIDTHS,
+  TOP_PAGES,
+  createPreviewTrendPoints,
+  formatPreviewDate,
+  formatPreviewDateRange,
+} from "@/lib/product-preview-data";
 
-const paths = [
-  { name: "/", views: "2,841", width: "82%" },
-  { name: "/docs/getting-started", views: "1,624", width: "56%" },
-  { name: "/pricing", views: "986", width: "34%" },
-];
+const chartPoints = createPreviewTrendPoints();
+
+function createSmoothChartLine(points: typeof chartPoints): string {
+  const [firstPoint, ...remainingPoints] = points;
+
+  return remainingPoints.reduce((path, point, index) => {
+    const previousPoint = points[index];
+    const nextPoint = points[index + 2] ?? point;
+    const controlOne = {
+      x: previousPoint.x + (point.x - (points[index - 1]?.x ?? previousPoint.x)) / 6,
+      y: previousPoint.y + (point.y - (points[index - 1]?.y ?? previousPoint.y)) / 6,
+    };
+    const controlTwo = {
+      x: point.x - (nextPoint.x - previousPoint.x) / 6,
+      y: point.y - (nextPoint.y - previousPoint.y) / 6,
+    };
+
+    return `${path} C${controlOne.x} ${controlOne.y} ${controlTwo.x} ${controlTwo.y} ${point.x} ${point.y}`;
+  }, `M${firstPoint.x} ${firstPoint.y}`);
+}
+
+const chartLine = createSmoothChartLine(chartPoints);
+const chartArea = `${chartLine} V126 H54Z`;
 
 export function ProductPreview({ copy }: { copy: Copy }) {
   const [playing, setPlaying] = useState(true);
@@ -21,8 +49,8 @@ export function ProductPreview({ copy }: { copy: Copy }) {
   return (
     <div className="preview-frame relative mx-auto w-full max-w-2xl">
       <div className="preview-orbit" />
-      <Card className="relative overflow-hidden rounded-2xl p-0 shadow-xl shadow-foreground/5">
-        <div className="flex items-center justify-between border-b border-border px-5 py-4 sm:px-7">
+      <Card className="product-preview-card relative overflow-hidden rounded-2xl p-0 shadow-xl shadow-foreground/5">
+        <div className="preview-header flex flex-wrap items-center justify-between gap-2 px-5 py-4 sm:px-7">
           <div className="flex items-center gap-2.5">
             <span className="flex size-8 items-center justify-center rounded-lg bg-secondary text-primary">
               <svg aria-hidden="true" className="size-4" fill="none" viewBox="0 0 24 24">
@@ -41,102 +69,145 @@ export function ProductPreview({ copy }: { copy: Copy }) {
             </span>
             <div>
               <p className="text-sm font-semibold">traceleaf.dev</p>
-              <p className="text-xs text-muted-foreground">{copy.dashboard}</p>
+              <p className="preview-muted text-xs">{copy.dashboard}</p>
             </div>
           </div>
-          <span className="rounded-full border border-border bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground">
-            {copy.last7Days}
+          <span className="preview-date-range rounded-full px-3 py-1.5 text-xs font-medium">
+            {formatPreviewDateRange(DAILY_PAGE_VIEWS, copy.localeName)}
           </span>
         </div>
 
         <div
           className={`preview-content p-5 sm:p-7 ${playing ? "" : "animation-paused"}`}
+          id="product-preview-content"
           key={replay}
         >
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             {[
-              { label: copy.pageViews, value: "8,492", change: "+12.8%" },
-              { label: copy.visitors, value: "3,106", change: "+8.2%" },
-              { label: copy.avgDuration, value: "2m 14s", change: "+4.6%" },
+              {
+                label: copy.siteTotalPageViews,
+                value: SITE_TOTAL_PAGE_VIEWS.toLocaleString(
+                  copy.localeName === "English" ? "en-US" : "zh-CN",
+                ),
+              },
+              {
+                label: copy.selectedRangePageViews,
+                value: SELECTED_RANGE_PAGE_VIEWS.toLocaleString(
+                  copy.localeName === "English" ? "en-US" : "zh-CN",
+                ),
+              },
             ].map((metric, index) => (
-              <motion.div
-                animate={{ opacity: 1, y: 0 }}
-                className="metric-card"
-                initial={reducedMotion ? false : { opacity: 0, y: 12 }}
+              <div
+                className={`metric-card ${reducedMotion ? "" : "metric-card-enter"}`}
                 key={metric.label}
-                transition={{ delay: reducedMotion ? 0 : index * 0.14, duration: 0.45 }}
+                style={{ "--metric-delay": `${index * 140}ms` } as React.CSSProperties}
               >
-                <p className="text-xs font-medium text-muted-foreground">{metric.label}</p>
-                <div className="mt-2 flex items-end justify-between gap-2">
+                <p className="preview-muted text-xs font-medium">{metric.label}</p>
+                <div className="mt-2">
                   <p className="text-2xl font-semibold tracking-tight">{metric.value}</p>
-                  <span className="mb-1 rounded-full bg-success-subtle px-2 py-0.5 text-xs font-semibold text-success">
-                    {metric.change}
-                  </span>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
 
           <div className="preview-detail-grid mt-5 grid gap-5">
-            <div className="rounded-xl border border-border p-4 sm:p-5">
+            <section
+              aria-labelledby="preview-page-views-title"
+              className="preview-panel min-w-0 rounded-xl p-4 sm:p-5"
+            >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-semibold">{copy.pageViews}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{copy.sample}</p>
+                  <h2 className="text-sm font-semibold" id="preview-page-views-title">
+                    {copy.pageViewsByDay}
+                  </h2>
+                  <p className="preview-muted mt-1 text-xs">{copy.sample}</p>
                 </div>
-                <span className="text-sm font-semibold text-primary">8,492</span>
+                <span className="text-sm font-semibold text-primary">
+                  {SELECTED_RANGE_PAGE_VIEWS.toLocaleString(
+                    copy.localeName === "English" ? "en-US" : "zh-CN",
+                  )}
+                </span>
               </div>
               <svg
-                aria-label={copy.pageViews}
-                className="mt-4 w-full overflow-visible"
-                role="img"
-                viewBox="0 0 440 130"
+                aria-hidden="true"
+                className="preview-chart mt-4 w-full"
+                viewBox="0 0 440 156"
+                preserveAspectRatio="none"
               >
-                {[20, 55, 90, 125].map((y) => (
-                  <line className="chart-grid" key={y} x1="0" x2="440" y1={y} y2={y} />
+                {[20, 55, 90, 125].map((y, index) => (
+                  <g key={y}>
+                    <line className="chart-grid" x1="42" x2="436" y1={y} y2={y} />
+                    <text className="chart-axis-label" textAnchor="end" x="36" y={y + 4}>
+                      {[1500, 1250, 1000, 750][index].toLocaleString(
+                        copy.localeName === "English" ? "en-US" : "zh-CN",
+                      )}
+                    </text>
+                  </g>
                 ))}
-                <path
-                  className={`chart-area ${playing ? "is-playing" : "is-paused"}`}
-                  d="M4 100 C28 98 35 67 66 78 S99 94 128 65 S161 74 190 58 S225 80 254 48 S289 58 318 35 S354 63 382 32 S413 45 436 18 V126 H4Z"
-                />
-                <path
-                  className={`chart-stroke ${playing ? "is-playing" : "is-paused"}`}
-                  d="M4 100 C28 98 35 67 66 78 S99 94 128 65 S161 74 190 58 S225 80 254 48 S289 58 318 35 S354 63 382 32 S413 45 436 18"
-                />
+                <path className="chart-area" d={chartArea} />
+                <path className="chart-stroke" d={chartLine} />
                 <circle
-                  className={`chart-dot ${playing ? "is-playing" : "is-paused"}`}
-                  cx="318"
-                  cy="35"
+                  className="chart-dot"
+                  cx={chartPoints[chartPoints.length - 1].x}
+                  cy={chartPoints[chartPoints.length - 1].y}
                   r="4"
                 />
-              </svg>
-              <div className="mt-1 flex justify-between text-xs text-muted-foreground">
-                <span>Mon</span>
-                <span>Tue</span>
-                <span>Wed</span>
-                <span>Thu</span>
-                <span>Fri</span>
-                <span>Sat</span>
-                <span>Sun</span>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-border p-4 sm:p-5">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold">{copy.topPages}</p>
-                <span className="text-xs text-muted-foreground">{copy.sample}</span>
-              </div>
-              <div className="mt-4 space-y-4">
-                {paths.map((item, index) => (
-                  <div
-                    className={`page-row ${playing ? "is-playing" : "is-paused"}`}
-                    key={item.name}
+                {DAILY_PAGE_VIEWS.map((item, index) => (
+                  <text
+                    className="chart-axis-label"
+                    key={item.day}
+                    textAnchor="middle"
+                    x={chartPoints[index].x}
+                    y="148"
                   >
+                    {formatPreviewDate(item.day, copy.localeName)}
+                  </text>
+                ))}
+              </svg>
+              <ul aria-label={copy.dailyPageViews} className="preview-daily-values">
+                {DAILY_PAGE_VIEWS.map((item) => (
+                  <li key={item.day}>
+                    <span>
+                      {formatPreviewDate(item.day, copy.localeName)} · {item.day}
+                    </span>
+                    <span>
+                      {item.page_views.toLocaleString(
+                        copy.localeName === "English" ? "en-US" : "zh-CN",
+                      )}{" "}
+                      {copy.views}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+
+            <section
+              aria-label={copy.topPages}
+              className="preview-panel min-w-0 rounded-xl p-4 sm:p-5"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold">{copy.topPages}</h2>
+                <span className="preview-muted shrink-0 text-xs">{copy.sample}</span>
+              </div>
+              <ol className="mt-4 space-y-4">
+                {TOP_PAGE_BAR_WIDTHS.map((item, index) => (
+                  <li className="page-row is-playing" key={item.path}>
                     <div className="mb-1.5 flex items-center justify-between gap-3 text-xs">
-                      <span className="min-w-0 truncate font-medium">{item.name}</span>
-                      <span className="shrink-0 text-muted-foreground">{item.views}</span>
+                      <span className="min-w-0 break-all font-medium">{item.path}</span>
+                      <span className="preview-muted shrink-0">
+                        {item.page_views.toLocaleString(
+                          copy.localeName === "English" ? "en-US" : "zh-CN",
+                        )}
+                      </span>
                     </div>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                      aria-label={`${item.path}: ${item.page_views} ${copy.views}`}
+                      aria-valuemax={TOP_PAGES[0].page_views}
+                      aria-valuemin={0}
+                      aria-valuenow={item.page_views}
+                      className="preview-bar-track h-1.5 overflow-hidden rounded-full"
+                      role="progressbar"
+                    >
                       <span
                         className="page-bar"
                         style={
@@ -147,10 +218,10 @@ export function ProductPreview({ copy }: { copy: Copy }) {
                         }
                       />
                     </div>
-                  </div>
+                  </li>
                 ))}
-              </div>
-            </div>
+              </ol>
+            </section>
           </div>
         </div>
       </Card>
@@ -162,7 +233,9 @@ export function ProductPreview({ copy }: { copy: Copy }) {
         </p>
         <div className="flex gap-2">
           <Button
-            aria-pressed={!playing}
+            aria-label={copy.previewAnimation}
+            aria-controls="product-preview-content"
+            aria-pressed={playing}
             className="min-h-9 px-3 text-xs"
             onClick={() => setPlaying((value) => !value)}
             variant="secondary"
@@ -176,6 +249,8 @@ export function ProductPreview({ copy }: { copy: Copy }) {
                 : "继续"}
           </Button>
           <Button
+            aria-label={copy.replayPreview}
+            aria-controls="product-preview-content"
             className="min-h-9 px-3 text-xs"
             onClick={() => {
               setReplay((value) => value + 1);
