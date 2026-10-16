@@ -29,6 +29,7 @@
     "e2e:dev-startup": "node ./tests/e2e/runner/cli.mjs --suite dev-startup",
     "e2e:site-onboarding": "node ./tests/e2e/runner/cli.mjs --suite site-onboarding",
     "e2e:dashboard": "node ./tests/e2e/runner/cli.mjs --suite dashboard",
+    "e2e:website": "playwright test --config tests/website/playwright.config.ts",
     "e2e:browser-sdk": "node ./tests/e2e/runner/cli.mjs --suite browser-sdk",
     "e2e:navigation-api": "node ./tests/e2e/runner/cli.mjs --suite navigation-api",
     "e2e:router-compose": "node ./tests/e2e/runner/cli.mjs --suite router-compose",

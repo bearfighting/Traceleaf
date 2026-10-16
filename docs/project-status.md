@@ -28,6 +28,17 @@ SDK 和平台的版本来源、更新步骤及发布检查统一见[版本与发
 - [x] 按[版本与发布流程](versioning-and-release-process.md)完成精简 SDK 发布检查；首次发布使用 `1.0.0`，之后每次发布递增普通版本号。
 - [ ] 从已验收 commit 创建 `browser-sdk-v1.0.0` GitHub Release，附上 `traceleaf-browser-1.0.0.tgz` 和简短说明，并记录 release URL。
 
+## Website 产品预览与 Dashboard 一致性
+
+此项是展示网站中的固定样例预览对齐任务，不接入 Analytics API，也不改变 Dashboard 报表或数据语义。详细设计、指标映射和验收记录见 [Website 产品预览与 Dashboard 一致性改进计划](website-dashboard-preview-alignment-plan.md)。2026-10-16 完成实现和 Website 本地验收。
+
+- [x] 检查首页和产品页共用的 `ProductPreview` 及中英文文案，移除 Dashboard 尚未支持的平均访问时长与比较增长率。
+- [x] 以单一静态样例数据对齐 Overview KPI、UTC 日期趋势、每日 Page Views 和 Top Pages 排名/数值。
+- [x] 将预览内部卡片、图表和浅色表面样式对齐 Dashboard；Website 暗色主题下预览保持浅色产品面板。
+- [x] 保留暂停、继续、重播和减少动态效果行为，并补足无需 hover/颜色即可理解图表的文本语义。
+- [x] Playwright 验证中英文文案、桌面/窄屏、首页/产品页、暗色主题、减少动态效果及键盘操作。
+- [x] Website 类型检查、lint、Vitest、格式检查、生产构建和 6 个浏览器验收场景均通过；详见详细计划中的验收记录。
+
 ## 发布前必须完成
 
 | 项目                     | 验收条件                                                                                                                                                                                                                                                                |
