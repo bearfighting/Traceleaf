@@ -155,7 +155,7 @@ export function NavigationDebugPanel() {
       analyticsRef.current = null;
       analytics.destroy();
     };
-  }, [handleNavigation, reportE2EErrors, sdkE2EMode]);
+  }, [handleNavigation, initialConsent, reportE2EErrors, sdkE2EMode]);
 
   const toggleConsent = () => {
     const nextConsent = consent === "granted" ? "denied" : "granted";

@@ -1,8 +1,14 @@
 import { spawnSync } from "node:child_process";
 
-const required = ["TRACELEAF_IMAGE_NAMESPACE", "TRACELEAF_IMAGE_TAG", "DEPLOYMENT_HOST_IP"];
+const required = [
+  "TRACELEAF_COMPOSE_PROJECT_NAME",
+  "TRACELEAF_IMAGE_NAMESPACE",
+  "TRACELEAF_IMAGE_TAG",
+  "DEPLOYMENT_HOST_IP",
+];
 const baseline = {
   ...process.env,
+  TRACELEAF_COMPOSE_PROJECT_NAME: "traceleaf-static-check",
   TRACELEAF_IMAGE_NAMESPACE: "example-owner",
   TRACELEAF_IMAGE_TAG: "v1.0.0",
   DEPLOYMENT_HOST_IP: "192.0.2.10",
@@ -16,8 +22,6 @@ function composeConfig(environment) {
     "docker",
     [
       "compose",
-      "--project-name",
-      "traceleaf-static-check",
       "--env-file",
       "/dev/null",
       "--file",
@@ -37,6 +41,11 @@ function composeConfig(environment) {
 const result = composeConfig(baseline);
 if (result.status !== 0) throw new Error(`Deployment Compose config failed: ${result.stderr}`);
 const model = JSON.parse(result.stdout);
+if (model.name !== baseline.TRACELEAF_COMPOSE_PROJECT_NAME) {
+  throw new Error(
+    `Compose project name was ${model.name}; expected ${baseline.TRACELEAF_COMPOSE_PROJECT_NAME}`,
+  );
+}
 const expected = [
   "db-migrate",
   "db-audit-purger",

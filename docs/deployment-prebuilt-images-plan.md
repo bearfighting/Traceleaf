@@ -102,12 +102,12 @@ Docker Buildx 可为同一镜像发布不同目标平台，容器运行时会按
 
 ### 部署和升级命令约定
 
-命令通过独立的项目名隔离本部署，`TRACELEAF_IMAGE_NAMESPACE`、`TRACELEAF_IMAGE_TAG`、`DEPLOYMENT_HOST_IP` 和其余必填值从 `.env.deploy` 读取：
+命令通过 `.env.deploy` 中必填且稳定的 `TRACELEAF_COMPOSE_PROJECT_NAME` 隔离本部署；模板为新部署设置为 `traceleaf`。升级既有部署时，必须保留原 Compose 项目名以复用原有容器和数据库卷。`TRACELEAF_IMAGE_NAMESPACE`、`TRACELEAF_IMAGE_TAG`、`DEPLOYMENT_HOST_IP` 和其余必填值也从 `.env.deploy` 读取：
 
 ```sh
-docker compose --project-name traceleaf --env-file .env.deploy --file compose.deploy.yaml pull
-docker compose --project-name traceleaf --env-file .env.deploy --file compose.deploy.yaml up -d
-docker compose --project-name traceleaf --env-file .env.deploy --file compose.deploy.yaml ps
+docker compose --env-file .env.deploy --file compose.deploy.yaml pull
+docker compose --env-file .env.deploy --file compose.deploy.yaml up -d
+docker compose --env-file .env.deploy --file compose.deploy.yaml ps
 ```
 
 首次部署需创建 PostgreSQL 数据卷、设置 secrets 并准备外置 GeoIP MMDB。每次升级前按[运维指南](operations.md#postgresql-backup-and-restore)完成并确认数据库备份，再 pull 和 up；Compose 的 `depends_on` 保证 migration 成功后才启动依赖服务。启动后还须检查 `db-migrate` 容器以 exit code 0 完成，以及应用容器状态和日志。不得使用 `down -v` 作为升级或回滚步骤。

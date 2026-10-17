@@ -29,7 +29,8 @@ Do not put the token in .env.deploy, Compose files, shell scripts, or images. Co
 Copy .env.deploy.example to .env.deploy. Set:
 
 - TRACELEAF_IMAGE_NAMESPACE to the lowercase GitHub owner.
-- TRACELEAF_IMAGE_TAG to an accepted platform release such as v1.0.0.
+- TRACELEAF_IMAGE_TAG to an accepted platform release such as v1.0.1.
+- TRACELEAF_COMPOSE_PROJECT_NAME to a stable Compose project name. The template sets it to traceleaf for new deployments; existing installations must set their current project name so upgrades reuse the same PostgreSQL volume.
 - DEPLOYMENT_HOST_IP to the trusted private interface address where Collector and Dashboard should listen.
 - The PostgreSQL password and matching Dashboard / configuration admin tokens as described in the template.
 - DASHBOARD_PORT if the host's selected port differs from 13000.
@@ -37,9 +38,9 @@ Copy .env.deploy.example to .env.deploy. Set:
 Prepare the external GeoIP database and protect access to .env.deploy. Restrict Dashboard access with the host firewall. PostgreSQL and Analytics API have no host port mapping.
 
 ```sh
-docker compose --project-name traceleaf --env-file .env.deploy --file compose.deploy.yaml pull
-docker compose --project-name traceleaf --env-file .env.deploy --file compose.deploy.yaml up -d
-docker compose --project-name traceleaf --env-file .env.deploy --file compose.deploy.yaml ps
+docker compose --env-file .env.deploy --file compose.deploy.yaml pull
+docker compose --env-file .env.deploy --file compose.deploy.yaml up -d
+docker compose --env-file .env.deploy --file compose.deploy.yaml ps
 ```
 
 Compose runs db-migrate before dependent services. Confirm it exited successfully and check service health and logs after startup.
