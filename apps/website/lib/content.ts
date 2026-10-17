@@ -11,7 +11,7 @@ export const translations = {
     updates: "Updates",
     quickStart: "Quick start",
     demo: "View product demo",
-    eyebrow: "Open source web analytics, on your terms",
+    eyebrow: "Self-hosted web analytics",
     headline: "Your analytics.\nYour infrastructure.",
     intro:
       "Traceleaf helps developers understand how their websites are used, while keeping the data and the infrastructure under their control.",
@@ -79,7 +79,7 @@ export const translations = {
       "We want Traceleaf to become a dependable, understandable analytics tool that developers can operate on infrastructure they choose. That means clear data flows, modest operational requirements, useful reporting, and privacy-conscious defaults. This is a direction, not a promise that every capability is complete or production-ready. We will publish concrete changes as they are implemented and verified.",
     articleClose:
       "Traceleaf is built in the open. The project welcomes developers who value control, transparency, and tools that can be run on their own terms.",
-    footerLine: "Web analytics for developers who want to stay in control.",
+    footerLine: "Web analytics for developers who want control over their data and infrastructure.",
     sample: "Sample data",
   },
   "zh-cn": {
@@ -90,7 +90,7 @@ export const translations = {
     updates: "动态",
     quickStart: "快速开始",
     demo: "查看产品演示",
-    eyebrow: "开源网站分析，由你掌控",
+    eyebrow: "自托管网站分析",
     headline: "你的分析数据，\n运行在你的基础设施上。",
     intro: "Traceleaf 帮助开发者了解网站的使用情况，同时让数据和运行环境留在自己的掌控之中。",
     selfHosted: "为自托管而设计",
@@ -151,7 +151,7 @@ export const translations = {
       "我们希望 Traceleaf 成为一款可靠、易理解的分析工具，让开发者可以在自己选择的基础设施上运行。为此，数据流应该清晰，运维要求适度，报表实用，并默认尊重隐私。这是发展方向，不代表所有能力都已完成或达到生产就绪状态。我们会在功能完成并经过验证后发布具体进展。",
     articleClose:
       "Traceleaf 以开放方式开发。我们欢迎重视控制权、透明度，以及能够按自己方式运行工具的开发者参与。",
-    footerLine: "为希望掌控数据的开发者打造的网站分析工具。",
+    footerLine: "面向开发者的自托管网站分析，让数据和基础设施保持在自己的掌控之中。",
     sample: "示例数据",
   },
 } as const;

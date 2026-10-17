@@ -88,12 +88,75 @@ export function formatPreviewDateRange(
     return "";
   }
 
-  const formatter = new Intl.DateTimeFormat(localeName === "English" ? "en-US" : "zh-CN", {
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-    year: "numeric",
-  });
+  const firstDate = parsePreviewDate(firstDay);
+  const lastDate = parsePreviewDate(lastDay);
 
-  return formatter.formatRange(new Date(`${firstDay}T00:00:00Z`), new Date(`${lastDay}T00:00:00Z`));
+  if (
+    firstDate.year === lastDate.year &&
+    firstDate.month === lastDate.month &&
+    firstDate.day === lastDate.day
+  ) {
+    if (localeName === "English") {
+      return `${ENGLISH_MONTHS[firstDate.month - 1]} ${firstDate.day}, ${firstDate.year}`;
+    }
+
+    return `${firstDate.year}年${firstDate.month}月${firstDate.day}日`;
+  }
+
+  if (localeName === "English") {
+    const firstMonth = ENGLISH_MONTHS[firstDate.month - 1];
+    const lastMonth = ENGLISH_MONTHS[lastDate.month - 1];
+
+    if (firstDate.year === lastDate.year && firstDate.month === lastDate.month) {
+      return `${firstMonth} ${firstDate.day}–${lastDate.day}, ${lastDate.year}`;
+    }
+
+    return `${firstMonth} ${firstDate.day}, ${firstDate.year}–${lastMonth} ${lastDate.day}, ${lastDate.year}`;
+  }
+
+  if (firstDate.year === lastDate.year && firstDate.month === lastDate.month) {
+    return `${lastDate.year}年${lastDate.month}月${firstDate.day}日–${lastDate.day}日`;
+  }
+
+  return `${firstDate.year}年${firstDate.month}月${firstDate.day}日–${lastDate.year}年${lastDate.month}月${lastDate.day}日`;
+}
+
+const ENGLISH_MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+function parsePreviewDate(day: string): { year: number; month: number; day: number } {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
+
+  if (!match) {
+    throw new RangeError(`Invalid preview date: ${day}`);
+  }
+
+  const date = {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+  };
+  const parsedDate = new Date(Date.UTC(date.year, date.month - 1, date.day));
+
+  if (
+    parsedDate.getUTCFullYear() !== date.year ||
+    parsedDate.getUTCMonth() !== date.month - 1 ||
+    parsedDate.getUTCDate() !== date.day
+  ) {
+    throw new RangeError(`Invalid preview date: ${day}`);
+  }
+
+  return date;
 }

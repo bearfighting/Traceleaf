@@ -5,10 +5,10 @@ import "../styles.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Analytics Dashboard",
-    template: "%s | Analytics Dashboard",
+    default: "Traceleaf Dashboard",
+    template: "%s | Traceleaf Dashboard",
   },
-  description: "Web Analytics Platform Dashboard",
+  description: "Explore website analytics for your sites with Traceleaf.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs><linearGradient id="leaf-flow" x1="10" y1="54" x2="53" y2="10" gradientUnits="userSpaceOnUse"><stop stop-color="#14917B"/><stop offset="1" stop-color="#20A185"/></linearGradient></defs>
+  <path d="M12 48C14 35 22 24 49 15M12 48C21 40 30 34 48 32M15 50C26 50 36 46 47 38" stroke="url(#leaf-flow)" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="51" cy="13" r="7" fill="#20A185"/><circle cx="49" cy="31" r="6" fill="#1B967E"/><circle cx="50" cy="36" r="5" fill="#14917B"/>
+</svg>

@@ -43,10 +43,48 @@ describe("product preview sample data", () => {
   });
 
   it("formats the fixed sample range from its first and last UTC dates", () => {
-    expect(formatPreviewDateRange(DAILY_PAGE_VIEWS, "English")).toContain("Oct 10");
-    expect(formatPreviewDateRange(DAILY_PAGE_VIEWS, "English")).toContain("16, 2026");
-    expect(formatPreviewDateRange(DAILY_PAGE_VIEWS, "简体中文")).toMatch(/2026\D+10\D+10/);
-    expect(formatPreviewDateRange(DAILY_PAGE_VIEWS, "简体中文")).toMatch(/2026\D+10\D+16/);
+    expect(formatPreviewDateRange(DAILY_PAGE_VIEWS, "English")).toBe("Oct 10–16, 2026");
+    expect(formatPreviewDateRange(DAILY_PAGE_VIEWS, "简体中文")).toBe("2026年10月10日–16日");
+    expect(formatPreviewDateRange([], "English")).toBe("");
+    expect(formatPreviewDateRange([{ day: "2026-10-10", page_views: 1 }], "English")).toBe(
+      "Oct 10, 2026",
+    );
+    expect(formatPreviewDateRange([{ day: "2026-10-10", page_views: 1 }], "简体中文")).toBe(
+      "2026年10月10日",
+    );
+  });
+
+  it("formats ranges across month and year boundaries", () => {
+    expect(
+      formatPreviewDateRange(
+        [
+          { day: "2026-12-30", page_views: 1 },
+          { day: "2027-01-02", page_views: 1 },
+        ],
+        "English",
+      ),
+    ).toBe("Dec 30, 2026–Jan 2, 2027");
+    expect(
+      formatPreviewDateRange(
+        [
+          { day: "2026-12-30", page_views: 1 },
+          { day: "2027-01-02", page_views: 1 },
+        ],
+        "简体中文",
+      ),
+    ).toBe("2026年12月30日–2027年1月2日");
+  });
+
+  it("rejects impossible calendar dates", () => {
+    expect(() =>
+      formatPreviewDateRange(
+        [
+          { day: "2026-02-30", page_views: 1 },
+          { day: "2026-03-01", page_views: 1 },
+        ],
+        "English",
+      ),
+    ).toThrow(RangeError);
   });
 
   it("sorts top pages by views and derives bar widths from their values", () => {

@@ -1,31 +1,9 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeControl } from "@/components/theme-control";
 import type { Copy, Locale } from "@/lib/content";
-
-function TraceleafMark() {
-  return (
-    <svg aria-hidden="true" className="size-8 text-primary" fill="none" viewBox="0 0 36 36">
-      <path
-        d="M18 30.5c-1.8-6.6-7.9-8.1-9.5-14.3C7 10.4 12.1 6 18.7 5.5c.6 6.8 5.6 9.6 5 15.2-.4 4.1-2.7 7.5-5.7 9.8Z"
-        fill="currentColor"
-        opacity=".2"
-      />
-      <path
-        d="M18 30.5c-1.8-6.6-7.9-8.1-9.5-14.3C7 10.4 12.1 6 18.7 5.5c.6 6.8 5.6 9.6 5 15.2-.4 4.1-2.7 7.5-5.7 9.8Z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-      />
-      <path
-        d="M11.5 14.5c4.3 2.6 6.5 6.7 6.7 12.6m.2-6.7c1.6-2.6 3.8-4.3 6.5-5.4"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeWidth="1.8"
-      />
-    </svg>
-  );
-}
 
 export function SiteHeader({ locale, copy }: { locale: Locale; copy: Copy }) {
   const base = locale === "en" ? "" : "/zh-cn";
@@ -40,12 +18,19 @@ export function SiteHeader({ locale, copy }: { locale: Locale; copy: Copy }) {
     <header className="sticky top-0 z-30 border-b border-border/80 bg-background/90 backdrop-blur-xl">
       <div className="page-width flex h-18 items-center justify-between gap-5">
         <Link
-          aria-label="Traceleaf home"
+          aria-label={locale === "en" ? "Traceleaf home" : "Traceleaf 首页"}
           className="inline-flex shrink-0 items-center gap-2.5"
           href={base || "/"}
         >
-          <TraceleafMark />
-          <span className="text-lg font-semibold tracking-tight">Traceleaf</span>
+          <Image
+            alt=""
+            aria-hidden="true"
+            className="size-8"
+            height="64"
+            src="/traceleaf-symbol.svg"
+            width="64"
+          />
+          <span className="text-lg font-semibold tracking-tight">traceleaf</span>
         </Link>
 
         <nav aria-label={copy.navTitle} className="hidden items-center gap-1 md:flex">

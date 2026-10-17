@@ -1,6 +1,5 @@
 "use client";
 
-import { useReducedMotion } from "motion/react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -44,7 +43,6 @@ const chartArea = `${chartLine} V126 H54Z`;
 export function ProductPreview({ copy }: { copy: Copy }) {
   const [playing, setPlaying] = useState(true);
   const [replay, setReplay] = useState(0);
-  const reducedMotion = useReducedMotion();
 
   return (
     <div className="preview-frame relative mx-auto w-full max-w-2xl">
@@ -98,7 +96,7 @@ export function ProductPreview({ copy }: { copy: Copy }) {
               },
             ].map((metric, index) => (
               <div
-                className={`metric-card ${reducedMotion ? "" : "metric-card-enter"}`}
+                className="metric-card metric-card-enter"
                 key={metric.label}
                 style={{ "--metric-delay": `${index * 140}ms` } as React.CSSProperties}
               >
