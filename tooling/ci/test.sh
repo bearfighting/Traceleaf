@@ -33,3 +33,4 @@ node --test tooling/dev/dev-compose.test.mjs
 node --test db/seeds/development/dev-seed.test.mjs
 node --test tooling/db/postgres-test-target.test.mjs
 node --test tests/e2e/support/e2e-database.test.mjs
+node --test tooling/docs/check-docs.test.mjs

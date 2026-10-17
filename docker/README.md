@@ -1,5 +1,7 @@
 # Docker Development
 
+[简体中文](README.zh-CN.md) | [Project overview](../README.md)
+
 The repository provides development containers for the Next.js, React Router and TanStack Router playgrounds, Collector, Processor, Analytics API and Dashboard.
 
 From the repository root:
@@ -93,7 +95,7 @@ Start the PostgreSQL-backed Collector, Processor and Analytics API workflow with
 pnpm docker:processing
 ```
 
-The Analytics API is available at `http://localhost:4002`. It exposes `/health`, all-time site Overview, and date-range Reports endpoints. The API reads only the PostgreSQL aggregate tables.
+The Analytics API is available at `http://localhost:4002`. Its endpoints include `/health`, all-time site Overview, and date-range reports. Report queries read processed PostgreSQL facts and aggregates; site-management operations also use PostgreSQL configuration data.
 
 Start the Dashboard together with the processing workflow:
 

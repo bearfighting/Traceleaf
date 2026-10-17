@@ -20,10 +20,10 @@
 SDK 和平台的版本来源、更新步骤及发布检查统一见[版本与发布流程](versioning-and-release-process.md)；ADR 决策见 [ADR-024](decisions/ADR-024-simplified-sdk-and-platform-releases.md) 和 [ADR-025](decisions/ADR-025-project-version-baseline-1.0.0.md)。
 
 - [ ] 验证 SDK → Collector 契约：事件格式、显式配置、Origin/CORS、批次限制、错误响应和 Collector 不可用行为；仓库内验证已完成，目标部署 Collector 的 Protocol V1 兼容确认暂缓，三处错误 fixture 差异已修正。
-- [x] 在隔离 E2E Compose 通过 browser → Collector → PostgreSQL → Processor → Analytics API/Dashboard 链路，并覆盖空数据、Collector 503/不可用、无效配置、抛错错误回调及拒绝 Origin；详见 [Browser SDK 验收记录](browser-sdk-integration-plan.md#隔离-browser-sdk-数据链路验收-2026-10-11)。此结果不代表 Raspberry Pi/生产部署验收。
-- [x] 在隔离 Browser SDK E2E 验收 Chromium 实际发出的 Collector CORS 预检：204、匹配 Playground Origin、允许 POST 和 Content-Type/X-Ingest-Key；详见 [CORS 预检验收记录](browser-sdk-integration-plan.md#chromium-cors-预检验收-2026-10-11)。
-- [ ] （暂缓）验收 Firefox 与 Safari/WebKit 支持范围；日志策略、批次限制、有限缓冲/flush 已通过针对性测试，详见 [Browser SDK 日志、缓冲与批次验收](browser-sdk-integration-plan.md#日志策略缓冲与批次限制验收-2026-10-11)。Chromium 结果不替代跨浏览器验收。
-- [x] 完成并记录 Browser SDK 相关单测、集成、E2E、构建、类型检查和格式检查；详见 [Browser SDK 基础质量验收](browser-sdk-integration-plan.md#browser-sdk-基础质量验收-2026-10-11)。该结果不替代完整仓库 CI 或生产部署验收。
+- [x] 在隔离 E2E Compose 通过 browser → Collector → PostgreSQL → Processor → Analytics API/Dashboard 链路，并覆盖空数据、Collector 503/不可用、无效配置、抛错错误回调及拒绝 Origin；详见 [Browser SDK 验收记录](browser-sdk-integration-plan.md#隔离-browser-sdk-数据链路验收2026-10-11)。此结果不代表 Raspberry Pi/生产部署验收。
+- [x] 在隔离 Browser SDK E2E 验收 Chromium 实际发出的 Collector CORS 预检：204、匹配 Playground Origin、允许 POST 和 Content-Type/X-Ingest-Key；详见 [CORS 预检验收记录](browser-sdk-integration-plan.md#chromium-cors-预检验收2026-10-11)。
+- [ ] （暂缓）验收 Firefox 与 Safari/WebKit 支持范围；日志策略、批次限制、有限缓冲/flush 已通过针对性测试，详见 [Browser SDK 日志、缓冲与批次验收](browser-sdk-integration-plan.md#日志策略缓冲与批次限制验收2026-10-11)。Chromium 结果不替代跨浏览器验收。
+- [x] 完成并记录 Browser SDK 相关单测、集成、E2E、构建、类型检查和格式检查；详见 [Browser SDK 基础质量验收](browser-sdk-integration-plan.md#browser-sdk-基础质量验收2026-10-11)。该结果不替代完整仓库 CI 或生产部署验收。
 - [ ] （暂缓）在 Firefox 与 Safari/WebKit 验证目标版本、initial/客户端导航/back-forward 等行为，并确定不支持 Navigation API 时的行为；将实测矩阵及支持范围写入接入文档和发布说明。当前 Chromium 结果不代替此项。
 - [x] 按[版本与发布流程](versioning-and-release-process.md)完成精简 SDK 发布检查；首次发布使用 `1.0.0`，之后每次发布递增普通版本号。
 - [ ] 从已验收 commit 创建 `browser-sdk-v1.0.0` GitHub Release，附上 `traceleaf-browser-1.0.0.tgz` 和简短说明，并记录 release URL。
@@ -38,6 +38,21 @@ SDK 和平台的版本来源、更新步骤及发布检查统一见[版本与发
 - [x] 保留暂停、继续、重播和减少动态效果行为，并补足无需 hover/颜色即可理解图表的文本语义。
 - [x] Playwright 验证中英文文案、桌面/窄屏、首页/产品页、暗色主题、减少动态效果及键盘操作。
 - [x] Website 类型检查、lint、Vitest、格式检查、生产构建和 6 个浏览器验收场景均通过；详见详细计划中的验收记录。
+
+<a id="dashboard-chart-qa"></a>
+
+## Dashboard 图表后续质量验收（非发布阻塞）
+
+维护者于 2026-10-16 确认 Dashboard 完整产品测试通过，详见上方基线和 [M7b 验收记录](archive/development/m7b-analytics-reports-checklist.md)。以下是图表专项的后续质量检查，不改变该整体验收结论，也不构成发布门槛。设计背景与指标语义见 [Dashboard 图表设计](dashboard-chart-design.md)。
+
+- [ ] 验证图表在各报表中的有数据、空数据、错误、禁用/不可用及非 current freshness 状态；重点覆盖 Conversion/Funnel 零分母、低样本、稀疏 Funnel 步骤、缺失 definition 和 definition version 不匹配。
+- [ ] 在桌面和窄屏检查图表尺寸、轴标签截断、长类别名、tooltip、图例、卡片溢出和 Web Vitals 多 route 高度。
+- [ ] 使用键盘和屏幕阅读器检查图表名称、交互与焦点顺序；确认精确数值无需 hover 即可读取，系列区分不只依赖颜色。
+- [ ] 检查实际图表背景上的固定主题色与 Conversion 动态色对比度。
+- [ ] 使用真实 Analytics API 响应核对图表和表格的日期/筛选上下文及指标值，并覆盖 Conversion/Funnel definition 与 cohort 标签。
+- [ ] 完成适用的 Dashboard 格式、lint、类型、测试、E2E 和统一检查，并记录结果。
+
+Custom Events 区间排行榜依赖完整区间聚合 API 契约，属于暂缓的独立能力，不纳入上述图表质量验收；在契约支持前继续使用逐日明细表。
 
 ## 发布前必须完成
 

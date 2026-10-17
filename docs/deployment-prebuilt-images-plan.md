@@ -2,7 +2,7 @@
 
 ## 状态与目标
 
-- 状态：代码、CI 与部署文档已实施；首次 GHCR 正式发布及 Pi / x86-64 实机验收仍是发布门禁
+- 状态：代码、CI 与部署文档已实施；平台 `v1.0.0` GHCR 正式发布已完成，Pi / x86-64 实机验收、备份恢复演练及平台 GitHub Release 仍是发布门禁，详见[项目状态](project-status.md)
 - 适用部署：以 x86-64 Linux 主机为主要目标，并支持 Raspberry Pi 64-bit ARM 作为次要部署目标和当前验证环境。
 - 目标：在 CI 或构建机生成并发布同一版本的 `linux/amd64` 和 `linux/arm64` 服务镜像；部署主机只拉取镜像并运行服务，不安装 Rust、Node.js、pnpm 或构建项目源码。
 - 镜像仓库：GitHub Container Registry（GHCR），默认私有镜像。
@@ -19,7 +19,7 @@
 - `docker/rust-workspace.Dockerfile` 使用多阶段构建：release builder 构建 Rust workspace，运行阶段按服务复制可执行文件。所有 Rust 服务共享同一 Dockerfile 和 builder 阶段，构建缓存可复用。
 - Rust 运行镜像基于 Debian slim，并安装 CA 证书与 `curl`。健康检查依赖 `curl`；审计清理服务还依赖 shell 和 `sleep`。本计划不要求立即改成 `scratch` 或纯静态镜像。
 - `docker/dashboard-deploy.Dockerfile` 构建 Next.js standalone 输出；运行阶段只复制 standalone server、静态资源和 public 资源。
-- 发布 workflow 在 tag 完整验证后构建候选 multi-arch manifest，运行双架构原生 Compose smoke，再按 digest 幂等晋升 SHA 和版本标签。首次正式 GHCR 发布尚未执行。
+- 发布 workflow 在 tag 完整验证后构建候选 multi-arch manifest，运行双架构原生 Compose smoke，再按 digest 幂等晋升 SHA 和版本标签。平台 `v1.0.0` 已完成 GHCR 发布；提交、manifest digest 和 CI smoke 证据见[平台 v1.0.0 发布记录](platform-release-v1.0.0.md)。真实 Raspberry Pi 与独立 x86-64 主机验收、备份恢复演练和平台 GitHub Release 仍待完成，详见[项目状态](project-status.md)。
 - 部署还需要 PostgreSQL 数据卷、`.env.deploy` 和外置的 GeoIP MMDB 文件；这些不进入应用镜像。
 
 ## 目标镜像

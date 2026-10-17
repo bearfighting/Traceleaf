@@ -1,76 +1,81 @@
-# Traceleaf
+<p align="center">
+  <img src="apps/website/public/brand/traceleaf-symbol.svg" alt="Traceleaf" width="64" height="64">
+</p>
 
-面向开发者的自托管网站分析，让数据和基础设施保持在自己的掌控之中。
+<h1 align="center">Traceleaf</h1>
 
-## 当前状态
+<p align="center">Self-hosted web analytics</p>
 
-MVP 功能已冻结，暂不增加新功能。唯一的未完成与部署待办清单见[功能冻结与部署待办](docs/project-status.md)。功能范围见 [MVP Scope](docs/mvp-scope.md)。
+<p align="center">
+  <a href="README.zh-CN.md">简体中文</a>
+</p>
 
-## 核心 Workflow
+<p align="center">
+  <a href="https://github.com/bearfighting/web-analytics-platform/actions/workflows/ci.yml"><img src="https://github.com/bearfighting/web-analytics-platform/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+</p>
 
-```mermaid
-flowchart LR
-    subgraph Browser[网站与浏览器]
-        Website[网站]
-        Observer[Navigation API Observer<br/>观察页面加载与已提交导航]
-        SDK[Browser SDK<br/>采集上下文并组装事件]
-        Protocol[Event Protocol]
-        Website --> Observer --> SDK --> Protocol
-    end
+Traceleaf is self-hosted website analytics for teams who want to understand how people use their sites while keeping analytics data and infrastructure under their control.
 
-    subgraph Ingestion[事件接收]
-        Collector[Collector<br/>校验 Origin、站点策略和事件]
-    end
+The MVP is a browser analytics workflow from page navigation through reporting. Its feature scope is frozen; the current implementation baseline and open release or deployment work are recorded in [MVP Scope](docs/mvp-scope.md) and [Project Status](docs/project-status.md).
 
-    subgraph Storage[PostgreSQL]
-        Raw[(原始事件与接收元数据)]
-        Facts[(派生事实、汇总与处理进度)]
-        Config[(站点配置、定义与审计)]
-    end
+## Try the Playground
 
-    subgraph Processing[事件处理]
-        Processor[Processor<br/>轮询处理、归一化与统计]
-        Rebuild[显式重建命令<br/>Generation / Facts]
-    end
+Requirements: Node.js 26.10.0 and pnpm 12.6.0.
 
-    subgraph Serving[查询与展示]
-        API[Analytics API<br/>报表查询与站点管理]
-        Dashboard[Dashboard<br/>报表与配置管理]
-    end
-
-    Protocol -->|HTTP / Beacon| Collector
-    Collector -->|写入| Raw
-    Collector -->|读取站点接收策略| Config
-    Raw -->|读取原始事件| Processor
-    Processor -->|更新处理状态| Raw
-    Config -->|读取 capabilities 与 definitions| Processor
-    Processor -->|写入| Facts
-    Raw -->|重建时读取原始事件| Rebuild
-    Config -->|重建时读取站点配置| Rebuild
-    Rebuild -->|重建| Facts
-    API -->|读取分析结果| Facts
-    Dashboard -->|报表请求| API
-    Dashboard -->|配置管理请求| API
-    API -->|读写站点配置与审计| Config
+```bash
+pnpm install
+pnpm dev
 ```
 
-常规数据流从网站导航开始：Navigation API observer 观察已提交导航，Browser SDK 根据 Event Protocol 发送事件；Collector 校验并写入原始事件；Processor 轮询原始事件并生成分析结果；Dashboard 通过 Analytics API 查询结果。站点配置和定义由管理 API 写入，Collector 读取接收策略，Processor 按配置处理事件。显式 rebuild 命令用于重建整站 generation 或指定派生事实。
+Open <http://localhost:3000> to explore the Next.js navigation playground. It uses a mock transport by default to show browser events locally; it does not send data through the full Collector, PostgreSQL, Processor, API, and Dashboard workflow. For the complete local stack, follow [Getting Started](docs/getting-started.md).
 
-当前 MVP 包含页面浏览、访客与会话分析、Browser Context、Custom Events、Web Vitals、Conversion/Funnel、country Geo，以及站点 capability 和 ingest policy 配置。完整范围见 [MVP Scope](docs/mvp-scope.md)。
+## MVP Capabilities
 
-## 开始使用
+- Page views, anonymous visitors, sessions, and browser context
+- Referrer, UTM, language, timezone, device, browser, and operating system dimensions
+- Framework-independent navigation observation through the browser Navigation API
+- Custom events, Web Vitals, conversions, and funnels
+- Country-level Geo reporting
+- Site capabilities, Origin allowlists, ingest keys, and environment policies
+- Dashboard reporting and site configuration
 
-开发环境和本地运行步骤见 [Getting Started](docs/getting-started.md)。
+This scope does not imply production deployment acceptance or public Browser SDK availability. The Browser SDK GitHub Release and real deployment acceptance are still pending; see [Project Status](docs/project-status.md) for the authoritative follow-up list.
 
-## 文档入口
+## Architecture
 
-- [Documentation Index](docs/README.md)
-- [Feature Freeze and Deployment Follow-up](docs/project-status.md)
-- [MVP Scope](docs/mvp-scope.md)
-- [Getting Started](docs/getting-started.md)
-- [Raspberry Pi LAN Deployment](docs/deployment-raspberry-pi.md)
-- [Event Protocol](docs/event-protocol.md)
+```mermaid
+flowchart TD
+    Site[Website] --> Observer[Navigation API Observer]
+    Observer --> SDK[Browser SDK]
+    SDK --> Protocol[Event Protocol]
+    Protocol --> Collector[Collector]
+    Collector --> PostgreSQL[(PostgreSQL)]
+    PostgreSQL --> Processor[Processor]
+    Processor --> API[Analytics API]
+    API --> Dashboard[Dashboard]
+```
 
-## 开发与验证
+The Observer reports committed browser navigations. The SDK collects browser context and creates protocol events. The Collector validates and stores incoming events; the Processor derives analytics; the Dashboard queries reports through the Analytics API.
 
-项目协作规则见 [AGENTS.md](AGENTS.md)。CI 运行统一的检查、测试、构建、migration、integration 和 E2E workflow。
+| Area                                                                          | Responsibility                                            |
+| ----------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `packages/observer-core`                                                      | Browser Navigation API observation                        |
+| `packages/analytics-browser`, `packages/analytics-core`, `packages/transport` | Browser collection and event delivery                     |
+| `protocol/`, `packages/protocol-ts`                                           | Language-neutral event contract and TypeScript types      |
+| `services/collector`, `services/processor`, `services/analytics-api`          | Ingestion, processing, and analytics queries              |
+| `apps/dashboard`                                                              | Analytics reports and site configuration                  |
+| `examples/`                                                                   | Browser and framework playgrounds for navigation behavior |
+
+The Observer and analytics core do not depend on a specific router. Playground examples do not provide router adapters.
+
+## Documentation
+
+- [Getting Started](docs/getting-started.md) — local development and full Compose stack
+- [MVP Scope](docs/mvp-scope.md) — accepted feature baseline and boundaries
+- [Project Status](docs/project-status.md) — unfinished, deferred, and release-blocking work
+- [Event Protocol](docs/event-protocol.md) — event contract guidance
+- [Operations Guide](docs/operations.md) — operating the services and handling data
+- [Deployment guides](docs/deployment-linux.md) — Linux deployment; see also [Raspberry Pi deployment](docs/deployment-raspberry-pi.md)
+- [Documentation Index](docs/README.md) — guides, decisions, and project records
+- [MIT License](LICENSE)

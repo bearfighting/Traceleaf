@@ -6,6 +6,7 @@ Completed implementation plans, milestone checklists, design explorations and ac
 
 - Phase 0–8 design and acceptance records.
 - Protocol consolidation and feature modularization plans completed during MVP development.
+- [Documentation Improvement Plan](documentation-improvement-plan.md) — completed documentation standards, bilingual README inventory, index lifecycle cleanup, and automated quality checks.
 - Detailed roadmap history.
 - Detailed Release Readiness measurements and historical checklist.
 - Development-only M0–M9 plans, checklists, closeout reports and superseded architecture proposals are in [development](development/).

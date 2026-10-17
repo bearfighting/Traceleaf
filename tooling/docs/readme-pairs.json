@@ -1,0 +1,21 @@
+[
+  ["README.md", "README.zh-CN.md"],
+  ["docs/README.md", "docs/README.zh-CN.md"],
+  ["apps/website/README.md", "apps/website/README.zh-CN.md"],
+  ["apps/dashboard/README.md", "apps/dashboard/README.zh-CN.md"],
+  ["packages/analytics-browser/README.md", "packages/analytics-browser/README.zh-CN.md"],
+  ["packages/analytics-core/README.md", "packages/analytics-core/README.zh-CN.md"],
+  ["packages/observer-core/README.md", "packages/observer-core/README.zh-CN.md"],
+  ["packages/protocol-ts/README.md", "packages/protocol-ts/README.zh-CN.md"],
+  ["packages/transport/README.md", "packages/transport/README.zh-CN.md"],
+  ["packages/playground-support/README.md", "packages/playground-support/README.zh-CN.md"],
+  ["services/collector/README.md", "services/collector/README.zh-CN.md"],
+  ["services/processor/README.md", "services/processor/README.zh-CN.md"],
+  ["services/analytics-api/README.md", "services/analytics-api/README.zh-CN.md"],
+  ["crates/configuration-runtime/README.md", "crates/configuration-runtime/README.zh-CN.md"],
+  ["tools/db-migrator/README.md", "tools/db-migrator/README.zh-CN.md"],
+  ["tools/site-registry-importer/README.md", "tools/site-registry-importer/README.zh-CN.md"],
+  ["protocol/README.md", "protocol/README.zh-CN.md"],
+  ["docker/README.md", "docker/README.zh-CN.md"],
+  ["examples/README.md", "examples/README.zh-CN.md"]
+]

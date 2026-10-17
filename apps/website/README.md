@@ -1,5 +1,7 @@
 # Traceleaf public site
 
+[简体中文](README.zh-CN.md) | [Project overview](../../README.md)
+
 The public site is an independent Next.js application that exports static HTML, CSS, and JavaScript. It does not use the Dashboard or backend services at runtime.
 
 ## Development

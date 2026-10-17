@@ -1,15 +1,10 @@
 # `@traceleaf/browser`
 
-Download `traceleaf-browser-1.0.0.tgz` from the
-[Browser SDK 1.0.0 GitHub Release](https://github.com/bearfighting/web-analytics-platform/releases/download/browser-sdk-v1.0.0/traceleaf-browser-1.0.0.tgz)
-and install it in your application:
+[简体中文](README.zh-CN.md) | [Project overview](../../README.md)
 
-```sh
-npm install ./traceleaf-browser-1.0.0.tgz
-```
-
-To create a local tarball from a clean checkout, build the package first, then
-pack it from its directory:
+The `1.0.0` tarball candidate passed its focused release checks, but the GitHub
+Release has not been created yet. For local evaluation, build the package from
+a clean checkout and pack it from its directory:
 
 ```sh
 pnpm --filter @traceleaf/browser build
@@ -18,7 +13,13 @@ npm pack
 ```
 
 Install the resulting `.tgz` file from your consumer project for local
-evaluation.
+evaluation:
+
+```sh
+npm install /path/to/traceleaf-browser-1.0.0.tgz
+```
+
+See [project status](../../docs/project-status.md) for release state.
 
 Browser SDK runtime for turning browser Navigation API entries into Protocol V1 page-view events.
 
