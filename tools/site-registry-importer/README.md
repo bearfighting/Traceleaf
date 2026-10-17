@@ -1,5 +1,7 @@
 # Site Registry Importer
 
+[简体中文](README.zh-CN.md) | [Project overview](../../README.md)
+
 This CLI reconciles Site IDs from an explicitly selected PostgreSQL database and explicitly supplied legacy inputs. It is read-only by default. It does not load `.env` or Compose files.
 
 ## Inputs
@@ -21,8 +23,16 @@ Run first without `--apply`. Candidates with test/fixture-like IDs, conflicting 
 
 ```json
 [
-  {"site_id":"sample_fixture_site","action":"approve","reason":"confirmed retained Site identity"},
-  {"site_id":"stale_static_site","action":"exclude","reason":"confirmed obsolete static entry"}
+  {
+    "site_id": "sample_fixture_site",
+    "action": "approve",
+    "reason": "confirmed retained Site identity"
+  },
+  {
+    "site_id": "stale_static_site",
+    "action": "exclude",
+    "reason": "confirmed obsolete static entry"
+  }
 ]
 ```
 
@@ -31,7 +41,8 @@ Persisted database identities cannot be excluded; approve them as Sites. Static-
 Apply is explicit and idempotent:
 
 ```sh
-DATABASE_URL='postgres://…' cargo run -p site-registry-importer -- \
+: "${DATABASE_URL:?provide the reviewed target through the approved secret-injection mechanism}"
+cargo run -p site-registry-importer -- \
   --report /tmp/site-registry-import.json \
   --dashboard-sites 'site_alpha,site_beta' --dashboard-default-site site_alpha \
   --collector-config ./collector.toml --definitions-file ./definitions.json \

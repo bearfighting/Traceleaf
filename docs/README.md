@@ -1,28 +1,55 @@
-# 文档
+# Traceleaf Documentation
 
-## 当前文档
+This index groups documentation by the task readers need to complete. **Current reference** identifies authoritative guidance, **accepted decision** identifies an approved architecture choice, **active proposal** identifies work or design still under consideration, **completed record** preserves implementation or release evidence, **superseded** marks a decision replaced by a later one, and **historical** identifies archived material.
 
-- [功能冻结与部署待办](project-status.md)：唯一的未完成、计划中和暂缺事项清单。
-- [MVP 功能范围](mvp-scope.md)：冻结的产品范围与已交付基线。
-- [开始使用](getting-started.md)：本地环境配置与运行。
-- [Raspberry Pi LAN Deployment](deployment-raspberry-pi.md)：Pi 上拉取预构建镜像、局域网访问与日常操作。
-- [Linux Deployment](deployment-linux.md)：x86-64 Linux 上的 GHCR 登录、部署、升级和回滚。
-- [预构建容器镜像部署计划](deployment-prebuilt-images-plan.md)：多架构 GHCR 发布、原生架构 smoke 与 pull-only Compose 的实施记录。
-- [运维指南](operations.md)：PostgreSQL 备份恢复、migration 部署和 Geo 数据库操作。
-- [PostgreSQL 测试隔离设计](testing/postgres-test-isolation-plan.md)：后端 PostgreSQL 集成测试的隔离模型、组件命令和验收目标。
-- [Browser SDK 对外接入与发布计划](browser-sdk-integration-plan.md)：通用 Navigation API SDK 的对外接入、兼容和发布计划。
-- [Dashboard 图表设计](dashboard-chart-design.md)：Analytics 指标图表的实现状态、数据语义和剩余验收项。
-- [Website 产品预览与 Dashboard 一致性改进计划](website-dashboard-preview-alignment-plan.md)：让展示网站中的产品预览在指标内容、图表表达和视觉风格上与 Dashboard 对齐。
-- [Traceleaf 品牌统一与 Logo 接入方案](traceleaf-brand-unification-plan.md)：记录 Logo 来源、品牌用语规则、应用接入和验收结果。
-- [静态产品展示站规划](static-product-site-plan.md)：面向开发者的独立静态站点、产品演示、快速开始与 Updates 规划（提案，实施前需确认范围）。
-- [ADR-022: 通用 Navigation API observer](decisions/ADR-022-navigation-api-only-browser-sdk.md)：使用单一浏览器级 observer 并移除 Router 专用集成。
-- [ADR-026: 多架构平台容器镜像发布](decisions/ADR-026-multi-architecture-container-releases.md)：统一发布 x86-64 Linux 与 64-bit ARM 平台镜像，并通过 GHCR 部署。
-- [事件协议](event-protocol.md)：事件语义摘要；机器可读契约以 `protocol/` 为准。
-- [Ingest Key 指南](ingest-key.md)：创建、使用和轮换密钥。
-- [架构决策](decisions/)：仍有效的 ADR。
-- [协议契约](../protocol/README.md)：Schema、HTTP 合约和 fixtures。
+The [简体中文文档索引](README.zh-CN.md) provides the same links and lifecycle labels in Chinese.
 
-## 历史记录
+## Understand the project
 
-- [开发阶段记录](archive/README.md)：已完成阶段的设计与验收记录。
-- [代码重构记录](archive/refactoring/README.md)：已关闭的重构工作包及其历史验收证据。
+- [Project Status](project-status.md) — **current reference**; sole list of unfinished, deferred, and release-blocking work.
+- [MVP Scope](mvp-scope.md) — **current reference**; frozen product scope and delivered baseline.
+- [Documentation Improvement Plan](archive/documentation-improvement-plan.md) — **historical**; completed standards, inventory, and acceptance evidence.
+
+## Start and develop locally
+
+- [Getting Started](getting-started.md) — **current reference**; configure and run the local environment.
+- [PostgreSQL Test Isolation](testing/postgres-test-isolation-plan.md) — **current reference**; integration test commands, isolation, and cleanup.
+- [Protocol Contracts](../protocol/README.md) — **current reference**; machine-readable schemas, HTTP contracts, and fixtures.
+
+## Deploy and operate
+
+- [Linux Deployment](deployment-linux.md) — **current reference**; deploy and update on x86-64 Linux.
+- [Raspberry Pi LAN Deployment](deployment-raspberry-pi.md) — **current reference**; deploy prebuilt images for LAN use on Raspberry Pi.
+- [Operations Guide](operations.md) — **current reference**; database backups, migrations, and Geo database operations.
+- [Ingest Key Guide](ingest-key.md) — **current reference**; create, use, and rotate ingest keys.
+- [Versioning and Release Process](versioning-and-release-process.md) — **current reference**; version sources, release steps, and checks.
+- [Prebuilt Image Deployment Plan](deployment-prebuilt-images-plan.md) — **completed record**; implementation and CI publication evidence for multi-architecture images. Real-host acceptance and operational gates remain in Project Status.
+- [Platform v1.0.0 Release Record](platform-release-v1.0.0.md) — **completed record**; published image digests and CI/smoke evidence. Remaining deployment and release gates remain in Project Status.
+
+## Integrate the Browser SDK and use the protocol
+
+- [Event Protocol](event-protocol.md) — **current reference**; event semantics overview. Machine-readable contracts in `protocol/` are authoritative.
+- [Browser SDK Integration Plan](browser-sdk-integration-plan.md) — **active proposal**; SDK integration, compatibility, and release evidence. Open gates remain in Project Status.
+- [Browser SDK Ingestion Contract Audit](browser-sdk-ingestion-contract-audit.md) — **completed record**; contract audit evidence.
+- [Dashboard Chart Design](dashboard-chart-design.md) — **active proposal**; chart design, metric semantics, implementation record, and link to non-blocking QA in Project Status.
+
+## Review architecture decisions
+
+- [Architecture Decision Records](decisions/) — browse the decision collection; each record states its own status.
+- [ADR-021: Navigation API Observer](decisions/ADR-021-navigation-api-as-the-browser-observer.md) — **superseded** by ADR-022.
+- [ADR-022: Navigation API-Only Browser SDK](decisions/ADR-022-navigation-api-only-browser-sdk.md) — **accepted decision**; generic browser observer boundary.
+- [ADR-023: Protocol Version Upgrades Require Explicit Approval](decisions/ADR-023-protocol-version-upgrades-require-explicit-approval.md) — **accepted decision**; protocol version changes require explicit approval.
+- [ADR-024: Simplified SDK and Platform Releases](decisions/ADR-024-simplified-sdk-and-platform-releases.md) — **accepted decision**; its initial version baseline is superseded by ADR-025.
+- [ADR-025: Project Version Baseline 1.0.0](decisions/ADR-025-project-version-baseline-1.0.0.md) — **accepted decision**; current project version baseline.
+- [ADR-026: Multi-Architecture Container Releases](decisions/ADR-026-multi-architecture-container-releases.md) — **accepted decision**; x86-64 Linux and 64-bit ARM image release approach.
+
+## Review active proposals and completed design records
+
+- [Static Product Site Plan](static-product-site-plan.md) — **active proposal**; independent developer-facing product site.
+- [Website Preview and Dashboard Alignment](website-dashboard-preview-alignment-plan.md) — **completed record**; implementation and acceptance evidence.
+- [Traceleaf Brand Unification](traceleaf-brand-unification-plan.md) — **completed record**; logo integration and terminology evidence.
+
+## Browse historical records
+
+- [Development Archive](archive/README.md) — **historical**; completed phase, design, and acceptance records.
+- [Code Refactoring Archive](archive/refactoring/README.md) — **historical**; closed refactoring work and acceptance evidence.

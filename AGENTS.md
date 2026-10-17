@@ -156,6 +156,16 @@ export interface NavigationObserver {
 - 格式化、类型检查、测试和构建必须纳入统一脚本，并与 CI 使用相同命令。
 - 发现架构决策变化时，在 `docs/decisions/` 添加 ADR，而不是只在代码中体现。
 
+## 文档规则
+
+- 新写或实质修改文档前，先核对当前实现、配置、脚本和 `docs/project-status.md`；明确区分已实现、已验证、计划中、暂缓和未验收事项，不把计划写成现状。
+- `docs/project-status.md` 是未完成、计划中、暂缓和发布阻塞事项的唯一清单。其他文档可以保留设计理由、验收证据和历史记录，但不得维护互相独立的当前待办；需要保留详细验收项时，应在项目状态中列出或链接到唯一清单。
+- 根 README 和独立 app、package、service、tool、protocol 的 README 使用互为对应的英文 `README.md` 与简体中文 `README.zh-CN.md`；两种语言都要完整表达相同的能力、要求、命令、端口和限制，不得用占位翻译代替。具体组件范围以[已归档的文档改进计划](docs/archive/documentation-improvement-plan.md)清单为准。
+- 新设计文档、ADR、架构说明和技术规格以英文为规范版本。文档索引提供英文和简体中文版本并互相链接；面向中文操作人员的指南也提供简体中文版。归档记录、生成文件、schema、fixture 和内部 agent 指令不要求批量翻译。
+- 在文档索引中按读者任务组织内容，并给每个设计或计划类链接标注生命周期：current reference、accepted decision、active proposal、completed record、superseded 或 historical。完成、取代或归档文档时同步修正索引和交叉链接；不要只移动文件而丢失权威信息。
+- 文档中的命令、版本、端口、配置项、安全行为和发布状态必须能从当前仓库或明确的验收记录验证。新增 README、指南或计划时链接到相关权威文档，不复制会独立演变的事实或待办清单。
+- 更改范围、决策或验收状态时，同步维护相关协议、README、指南、ADR、文档索引和项目状态；除非用户明确要求，否则不要重写或翻译无关历史文档。
+
 Backend Foundation 阶段 Rust 约定：
 
 - Rust toolchain 固定为 `1.98.1`，由 `rust-toolchain.toml` 管理。

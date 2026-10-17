@@ -2,11 +2,11 @@
 
 ## 状态与目标
 
-- 状态：图表已实施；部分图表与验收项仍待完成
+- 状态：图表已实施；Dashboard 完整产品验收于 2026-10-16 通过。图表专项后续质量检查是非发布阻塞事项，唯一待办见 [项目状态](project-status.md#dashboard-chart-qa)。
 - 日期：2026-10-14
 - 目标：为现有 Analytics Dashboard 增加能帮助识别趋势、比较排行和理解构成的图表，同时保留精确数据表和现有报表状态处理。
 
-本文记录图表设计、实现状态和剩余验收项。图表复用 Analytics API 数据；Conversions 保留受 limit 约束的明细 `items`，并使用 `chart_items` 提供完整的逐日绘图序列。Custom Events 排行图待 API 契约另行支持。未完成的响应式和辅助技术检查仍明确列为待办。
+本文记录图表设计、实现状态和指标语义。图表复用 Analytics API 数据；Conversions 保留受 limit 约束的明细 `items`，并使用 `chart_items` 提供完整的逐日绘图序列。Custom Events 排行图依赖 API 契约支持完整区间聚合，当前暂缓且不纳入已批准的图表专项质量检查。后续图表检查集中维护在项目状态，不作为发布门槛。
 
 ## 当前基线
 
@@ -110,7 +110,7 @@ Dashboard 已有 Overview、Pages、Visitors、Sessions、Dimensions、Custom Ev
 - [x] 为 Overview Timeline 增加图表卡片，按 UTC 日期展示 Page Views。
 - [x] 确保 Overview 的图表与汇总卡片使用相同 site/date/environment 上下文。
 - [x] 增加图表数据适配单元测试，覆盖 API 顺序、空数组、零值、日期展示和精确值。
-- [ ] 为空数据、API 禁用、不可用、网络错误和加载状态增加 UI 验证。
+- 空数据、禁用、不可用、错误和加载状态的后续专项检查见[项目状态](project-status.md#dashboard-chart-qa)。
 - [x] 提供无需 hover 的可读每日数据表或等价数据摘要。
 
 ### C. Visitors 与 Sessions 趋势
@@ -129,30 +129,19 @@ Dashboard 已有 Overview、Pages、Visitors、Sessions、Dimensions、Custom Ev
 
 ### E. Custom Events、Web Vitals、Conversions、Funnels
 
-- [ ] 暂不增加 Custom Events 区间排行榜；现有 API 逐日明细有行数限制，完整聚合需先扩展 API 契约并单独验收。
+- Custom Events 区间排行榜暂缓；现有 API 逐日明细有行数限制，完整聚合需先扩展 API 契约。此能力不属于图表专项质量验收范围。
 - [x] Web Vitals 按 LCP、INP、CLS、FCP、TTFB 分组展示评级计数堆叠条和可用 p75 条形图；CLS 不显示毫秒单位，不足样本不绘制 p75。
 - [x] Web Vitals p75 Good 与 Needs improvement 参考线使用 `@web-analytics/protocol-ts` 的共享评级阈值。
 - [x] Conversions 按 definition 显示每日转化率，并在 tooltip 同时展示分子和分母。
 - [x] Funnels 按 definition 与 cohort 日期分组，以离散步骤条形图显示 API 返回的 sessions；tooltip 展示 sessions 和原始 conversion rate，缺失步骤不插补，标签使用 definition 步骤名称或步骤编号回退。
-- [ ] 对低样本、不足数据、零分母、缺失 definition 和 definition version 变化的验收，见下方“后续统一验收清单”。
+- 低样本、不足数据、零分母、缺失 definition 和 definition version 变化的后续检查见[项目状态](project-status.md#dashboard-chart-qa)。
 
 ### F. 质量与验收
 
 - [x] 为本批趋势图和 Pages Top 10 增加组件测试，覆盖指标字段、API 顺序、零值与 Top 10 截取。
 - [x] 为 Dimensions 与 Countries 增加图表测试，覆盖指标字段、API 顺序、零值、Top 10、Unknown 规则与完整表格。
 - [x] Web Vitals 报表测试覆盖有数据、无数据、错误、禁用、不可用与非 current freshness，并保留表格精确数值。
-- [ ] 剩余状态、视觉、辅助技术和端到端验收统一记录在下方“后续统一验收清单”。
+- 剩余状态、视觉、辅助技术和端到端质量检查集中记录于[项目状态](project-status.md#dashboard-chart-qa)。
 - [x] 更新 Dashboard 图表设计文档和本设计 checklist 的实现状态。
 
-## 后续统一验收清单
-
-以下清单合并本轮及此前图表 review 中仍未完成的同类验收项，作为后续完成工作的唯一待办列表。已经修复的图表角色、Conversion 系列键冲突、Conversion/Funnel 请求上限和串行定义加载不列为待办。
-
-- [ ] **状态与边界数据：** 为各报表验证有数据、空数据、错误、禁用/不可用及 freshness 非 current 状态；重点覆盖 Conversion/Funnel 的零分母、低样本、稀疏 Funnel 步骤、缺失 definition 和 definition version 不匹配。
-- [ ] **响应式与可读性：** 在桌面和窄屏检查图表宽高、轴标签截断、长类别名、tooltip、图例、卡片溢出及 Web Vitals 多 route 高度。
-- [ ] **辅助技术：** 用键盘和屏幕阅读器验证图表组名称、Recharts 键盘交互及焦点顺序；确认所有图表的精确值不依赖 hover，系列区分不只依赖颜色。
-- [ ] **颜色对比：** 在实际图表背景上检查固定主题色和 Conversion 动态色；当前已加深第三主题色和动态色，但尚未完成全图表视觉验收。
-- [ ] **数据一致性与 E2E：** 使用真实 Analytics API 响应验证图表、表格的日期/筛选上下文和指标值一致，并覆盖 Conversion/Funnel definition/cohort 标签。
-- [ ] **项目验证：** 运行 Dashboard 格式检查、lint、类型检查、相关测试、Dashboard E2E 和项目统一脚本中的适用检查；根据结果更新本清单。
-
-Custom Events 区间排行榜依赖 API 提供完整区间聚合，属于单独的 API 能力待办；在此之前保留逐日表格，不从可能截断的明细推导排行榜。
+图表专项质量检查的范围与状态由[项目状态](project-status.md#dashboard-chart-qa)维护。Custom Events 区间排行榜需要 API 提供完整区间聚合，在契约扩展前继续保留逐日表格，不从可能截断的明细推导排行榜。

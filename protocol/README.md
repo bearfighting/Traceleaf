@@ -1,5 +1,7 @@
 # Protocol and Contract Layout
 
+[简体中文](README.zh-CN.md) | [Project overview](../README.md)
+
 This directory is organized by stable contract meaning and version, not by
 the project phase in which a contract was introduced.
 
