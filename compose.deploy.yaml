@@ -1,3 +1,5 @@
+name: ${TRACELEAF_COMPOSE_PROJECT_NAME:?Set TRACELEAF_COMPOSE_PROJECT_NAME in .env.deploy}
+
 services:
   # All application images share the platform tag so services deploy as one release.
   # Namespace and tag are intentionally required to prevent accidental floating tags.

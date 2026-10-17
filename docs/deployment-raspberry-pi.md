@@ -19,7 +19,7 @@ In the deployment directory, copy the supplied environment template and edit it:
 cp .env.deploy.example .env.deploy
 ```
 
-Set `DEPLOYMENT_HOST_IP` to the Pi's reserved LAN address, `TRACELEAF_IMAGE_NAMESPACE` to the lowercase GitHub owner, and `TRACELEAF_IMAGE_TAG` to an accepted release such as `v1.0.0`. Generate a PostgreSQL password containing only URL-safe characters; it is interpolated into the internal database URL. For example:
+Set `DEPLOYMENT_HOST_IP` to the Pi's reserved LAN address, `TRACELEAF_COMPOSE_PROJECT_NAME` to a stable Compose project name (the template uses `traceleaf` for new deployments), `TRACELEAF_IMAGE_NAMESPACE` to the lowercase GitHub owner, and `TRACELEAF_IMAGE_TAG` to an accepted release such as `v1.0.1`. Keep the Compose project name unchanged across upgrades so Compose reuses the existing containers and PostgreSQL volume. For an existing deployment, set it to that deployment's current Compose project name. Generate a PostgreSQL password containing only URL-safe characters; it is interpolated into the internal database URL. For example:
 
 ```bash
 openssl rand -hex 24
@@ -65,7 +65,7 @@ The development seed and Playground are not part of this deployment and must not
 
 - `pnpm deploy:pull` downloads the selected release images.
 - `pnpm deploy:up` pulls images and starts/recreates services in the background. The migration job runs before dependent services start.
-- On a deployment host without the repository or pnpm, run `docker compose --project-name traceleaf --env-file .env.deploy --file compose.deploy.yaml pull`, then the same command with `up -d`.
+- On a deployment host without the repository or pnpm, run `docker compose --env-file .env.deploy --file compose.deploy.yaml pull`, then the same command with `up -d`. The Compose project name is required in `.env.deploy`; the template sets it to `traceleaf` for new deployments.
 - `pnpm deploy:ps` shows service health and state.
 - `pnpm deploy:logs` follows service logs; use `Ctrl-C` to stop following logs.
 - `pnpm deploy:down` stops containers but preserves `postgres_data_v18`.

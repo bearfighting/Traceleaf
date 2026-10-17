@@ -59,11 +59,11 @@
     "format:check:docs": "bash ./tooling/ci/format-docs-check.sh",
     "dev:up": "node ./tooling/dev/dev-compose.mjs full",
     "dev:down": "docker compose -f compose.yaml -f compose.dev.yaml down",
-    "deploy:pull": "docker compose -p traceleaf --env-file .env.deploy -f compose.deploy.yaml pull",
-    "deploy:up": "docker compose -p traceleaf --env-file .env.deploy -f compose.deploy.yaml pull && docker compose -p traceleaf --env-file .env.deploy -f compose.deploy.yaml up -d",
-    "deploy:down": "docker compose -p traceleaf --env-file .env.deploy -f compose.deploy.yaml down",
-    "deploy:ps": "docker compose -p traceleaf --env-file .env.deploy -f compose.deploy.yaml ps",
-    "deploy:logs": "docker compose -p traceleaf --env-file .env.deploy -f compose.deploy.yaml logs -f"
+    "deploy:pull": "docker compose --env-file .env.deploy -f compose.deploy.yaml pull",
+    "deploy:up": "docker compose --env-file .env.deploy -f compose.deploy.yaml pull && docker compose --env-file .env.deploy -f compose.deploy.yaml up -d",
+    "deploy:down": "docker compose --env-file .env.deploy -f compose.deploy.yaml down",
+    "deploy:ps": "docker compose --env-file .env.deploy -f compose.deploy.yaml ps",
+    "deploy:logs": "docker compose --env-file .env.deploy -f compose.deploy.yaml logs -f"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

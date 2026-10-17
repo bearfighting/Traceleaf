@@ -32,6 +32,7 @@ const temporaryDirectory = mkdtempSync(join(tmpdir(), "m2-configuration-types-")
 
 // json-schema-to-typescript emits {} for this schema; TS {} also admits non-object values.
 function refineEmptySettings(schema, generated) {
+  generated = generated.replace(/^\/\* eslint-disable \*\/\r?\n/, "");
   const settingsSchema = Object.values(schema.$defs ?? {})
     .map((definition) => definition.properties?.settings)
     .find(
