@@ -112,7 +112,7 @@ pub enum CliError {
 }
 
 #[derive(Debug, Parser)]
-#[command(name = "collector", version, about = "Web Analytics event collector")]
+#[command(name = "collector", version, about = "Traceleaf event collector")]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
@@ -153,7 +153,18 @@ pub struct ServeArgs {
 #[cfg(test)]
 mod tests {
     use super::{Cli, Commands};
-    use clap::Parser;
+    use clap::{CommandFactory, Parser};
+
+    #[test]
+    fn command_description_uses_traceleaf_brand() {
+        assert_eq!(
+            Cli::command()
+                .get_about()
+                .expect("command description")
+                .to_string(),
+            "Traceleaf event collector"
+        );
+    }
 
     #[test]
     fn serve_uses_default_host_and_port() {

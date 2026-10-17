@@ -23,7 +23,10 @@ describe("DashboardShell", () => {
       </DashboardShell>,
     );
 
-    expect(markup).toContain("Web Analytics");
+    expect(markup).toContain('aria-label="Traceleaf Dashboard home"');
+    expect(markup).toContain("traceleaf");
+    expect(markup).toContain('src="/traceleaf-symbol.svg"');
+    expect(markup).not.toContain("Web Analytics");
     expect(markup).toContain('aria-label="Primary navigation"');
     expect(markup).toContain('href="/dashboard/sites/new"');
     expect(markup).toContain("Add a Site");

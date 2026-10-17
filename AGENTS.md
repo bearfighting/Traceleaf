@@ -1,4 +1,4 @@
-# Web Analytics Platform — Agent Guide
+# Traceleaf 项目协作指南
 
 ## 项目目标
 

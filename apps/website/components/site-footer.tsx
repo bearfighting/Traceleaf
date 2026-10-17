@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import type { Copy, Locale } from "@/lib/content";
@@ -9,8 +10,20 @@ export function SiteFooter({ locale, copy }: { locale: Locale; copy: Copy }) {
     <footer className="border-t border-border bg-surface-subtle">
       <div className="page-width footer-grid grid gap-10 py-12 sm:items-end">
         <div className="max-w-md">
-          <Link className="text-lg font-semibold tracking-tight" href={base || "/"}>
-            Traceleaf
+          <Link
+            aria-label={locale === "en" ? "Traceleaf home" : "Traceleaf 首页"}
+            className="inline-flex items-center gap-2.5 text-lg font-semibold tracking-tight"
+            href={base || "/"}
+          >
+            <Image
+              alt=""
+              aria-hidden="true"
+              className="size-8"
+              height="64"
+              src="/traceleaf-symbol.svg"
+              width="64"
+            />
+            <span>traceleaf</span>
           </Link>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">{copy.footerLine}</p>
         </div>

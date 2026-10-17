@@ -7,7 +7,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Next.js Router Playground",
-  description: "A minimal Next.js App Router test target for Web Analytics Platform",
+  description: "A minimal Next.js App Router test target for Traceleaf navigation behavior.",
 };
 
 export default function RootLayout({

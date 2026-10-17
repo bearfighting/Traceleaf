@@ -18,19 +18,11 @@
   }
 
   .brand-mark {
-    @apply grid size-10 shrink-0 place-items-center rounded-xl bg-brand text-base font-bold text-white shadow-sm;
-  }
-
-  .brand-copy {
-    @apply grid gap-0.5;
+    @apply size-10 shrink-0;
   }
 
   .brand-name {
-    @apply text-sm font-bold tracking-tight text-ink;
-  }
-
-  .brand-tagline {
-    @apply text-xs text-muted;
+    @apply text-lg font-semibold tracking-tight text-ink;
   }
 
   .dashboard-container {
@@ -197,5 +189,4 @@
   .skeleton-form-line-short {
     width: 66%;
   }
-
 }

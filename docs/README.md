@@ -13,6 +13,7 @@
 - [Browser SDK 对外接入与发布计划](browser-sdk-integration-plan.md)：通用 Navigation API SDK 的对外接入、兼容和发布计划。
 - [Dashboard 图表设计](dashboard-chart-design.md)：Analytics 指标图表的实现状态、数据语义和剩余验收项。
 - [Website 产品预览与 Dashboard 一致性改进计划](website-dashboard-preview-alignment-plan.md)：让展示网站中的产品预览在指标内容、图表表达和视觉风格上与 Dashboard 对齐。
+- [Traceleaf 品牌统一与 Logo 接入方案](traceleaf-brand-unification-plan.md)：记录 Logo 来源、品牌用语规则、应用接入和验收结果。
 - [静态产品展示站规划](static-product-site-plan.md)：面向开发者的独立静态站点、产品演示、快速开始与 Updates 规划（提案，实施前需确认范围）。
 - [ADR-022: 通用 Navigation API observer](decisions/ADR-022-navigation-api-only-browser-sdk.md)：使用单一浏览器级 observer 并移除 Router 专用集成。
 - [ADR-026: 多架构平台容器镜像发布](decisions/ADR-026-multi-architecture-container-releases.md)：统一发布 x86-64 Linux 与 64-bit ARM 平台镜像，并通过 GHCR 部署。

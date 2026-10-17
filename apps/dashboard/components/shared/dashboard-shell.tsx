@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import React from "react";
 
@@ -87,17 +88,19 @@ export function DashboardHeader({
     <header className="dashboard-topbar">
       <div className="dashboard-container dashboard-topbar-inner">
         <Link
-          aria-label="Web Analytics home"
+          aria-label="Traceleaf Dashboard home"
           className="brand-link"
           href={analyticsHref ?? "/dashboard"}
         >
-          <span aria-hidden="true" className="brand-mark">
-            W
-          </span>
-          <span className="brand-copy">
-            <span className="brand-name">Web Analytics</span>
-            <span className="brand-tagline">Platform</span>
-          </span>
+          <Image
+            alt=""
+            aria-hidden="true"
+            className="brand-mark"
+            height="64"
+            src="/traceleaf-symbol.svg"
+            width="64"
+          />
+          <span className="brand-name">traceleaf</span>
         </Link>
         <nav aria-label="Primary navigation" className="dashboard-nav">
           <Link

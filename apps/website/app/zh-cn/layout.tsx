@@ -6,7 +6,7 @@ export const metadata: Metadata = {
     default: "Traceleaf — 自托管网站分析",
     template: "%s | Traceleaf",
   },
-  description: "面向希望掌控数据与基础设施的开发者的自托管网站分析平台。",
+  description: "面向开发者的自托管网站分析，让数据和基础设施保持在自己的掌控之中。",
 };
 
 export default function SimplifiedChineseLayout({ children }: Readonly<{ children: ReactNode }>) {
