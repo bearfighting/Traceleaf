@@ -19,10 +19,7 @@ test("ignores links and headings inside fenced and inline code", () => {
   assert.deepEqual(headings(markdown), [1]);
   assert.deepEqual(links(markdown), ["guide.md"]);
   assert.equal(stripCode(markdown).includes("Hidden"), false);
-  assert.deepEqual(
-    commandSignatures("   ```sh\n   pnpm test\n   ````"),
-    ["pnpm test"],
-  );
+  assert.deepEqual(commandSignatures("   ```sh\n   pnpm test\n   ````"), ["pnpm test"]);
   assert.equal(anchors("## Inline ``code `ticks` title``").has("inline-code-ticks-title"), true);
 });
 
@@ -97,10 +94,9 @@ test("compares command arguments and filtered workspace commands", () => {
     commandSignatures('```sh\npg_restore --list "$BACKUP_FILE"\n```'),
   );
   assert.deepEqual(commandSignatures("```ts\nexport type Event = string\n```"), []);
-  assert.deepEqual(
-    commandSignatures("```sh\nexport DATABASE_URL=postgres://localhost/test\n```"),
-    ["export DATABASE_URL=postgres://localhost/test"],
-  );
+  assert.deepEqual(commandSignatures("```sh\nexport DATABASE_URL=postgres://localhost/test\n```"), [
+    "export DATABASE_URL=postgres://localhost/test",
+  ]);
   assert.notDeepEqual(
     commandSignatures("```sh\npnpm db:migrate\npnpm test\n```"),
     commandSignatures("```sh\npnpm test\npnpm db:migrate\n```"),
@@ -114,7 +110,10 @@ test("compares command arguments and filtered workspace commands", () => {
     commandSignatures("`pnpm --filter @traceleaf/browser build`"),
     commandSignatures("`pnpm --recursive --filter @traceleaf/browser build`"),
   );
-  assert.notDeepEqual(commandSignatures("`build --mode=development`"), commandSignatures("`build --mode=production`"));
+  assert.notDeepEqual(
+    commandSignatures("`build --mode=development`"),
+    commandSignatures("`build --mode=production`"),
+  );
   assert.notDeepEqual(
     commandSignatures('```sh\npnpm run report --label "batch # one"\n```'),
     commandSignatures('```sh\npnpm run report --label "batch # two"\n```'),

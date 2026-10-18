@@ -193,8 +193,10 @@ export function headings(markdown) {
   return [...stripCode(markdown).matchAll(/^(#{1,6})\s+(.+?)\s*#*\s*$/gm)].map((m) => m[1].length);
 }
 function commandLines(markdown) {
-  return parseFencedCode(markdown).blocks
-    .filter(({ info }) => ["sh", "shell", "bash", "zsh", "console", "shellsession", "terminal"].includes(info))
+  return parseFencedCode(markdown)
+    .blocks.filter(({ info }) =>
+      ["sh", "shell", "bash", "zsh", "console", "shellsession", "terminal"].includes(info),
+    )
     .flatMap(({ content }) => {
       const logicalLines = [];
       for (const rawLine of content.split("\n")) {
